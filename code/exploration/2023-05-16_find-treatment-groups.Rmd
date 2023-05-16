@@ -1,0 +1,160 @@
+---
+title: "Find treatment groups"
+author: '`r Sys.getenv("USER")`'
+date: '`r format(Sys.time(), "%d %B, %Y")`' 
+always_allow_html: true
+output: 
+  github_document:
+    keep_html: true
+---
+	
+```{r setup, include = FALSE}
+file_name <- rstudioapi::getSourceEditorContext()$path
+
+knitr::opts_chunk$set(
+  fig.path =
+    paste0("figures/", sub("\\.Rmd$", "", basename(file_name)), "/", sep = "")
+)
+
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
+```
+
+We need to identify treatment and control groups from the Swedish NFI data. 
+For example, thinned vs non-thinned stands. 
+Ideally identify stands with similar management histories/thinning histories,
+but vary in whether they have been recently thinned at a particular stage.
+
+The [Swedish NFI handbook](https://www.slu.se/globalassets/ew/org/centrb/rt/dokument/faltinst/nfi_fieldwork_instructions_eng.pdf) 
+has details about how the data was collected.
+
+```{r packages, message=FALSE, warning=FALSE}
+library("tidyverse")
+library("here")
+```
+
+```{r message=FALSE}
+read_delim(here::here("data", "raw", "nfi_plots_sp.txt")) -> plot_data
+
+read_delim(here::here("data", "raw", "nfi_f_mactions.txt")) -> management_data
+
+read_delim(here::here("data", "raw", "nfi_climat.txt")) -> climate_data
+```
+
+## Check what the different IDs mean
+
+Tord has told us that `UniqueID` is the unique id for each plot x year sampling event.
+`PlotNr` looks like it could be a unique plot id. 
+We can check this by seeing if there are approx 3 years per plot 
+(each plot should have been sampled approximatley 3 times).
+
+```{r}
+plot_data %>% 
+  summarise(n_years = n_distinct(Year), .by = "PlotNr")
+
+```
+
+Ok, there are 29 or 28 entries per PlotNr so that can't be a unique plot ID, 
+let's try `ID`
+
+```{r}
+plot_data %>% 
+  summarise(n_years = n_distinct(Year), .by = "ID")
+
+```
+
+Yep, that looks better. 3 years per ID. Maybe we could use years to split the data up into test and train.
+
+Let's check that we only have 1 year for each of the `uniqueID` values.
+
+```{r}
+plot_data %>% 
+  summarise(n_years = n_distinct(Year), .by = "uniqueID")
+
+```
+
+Sweet, all good!
+
+## Only look at similar plots
+
+We want our control and treatment groups to be as similar as possible except in what the treatment actually is. I might just go really broad for now and use 'land classes' to pick plots that are relatively similar.
+
+International land use classes:
+
+1. Forest
+2. Other wooded land
+3. Bare impediment
+
+We know we want permanent plots rather than temporary ones so we have multiple years of data - lets filter for that too.
+
+```{r}
+# filter data for only land class 1 and permanent plots
+
+plot_data %>% 
+  summarise(n_years = n_distinct(Year), .by = "ID") %>% 
+  filter(n_years == 3) -> permanent_plots
+
+plot_data %>% 
+  filter(InternationalCodeLandUse == 1 & ID %in% permanent_plots$ID) %>% 
+  rename(UniqueID = uniqueID) -> filtered_plots
+```
+
+
+```{r}
+# join with management data
+
+management_data %>% 
+  mutate(UniqueID = gsub("}", "", UniqueID)) %>% 
+  mutate(UniqueID = gsub("\\{", "", UniqueID), fixed = TRUE) %>% 
+  inner_join(filtered_plots) -> plt_man_data
+
+```
+
+## Thinning
+
+All management actions performed within the last 25 years are registered.
+
+Let's try to group plots into thinned and non-thinned.
+
+```{r}
+as.list(20:23) -> thinning
+as.list(10:13) -> felling
+as.list(30:33) -> cleaning
+as.list(40, 43:46) -> fell_other
+
+as.list(20:23, 10:13, 30:33, 40, 43:46) -> all_thin
+
+```
+
+If thinning is recorded for a plot at any time point I'm classing it as thinned.
+
+```{r}
+plt_man_data %>% 
+  group_by(ID, CodeAction) %>% 
+  summarise(.groups = "drop") %>% 
+  filter(CodeAction %in% all_thin) -> thin_plots
+
+
+plt_man_data %>% 
+  group_by(ID, CodeAction) %>% 
+  summarise(.groups = "drop") %>% 
+  filter(!CodeAction %in% all_thin) -> no_thin_plots
+  
+plt_man_data %>% 
+  mutate(thinned = case_when(
+    ID %in% thin_plots$ID ~ TRUE,
+    ID %in% no_thin_plots$ID ~ FALSE,
+    .default = NA)) -> thin_no_thin
+```
+
+There are `r n_distinct(thin_plots$ID)` thinned plots and `r n_distinct(no_thin_plots$ID)` plots which have not been thinned.
+
+Plot to compare Vaccinium myrtillus cover in plots with and without thinning across all years.
+
+```{r}
+thin_no_thin %>% 
+  distinct(ID, Year, `Cover_Vaccinium myrtillus`, thinned) %>% 
+  ggplot(aes(x = `Cover_Vaccinium myrtillus`, colour = thinned, fill = thinned)) +
+  geom_density(alpha = 0.3)
+```
+
+Cover of Vaccinium myrtillus is similar in thinned and non thinned plots, maybe the median a bit higher in non-thinned?
