@@ -1,7 +1,7 @@
 Find treatment groups
 ================
 eleanorjackson
-16 May, 2023
+17 May, 2023
 
 We need to identify treatment and control groups from the Swedish NFI
 data. For example, thinned vs non-thinned stands. Ideally identify
@@ -55,8 +55,8 @@ plot_data %>%
     ## 13    103      28
     ## 14    303      28
 
-Ok, there are 29 or 28 entries per PlotNr so that can’t be a unique plot
-ID, let’s try `ID`
+Ok, there are 29 or 28 entries per `PlotNr` so that can’t be a unique
+plot ID, let’s try `ID`
 
 ``` r
 plot_data %>% 
@@ -78,7 +78,7 @@ plot_data %>%
     ## 10 8.32e16       3
     ## # ℹ 2,926 more rows
 
-Yep, that looks better. 3 years per ID. Maybe we could use years to
+Yep, that looks better. 3 years per `ID`. Maybe we could use years to
 split the data up into test and train.
 
 Let’s check that we only have 1 year for each of the `uniqueID` values.
@@ -105,7 +105,7 @@ plot_data %>%
 
 Sweet, all good!
 
-## Only look at similar plots
+## Compare plots with similar management histories
 
 We want our control and treatment groups to be as similar as possible
 except in what the treatment actually is. I might just go really broad
@@ -118,85 +118,206 @@ International land use classes:
 2.  Other wooded land
 3.  Bare impediment
 
-We know we want permanent plots rather than temporary ones so we have
-multiple years of data - lets filter for that too.
+For snapshot sampling we can use the first year from the permanent plots
+and all of the temporary plots (which are only sampled once). Lets
+filter for that too.
 
 ``` r
-# filter data for only land class 1 and permanent plots
-
+# filter data for only land class 1 and 1st year of data
 plot_data %>% 
-  summarise(n_years = n_distinct(Year), .by = "ID") %>% 
-  filter(n_years == 3) -> permanent_plots
-
-plot_data %>% 
-  filter(InternationalCodeLandUse == 1 & ID %in% permanent_plots$ID) %>% 
+  filter(InternationalCodeLandUse == 1) %>% 
+  group_by(ID) %>% 
+  slice_min(Year) %>%
+  ungroup() %>% 
   rename(UniqueID = uniqueID) -> filtered_plots
 ```
 
-``` r
-# join with management data
+We need to find plots with similar management histories. Let’s bring in
+the management data.
 
+``` r
+# filter management data for only 1st survey year
+# and join to plot data by the plot x yr variable
 management_data %>% 
+  group_by(ID) %>% 
+  slice_min(Year) %>%
+  ungroup() %>%
   mutate(UniqueID = gsub("}", "", UniqueID)) %>% 
-  mutate(UniqueID = gsub("\\{", "", UniqueID), fixed = TRUE) %>% 
-  inner_join(filtered_plots) -> plt_man_data
+  mutate(UniqueID = gsub("\\{", "", UniqueID)) %>% 
+  left_join(filtered_plots) -> plt_man_data
 ```
 
     ## Joining with `by = join_by(UniqueID, ID, Year, Trakt)`
 
-## Thinning
+Ok, so the `TimeAction` variable gives us information about when the
+management action happened. It’s in an awkward format so let’s fix that.
 
-All management actions performed within the last 25 years are
-registered.
+``` r
+plt_man_data %>% 
+  mutate(TimeAction = str_remove(TimeAction, "\xc5r/s\xe4song ")) %>%
+  mutate(MedYrAgo = case_when(TimeAction == "0" ~ 0,
+                              TimeAction == "1" ~ 1,
+                              TimeAction == "2" ~ 2,
+                              TimeAction == "3-5" ~ 4,
+                              TimeAction == "6-10" ~ 8,
+                              TimeAction == "11-25" ~ 18,
+                              TimeAction == "26+" ~ 26)) -> man_data_time
+```
+
+There might be common patterns of management, e.g. they might often do
+some sapling clearing in the first year followed by thinning in the 10th
+year.
+
+If we order the actions by when they happened for each plot (using the
+`MedYrAgo` variable we created above), and concatenate into one column
+we can look for common patterns.
+
+``` r
+man_data_time %>% 
+  group_by(ID) %>% 
+  arrange(MedYrAgo, .by_group = TRUE) %>%
+  summarise(CodeAction = str_c(CodeAction, collapse = ", "), 
+            .groups = "drop") ->  man_hists
+
+man_hists %>%   
+  summarise(n = n(), .by = CodeAction) %>% 
+  arrange(-n) 
+```
+
+    ## # A tibble: 1,065 × 2
+    ##    CodeAction     n
+    ##    <chr>      <int>
+    ##  1 22           325
+    ##  2 <NA>         271
+    ##  3 43           180
+    ##  4 31           164
+    ##  5 21           126
+    ##  6 22, 22        78
+    ##  7 11            76
+    ##  8 33            44
+    ##  9 31, 22        36
+    ## 10 43, 22        33
+    ## # ℹ 1,055 more rows
+
+We’re looking for plots with a similar history but differences in their
+more recent management. 22 seems quite common and I can see some
+patterns of 22 followed by: 22 again (78 plots), 43 (24 plots), 21 (21
+plots) and 31 (20 plots). 31 and 43 could be good candidates too.
+
+``` r
+filtered_plots %>% 
+  inner_join(man_hists) %>% 
+  filter(grepl("^22", CodeAction)) %>% 
+  filter(CodeAction == "22" |
+           CodeAction == "22, 22" |
+           CodeAction == "22, 43" |
+           CodeAction == "22, 21" |
+           CodeAction == "22, 31") %>% 
+  ggplot(aes(x = `Cover_Vaccinium myrtillus`, colour = CodeAction, fill = CodeAction)) +
+  geom_density(alpha = 0.3)
+```
+
+    ## Joining with `by = join_by(ID)`
+
+    ## Warning: Removed 124 rows containing non-finite values (`stat_density()`).
+
+![](figures/2023-05-16_find-treatment-groups/unnamed-chunk-9-1.png)<!-- -->
+
+Let’s make a plotting function and try this out for a few different
+variables.
+
+``` r
+plot_man_hist <- function(data, plot_var) {
+  data %>% 
+  filter(grepl("^22", CodeAction)) %>% 
+  filter(CodeAction == "22" |
+           CodeAction == "22, 22" |
+           CodeAction == "22, 43" |
+           CodeAction == "22, 21" |
+           CodeAction == "22, 31") -> filtered_dat 
+  ggplot(filtered_dat, aes(x = .data[[plot_var]], colour = CodeAction, fill = CodeAction)) +
+  geom_density(alpha = 0.3)
+}
+
+filtered_plots %>% 
+  inner_join(man_hists) -> plots_hist_data
+```
+
+    ## Joining with `by = join_by(ID)`
+
+``` r
+var_list <- list("StandAge", "CanopyCover", "PineVol", "LarchVol")
+
+plot_list <- lapply(var_list, plot_man_hist, data = plots_hist_data)
+
+patchwork::wrap_plots(plot_list)
+```
+
+    ## Warning: Removed 847 rows containing non-finite values (`stat_density()`).
+
+    ## Warning: Groups with fewer than two data points have been dropped.
+
+    ## Warning in max(ids, na.rm = TRUE): no non-missing arguments to max; returning
+    ## -Inf
+
+![](figures/2023-05-16_find-treatment-groups/unnamed-chunk-10-1.png)<!-- -->
+
+## Compare 22 (“other thinning”) to non-thinned plots
 
 Let’s try to group plots into thinned and non-thinned.
 
 ``` r
-as.list(20:23) -> thinning
-as.list(10:13) -> felling
-as.list(30:33) -> cleaning
-as.list(40, 43:46) -> fell_other
+paste0(c(20:23, 10:13, 30:33, 40, 43:46)) %>% 
+  str_c(collapse = "|") -> all_thin
 
-as.list(20:23, 10:13, 30:33, 40, 43:46) -> all_thin
+# get list of plots that have the 22 management action and no others
+man_hists %>% 
+  filter(CodeAction == "22") %>%  
+  pull(ID) -> plots_22
 ```
 
 If thinning is recorded for a plot at any time point I’m classing it as
 thinned.
 
 ``` r
-plt_man_data %>% 
-  group_by(ID, CodeAction) %>% 
-  summarise(.groups = "drop") %>% 
-  filter(CodeAction %in% all_thin) -> thin_plots
+filtered_plots %>% 
+  filter(ID %in% plots_22) -> thin_plots_22
 
-
-plt_man_data %>% 
-  group_by(ID, CodeAction) %>% 
-  summarise(.groups = "drop") %>% 
-  filter(!CodeAction %in% all_thin) -> no_thin_plots
+man_hists %>% 
+  filter(
+      str_detect(CodeAction, all_thin, negate = TRUE)
+  ) -> no_thin_plots
   
-plt_man_data %>% 
+filtered_plots %>% 
   mutate(thinned = case_when(
-    ID %in% thin_plots$ID ~ TRUE,
+    ID %in% plots_22 ~ TRUE,
     ID %in% no_thin_plots$ID ~ FALSE,
-    .default = NA)) -> thin_no_thin
+    .default = NA)) %>% 
+  drop_na(thinned) -> thin_no_thin
 ```
 
-There are 1752 thinned plots and 2205 plots which have not been thinned.
+I’m assuming that NAs mean we don’t have management data for these plots
+rather than not having any management happen to them. I think that’s
+right… Have dropped them here but it takes nrows down from 6,730 to 587.
+That’s a lot of missing data!?
 
-Plot to compare Vaccinium myrtillus cover in plots with and without
-thinning across all years.
+There are 290 thinned plots (action 22 only) and 50 plots which have not
+been thinned at all.
+
+Compare a few variables in plots with and without thinning.
 
 ``` r
-thin_no_thin %>% 
-  distinct(ID, Year, `Cover_Vaccinium myrtillus`, thinned) %>% 
-  ggplot(aes(x = `Cover_Vaccinium myrtillus`, colour = thinned, fill = thinned)) +
+plot_man_thin <- function(data, plot_var) {
+  thin_no_thin %>% 
+  ggplot(aes(x = .data[[plot_var]], colour = thinned, fill = thinned)) +
   geom_density(alpha = 0.3)
+}
+
+plot_list <- lapply(var_list, plot_man_thin, data = thin_no_thin)
+
+patchwork::wrap_plots(plot_list)
 ```
 
-    ## Warning: Removed 1347 rows containing non-finite values (`stat_density()`).
+    ## Warning: Removed 566 rows containing non-finite values (`stat_density()`).
 
-![](figures/2023-05-16_find-treatment-groups/unnamed-chunk-9-1.png)<!-- -->
-
-Cover of Vaccinium myrtillus is similar in thinned and non thinned
-plots, maybe the median a bit higher in non-thinned?
+![](figures/2023-05-16_find-treatment-groups/unnamed-chunk-13-1.png)<!-- -->
