@@ -183,12 +183,13 @@ plot_man_hist <- function(data, plot_var) {
 filtered_plots %>% 
   inner_join(man_hists) -> plots_hist_data
 
-var_list <- list("StandAge", "CanopyCover", "PineVol", "LarchVol")
+var_list <- list("StandAge", "CanopyCover", "PineVol", "AspenVol",
+                 "NorwaySpruceVol", "BirchVol")
 
 plot_list <- lapply(var_list, plot_man_hist, data = plots_hist_data)
 
-patchwork::wrap_plots(plot_list)
-
+patchwork::wrap_plots(plot_list) + 
+  patchwork::plot_layout(ncol = 2)
 
 ```
 
@@ -242,9 +243,49 @@ plot_man_thin <- function(data, plot_var) {
   geom_density(alpha = 0.3)
 }
 
-plot_list <- lapply(var_list, plot_man_thin, data = thin_no_thin)
+var_list_2 <- list("StandAge", "StandHeight", "CanopyCover", "PineVol", 
+                 "NorwaySpruceVol", "BirchVol", "Cover_Vaccinium vitis-idaea", 
+                 "Cover_Vaccinium myrtillus")
 
-patchwork::wrap_plots(plot_list)
+plot_list_2 <- lapply(var_list_2, plot_man_thin, data = thin_no_thin)
+
+patchwork::wrap_plots(plot_list_2) + 
+  patchwork::plot_layout(guides = 'collect')
 
 ```
 
+## Climate data
+
+Climate data is by month so I'll take an average temp and precipitation per plot per year.
+
+```{r}
+climate_data %>% 
+  group_by(ID, year) %>% 
+  summarise(avg_temp = mean(Temperature),
+            avg_precip = mean(Precipitation)) %>% 
+  ungroup() %>% 
+  rename(Year = year) %>% 
+  inner_join(thin_no_thin, by = c("ID", "Year")) -> thin_no_thin_cl
+```
+
+First looking at temperature
+
+```{r}
+ggplot(thin_no_thin_cl, aes(x = avg_temp, y = `Cover_Vaccinium myrtillus`, 
+                            colour = thinned)) +
+  geom_point(alpha = 0.7) +
+  facet_grid(~thinned)
+
+```
+
+Now precipitation
+
+```{r}
+ggplot(thin_no_thin_cl, aes(x = avg_precip, y = `Cover_Vaccinium myrtillus`, 
+                            colour = thinned)) +
+  geom_point(alpha = 0.7) +
+  facet_grid(~thinned)
+
+```
+
+It feels like the no-thin sample size is too small to see any patterns..

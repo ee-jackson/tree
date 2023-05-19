@@ -1,7 +1,7 @@
 Find treatment groups
 ================
 eleanorjackson
-17 May, 2023
+19 May, 2023
 
 We need to identify treatment and control groups from the Swedish NFI
 data. For example, thinned vs non-thinned stands. Ideally identify
@@ -246,11 +246,13 @@ filtered_plots %>%
     ## Joining with `by = join_by(ID)`
 
 ``` r
-var_list <- list("StandAge", "CanopyCover", "PineVol", "LarchVol")
+var_list <- list("StandAge", "CanopyCover", "PineVol", "AspenVol",
+                 "NorwaySpruceVol", "BirchVol")
 
 plot_list <- lapply(var_list, plot_man_hist, data = plots_hist_data)
 
-patchwork::wrap_plots(plot_list)
+patchwork::wrap_plots(plot_list) + 
+  patchwork::plot_layout(ncol = 2)
 ```
 
     ## Warning: Removed 847 rows containing non-finite values (`stat_density()`).
@@ -313,11 +315,66 @@ plot_man_thin <- function(data, plot_var) {
   geom_density(alpha = 0.3)
 }
 
-plot_list <- lapply(var_list, plot_man_thin, data = thin_no_thin)
+var_list_2 <- list("StandAge", "StandHeight", "CanopyCover", "PineVol", 
+                 "NorwaySpruceVol", "BirchVol", "Cover_Vaccinium vitis-idaea", 
+                 "Cover_Vaccinium myrtillus")
 
-patchwork::wrap_plots(plot_list)
+plot_list_2 <- lapply(var_list_2, plot_man_thin, data = thin_no_thin)
+
+patchwork::wrap_plots(plot_list_2) + 
+  patchwork::plot_layout(guides = 'collect')
 ```
 
     ## Warning: Removed 566 rows containing non-finite values (`stat_density()`).
 
+    ## Warning: Removed 28 rows containing non-finite values (`stat_density()`).
+
+    ## Warning: Removed 92 rows containing non-finite values (`stat_density()`).
+
 ![](figures/2023-05-16_find-treatment-groups/unnamed-chunk-13-1.png)<!-- -->
+
+## Climate data
+
+Climate data is by month so I’ll take an average temp and precipitation
+per plot per year.
+
+``` r
+climate_data %>% 
+  group_by(ID, year) %>% 
+  summarise(avg_temp = mean(Temperature),
+            avg_precip = mean(Precipitation)) %>% 
+  ungroup() %>% 
+  rename(Year = year) %>% 
+  inner_join(thin_no_thin, by = c("ID", "Year")) -> thin_no_thin_cl
+```
+
+    ## `summarise()` has grouped output by 'ID'. You can override using the `.groups`
+    ## argument.
+
+First looking at temperature
+
+``` r
+ggplot(thin_no_thin_cl, aes(x = avg_temp, y = `Cover_Vaccinium myrtillus`, 
+                            colour = thinned)) +
+  geom_point(alpha = 0.7) +
+  facet_grid(~thinned)
+```
+
+    ## Warning: Removed 37 rows containing missing values (`geom_point()`).
+
+![](figures/2023-05-16_find-treatment-groups/unnamed-chunk-15-1.png)<!-- -->
+
+Now precipitation
+
+``` r
+ggplot(thin_no_thin_cl, aes(x = avg_precip, y = `Cover_Vaccinium myrtillus`, 
+                            colour = thinned)) +
+  geom_point(alpha = 0.7) +
+  facet_grid(~thinned)
+```
+
+    ## Warning: Removed 37 rows containing missing values (`geom_point()`).
+
+![](figures/2023-05-16_find-treatment-groups/unnamed-chunk-16-1.png)<!-- -->
+
+It feels like the no-thin sample size is too small to see any patterns..
