@@ -1,0 +1,85 @@
+---
+title: "Exploring canopy cover"
+author: '`r Sys.getenv("USER")`'
+date: '`r format(Sys.time(), "%d %B, %Y")`' 
+always_allow_html: true
+output: 
+  github_document:
+    keep_html: true
+---
+	
+```{r setup, include = FALSE}
+file_name <- rstudioapi::getSourceEditorContext()$path
+
+knitr::opts_chunk$set(
+  fig.path =
+    paste0("figures/", sub("\\.Rmd$", "", basename(file_name)), "/", sep = "")
+)
+
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
+```
+
+```{r packages, message=FALSE, warning=FALSE}
+library("tidyverse")
+library("here")
+```
+
+Since splitting plots into thinning/no-thinning groups doesn't seem to give us very good sample sizes,
+we are investigating using a continuous variable for our treatment effects. 
+
+I'm going to take a quick look at canopy cover as one option.
+
+```{r message=FALSE}
+read_delim(here::here("data", "raw", "nfi_plots_sp.txt")) -> plot_data
+```
+
+```{r}
+# filter data for only land class 1 and 1st year of data
+plot_data %>% 
+  filter(InternationalCodeLandUse == 1) %>% 
+  group_by(ID) %>% 
+  slice_min(Year) %>%
+  ungroup() %>% 
+  rename(UniqueID = uniqueID) -> filtered_plots
+
+```
+
+```{r}
+filtered_plots %>% 
+  ggplot(aes(x = CanopyCover)) +
+  geom_density()
+
+```
+
+## Pine dominated forests
+
+We still want to compare forests that are fairly similar so let's look at pine-dominated forests only.
+
+```{r}
+filtered_plots %>% 
+  ggplot(aes(x = PineVol)) +
+  geom_histogram() +
+  geom_vline(xintercept = 50, linetype = 2)
+
+```
+
+```{r}
+filtered_plots %>% 
+  filter(PineVol > 50) %>% 
+  n_distinct("ID")
+
+```
+
+I'm don't know how volume of Pine is recorded / estimated?
+But let's say that plots with `PineVol` greater than 50 are Pine dominated forests. 
+That would give us a sample size of 2,396 plots to work with.
+
+```{r}
+filtered_plots %>% 
+  filter(PineVol > 50) %>% 
+  ggplot(aes(x = CanopyCover)) +
+  geom_density()
+
+```
+
+In Pine dominated forests the canopy cover distribution is shifted a little to the left.
