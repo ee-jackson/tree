@@ -1,10 +1,10 @@
 T-learner test run
 ================
 eleanorjackson
-16 August, 2023
+24 August, 2023
 
 Today I’m going to quickly re-build the s-learner I made
-[here](2023-07-26_trial-s-learner.md.md) because it was rubbish and I
+[here](2023-07-26_trial-s-learner.md) because it was rubbish and I
 realised I had left out the `alturism` variable. Then I’ll have a go at
 building a t-learner, and then compare them!
 
@@ -462,48 +462,193 @@ t0_fit <- fit(wf_t0, train_0)
 
 Now that we have 2 models, one trained on 0 data and one trained on 1
 data. Next we need to make predictions for the test dataset using each
-of the models
+of the models.
+
+I think to generate the ITEs from a t-learner we need to generate a 2
+datasets from the test data: one where we force the treatment to = 1,
+and one dataset where we force the treatment to = 0. Then, make
+predictions using the relevant model. Then, we calculate ITEs as
+prediction with treatment - prediction without treatment.
 
 ``` r
-predict(t0_fit, test_data_s) %>% 
+test_data_s %>% 
+  mutate(recent_nature = factor(0)) -> test_0
+
+test_data_s %>% 
+  mutate(recent_nature = factor(1)) -> test_1
+
+predict(t0_fit, test_0) %>% 
   cbind(test_data_s) %>% 
   mutate(.pred_class = 
-           as.numeric(levels(.pred_class))[.pred_class]) -> tidy_0_pred
+           as.numeric(levels(.pred_class))[.pred_class]) %>% 
+  rename(pred_0 = .pred_class) -> pred_0_t
 
-predict(t1_fit, test_data_s) %>% 
+predict(t1_fit, test_1) %>% 
   cbind(test_data_s) %>% 
   mutate(.pred_class = 
-           as.numeric(levels(.pred_class))[.pred_class]) -> tidy_1_pred
+           as.numeric(levels(.pred_class))[.pred_class]) %>% 
+  rename(pred_1 = .pred_class) -> pred_1_t
 
-tidy_1_pred %>% 
-  mutate(tlearn_ite = .pred_class - tidy_0_pred$.pred_class) %>% 
-  select(- .pred_class) -> t_preds
-
-glimpse(t_preds)
+pred_0_t %>% 
+  inner_join(pred_1_t) %>% 
+  mutate(t_learner_ite = pred_1 - pred_0) %>% 
+  mutate(t_learner_ite = as.factor(t_learner_ite)) -> tlearn_ites
 ```
 
-    ## Rows: 10,990
-    ## Columns: 10
-    ## $ id               <chr> "A2", "A3", "A4", "A6", "A7", "A8", "A9", "A10", "A11…
-    ## $ pro_biodiversity <fct> 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1,…
-    ## $ recent_nature    <fct> 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0,…
-    ## $ income           <ord> 4, 2, 1, 5, 2, 1, 6, 1, 5, 3, 4, 1, 3, 1, 1, 3, 3, 1,…
-    ## $ childhood_nature <ord> 6, 6, 6, 5, 6, 6, 4, 1, 2, 3, 6, 5, 4, 6, 6, 1, 6, 4,…
-    ## $ gender           <fct> male, female, female, male, female, female, female, f…
-    ## $ education_level  <ord> 4, 2, 3, 4, 4, 4, 4, 2, 4, 4, 4, 4, 5, 2, 4, 4, 2, 4,…
-    ## $ urban            <ord> 5, 4, 3, 5, 5, 5, 7, 5, 6, 6, 7, 5, 6, 5, 4, 5, 5, 5,…
-    ## $ altruism         <dbl> 26, 24, 34, 31, 32, 27, 26, 27, 30, 28, 27, 29, 15, 2…
-    ## $ tlearn_ite       <dbl> 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1,…
+    ## Joining with `by = join_by(id, pro_biodiversity, recent_nature, income,
+    ## childhood_nature, gender, education_level, urban, altruism)`
+
+## Get s-learner ITEs
+
+Use s-learner model to predict for both 0 and 1 test datasets
 
 ``` r
-t_preds %>% 
-  roc_curve(truth = pro_biodiversity, tlearn_ite) %>% 
-  ggplot(aes(x = 1 - specificity, y = sensitivity)) + 
-  geom_path() +
-  geom_abline(lty = 3) + 
-  coord_equal()
+s_fit <- fit(final_wf, train_data_s)
+
+predict(s_fit, test_0) %>% 
+  cbind(test_data_s) %>% 
+  mutate(.pred_class = 
+           as.numeric(levels(.pred_class))[.pred_class]) %>% 
+  rename(pred_0 = .pred_class) -> pred_0_s
+
+predict(s_fit, test_1) %>% 
+  cbind(test_data_s) %>% 
+  mutate(.pred_class = 
+           as.numeric(levels(.pred_class))[.pred_class]) %>% 
+  rename(pred_1 = .pred_class) -> pred_1_s
+
+pred_0_s %>% 
+  inner_join(pred_1_s) %>% 
+  mutate(s_learner_ite = pred_1 - pred_0) %>% 
+  mutate(s_learner_ite = as.factor(s_learner_ite)) -> slearn_ites
 ```
 
-![](figures/2023-08-13_trial-t-learner/unnamed-chunk-21-1.png)<!-- -->
+    ## Joining with `by = join_by(id, pro_biodiversity, recent_nature, income,
+    ## childhood_nature, gender, education_level, urban, altruism)`
 
-Hmm this is worse than the s-learner, unless I’ve done something wrong.
+## Compare ITEs
+
+Because this is a classification problem we can use a confusion matrix
+to compare ITEs
+
+``` r
+slearn_ites %>% 
+  inner_join(tlearn_ites, 
+             by = c("id", "pro_biodiversity", "income", "childhood_nature", "gender",
+                   "education_level", "urban", "altruism")) -> s_t_preds
+
+conf_mat(
+  data = s_t_preds,
+  truth = s_learner_ite,
+  estimate = t_learner_ite,
+  dnn = c("t-learner", "s-learner"),
+  case_weights = NULL
+) -> cm
+
+autoplot(cm, type = "heatmap")
+```
+
+![](figures/2023-08-13_trial-t-learner/unnamed-chunk-22-1.png)<!-- -->
+
+Diagonal is where they agree - both predict the same response.
+
+S-learner looks like it is more conservative, often predicts 0 where
+t-learner predicts 1.
+
+Can we look at these differences across predictors?
+
+``` r
+s_t_preds %>% 
+  mutate(t_learner_ite = 
+           as.numeric(levels(t_learner_ite))[t_learner_ite]) %>% 
+  group_by(childhood_nature) %>% 
+  summarise(t_learner_ite_av = mean(t_learner_ite)) %>% 
+  ggplot() +
+  geom_col(aes(x = childhood_nature, y = t_learner_ite_av)) +
+  ggtitle("t-learner") -> t_childhood_nature
+
+s_t_preds %>% 
+  mutate(s_learner_ite = 
+           as.numeric(levels(s_learner_ite))[s_learner_ite]) %>% 
+  group_by(childhood_nature) %>% 
+  summarise(s_learner_ite_av = mean(s_learner_ite)) %>% 
+  ggplot() +
+  geom_col(aes(x = childhood_nature, y = s_learner_ite_av)) +
+  ggtitle("s-learner") -> s_childhood_nature
+
+t_childhood_nature + s_childhood_nature
+```
+
+![](figures/2023-08-13_trial-t-learner/unnamed-chunk-23-1.png)<!-- -->
+
+``` r
+s_t_preds %>% 
+  mutate(t_learner_ite = 
+           as.numeric(levels(t_learner_ite))[t_learner_ite]) %>% 
+  group_by(gender) %>% 
+  summarise(t_learner_ite_av = mean(t_learner_ite)) %>% 
+  ggplot() +
+  geom_col(aes(x = gender, y = t_learner_ite_av)) +
+  ggtitle("t-learner") -> t_gender
+
+s_t_preds %>% 
+  mutate(s_learner_ite = 
+           as.numeric(levels(s_learner_ite))[s_learner_ite]) %>% 
+  group_by(gender) %>% 
+  summarise(s_learner_ite_av = mean(s_learner_ite)) %>% 
+  ggplot() +
+  geom_col(aes(x = gender, y = s_learner_ite_av)) +
+  ggtitle("s-learner") -> s_gender
+
+t_gender + s_gender
+```
+
+![](figures/2023-08-13_trial-t-learner/unnamed-chunk-24-1.png)<!-- -->
+
+``` r
+s_t_preds %>% 
+  mutate(t_learner_ite = 
+           as.numeric(levels(t_learner_ite))[t_learner_ite]) %>% 
+  group_by(urban) %>% 
+  summarise(t_learner_ite_av = mean(t_learner_ite)) %>% 
+  ggplot() +
+  geom_col(aes(x = urban, y = t_learner_ite_av)) +
+  ggtitle("t-learner") -> t_urban
+
+s_t_preds %>% 
+  mutate(s_learner_ite = 
+           as.numeric(levels(s_learner_ite))[s_learner_ite]) %>% 
+  group_by(urban) %>% 
+  summarise(s_learner_ite_av = mean(s_learner_ite)) %>% 
+  ggplot() +
+  geom_col(aes(x = urban, y = s_learner_ite_av)) +
+  ggtitle("s-learner") -> s_urban
+
+t_urban + s_urban
+```
+
+![](figures/2023-08-13_trial-t-learner/unnamed-chunk-25-1.png)<!-- -->
+
+``` r
+s_t_preds %>%
+  mutate(t_learner_ite = 
+           as.numeric(levels(t_learner_ite))[t_learner_ite]) %>% 
+  ggplot(aes(x = pro_biodiversity, y = altruism, colour = t_learner_ite)) +
+  geom_jitter(alpha = 0.5 ) +
+  scale_color_gradient2() +
+  ggtitle("t-learner") +
+  theme(panel.background = element_rect(fill = "lightgrey")) -> t_urban
+
+s_t_preds %>%
+  mutate(s_learner_ite = 
+           as.numeric(levels(s_learner_ite))[s_learner_ite]) %>% 
+  ggplot(aes(x = pro_biodiversity, y = altruism, colour = s_learner_ite)) +
+  geom_jitter(alpha = 0.5 ) +
+  scale_color_gradient2() +
+  ggtitle("t-learner")  +
+  theme(panel.background = element_rect(fill = "lightgrey")) -> s_urban
+
+t_urban + s_urban
+```
+
+![](figures/2023-08-13_trial-t-learner/unnamed-chunk-26-1.png)<!-- -->
