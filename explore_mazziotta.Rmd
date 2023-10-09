@@ -1,0 +1,450 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Read in the mahoosive dataset and laod tidy
+
+```{r}
+library(tidyverse)
+#dat=read.csv("C:/Users/ij926050/Dropbox/TREE/Data/Manziotta/NFI_Projections_CCMS_climate.csv")
+dat
+
+
+```
+Visualise some of the data
+
+ID = indvidual plot (within a trakt)
+```{r}
+ids=unique(dat$ID)
+id_sample = sample(ids, 100)
+
+dat%>%filter(ID==1)
+dat1=dat%>%filter(PERIOD==1)
+x=data.frame(table(dat1$ID,  dat1$ForestDomainData.TreatmentControlCategory))
+hist(x$Freq)
+
+dat%>%
+ filter(ID %in% id_sample)%>%
+  ggplot()+geom_point(aes(x=PERIOD, y = CarbonAndNitrogenData.Soil.Carbon.Stock
+, col=ForestDomainData.TreatmentControlCategory
+
+))+geom_line(aes(x=PERIOD, y = CarbonAndNitrogenData.Soil.Carbon.Stock
+, col=ForestDomainData.TreatmentControlCategory
+
+, group=ID))+facet_wrap(~region)+theme_bw()
+```
+Look at how many different schedules there are...
+
+```{r}
+man_dat = dat%>%filter(PERIOD==1)%>%dplyr::select(Description, ForestDomainData.TreatmentControlCategory)%>% 
+     group_by(Description)%>%
+  arrange(ForestDomainData.TreatmentControlCategory, .by_group = TRUE)%>%
+       mutate(manage_options = paste0(ForestDomainData.TreatmentControlCategory, collapse = "__")) 
+man_dat2=data.frame(table(man_dat$manage_options))
+
+man_dat2%>%
+  arrange(Freq, decreasing=T)
+
+man_dat
+
+```
+```{r}
+man_dat=man_dat%>%dplyr::select(Description, manage_options)%>%unique()
+
+dat = merge(dat, man_dat, by="Description")
+
+
+#this has a nice sample size
+man_dat2=man_dat2%>%filter(Var1=="BAU FocusBioenergy__Lovgynnande trakthyggesbruk")
+x=man_dat%>%filter(manage_options==man_dat2$Var1)
+
+
+dat%>%filter(Description%in%x[1:6,]$Description)%>%ggplot()+geom_point(aes(x=PERIOD, y = CarbonAndNitrogenData.Soil.Carbon.Stock
+, col=ForestDomainData.TreatmentControlCategory
+
+))+geom_line(aes(x=PERIOD, y = CarbonAndNitrogenData.Soil.Carbon.Stock
+, col=ForestDomainData.TreatmentControlCategory
+
+, group=ForestDomainData.TreatmentControlCategory))+facet_wrap(~Description)+theme_bw()
+
+```
+
+```{r}
+# take maximum age
+dat2=dat%>%filter(manage_options=="BAU FocusBioenergy__Lovgynnande trakthyggesbruk")%>%slice_max(PERIOD)%>%filter(Climate=="Constant Climate")# take single year, single climate
+dat2%>%filter(Description=="2008 1005 2180")
+table(dat2$region);table(dat2$region2)
+
+table(dat2$ForestDomainData.TreatmentControlCategory)
+
+
+#recode as control and treatment and give nicer names
+dat2=dat2%>%mutate(treatment = recode_factor(ForestDomainData.TreatmentControlCategory, "BAU FocusBioenergy" ="C", "Lovgynnande trakthyggesbruk" ="T"), soilc=CarbonAndNitrogenData.Soil.Carbon.Stock, age =ForestData.Mean.Age..excl.overstorey._Before, stems=ForestData.Stems_Before, temp =tsum_CC, rain=psum_CC)%>%
+  dplyr::select(Description, ID,treatment, soilc,age,region, temp, rain, stems, BiomassData.Biomass.Total_Pine_Before:BiomassData.Biomass.Total_Birch_Before
+, ForestData.Mean.Age..excl.overstorey._Before,  SiteData.Peat,SiteData.Soil.Moisture, TreatmentData.Biomass.Total.of.Cut.Trees.All.Species, SoilMoist, SoilMoist.cont)
+
+```
+EXtract age and stems at BEGINNING of managament period - before mgmt
+```{r}
+dat2%>%filter(Description=="2008 4552 4081")
+datx=dat%>%filter(ID%in%dat2$ID)%>%slice_min(PERIOD)%>%filter(Climate=="Constant Climate")%>%group_by(ID) # take single year, single climate
+datx=datx%>%ungroup%>%mutate(age.start =ForestData.Mean.Age..excl.overstorey._Before, stems.start=ForestData.Stems_Before, pine.start = BiomassData.Biomass.Total_Pine_Before
+                             , spruce.start = BiomassData.Biomass.Total_Spruce_Before)%>%dplyr::select(Description, stems.start, age.start, pine.start, spruce.start)%>%unique()
+datx$ID=NULL
+datx%>%filter(Description=="2008 4552 4081")
+
+dat2=merge(unique(dat2), unique(datx), "Description")
+dat2
+```
+
+
+
+
+
+First step, need to assign a 'realised' management regime (treatment level) to each. 
+Let's just go with random for now.
+
+```{r}
+dat3=dat2%>%
+  group_by(Description)%>%
+  slice_sample(n=1)
+
+table(dat3$treatment)
+
+
+dat3$treatment = as.numeric(dat3$treatment)-1
+dat3
+
+
+```
+
+```{r}
+custom_function = function(data, mapping, method = "loess", ...){
+  p = ggplot(data = data, mapping = mapping) + 
+    geom_point() + 
+    geom_smooth(method=method, ...)
+  
+  p
+}
+
+
+dat1=data.frame(na.omit(dat3)%>%filter(treatment==1)%>%ungroup()%>%slice_sample(n=300)) # C only
+dat0=data.frame(na.omit(dat3)%>%filter(treatment==0)%>%ungroup()%>%slice_sample(n=300)) # T only
+
+dat1%>%dplyr::select(soilc,age.start, temp, rain,  stems.start,SoilMoist.cont, pine.start, spruce.start)%>% GGally::ggpairs(aes(alpha=0.5),progress=F,lower = list(continuous = custom_function))+theme_bw()
+dat0%>%ungroup()%>%dplyr::select(soilc,age.start, temp, rain,  stems.start,SoilMoist.cont, pine.start, spruce.start)%>% GGally::ggpairs(aes(alpha=0.5),progress=F,lower = list(continuous = custom_function))+theme_bw()
+
+
+#dat3%>%dplyr::select(soilc,age, temp, rain,  stems,SoilMoist.cont)%>% GGally::ggpairs(aes(alpha=0.5, col=treatment),progress=F,lower = list(continuous = custom_function))+theme_bw()
+
+
+
+```
+the distributions of covariates are similar for both treatments, because  I allocated them randomly!
+
+
+```{r}
+library(ranger)
+
+n_features = 6
+
+n.points=round(1*nrow(dat0))
+#dat0.train=data.frame(dat0%>%slice_sample(n=n.points))
+# train a default random forest model
+m.0_rf1 <- ranger(
+  formula  = soilc ~ age.start+  temp +  rain +  stems.start + SoilMoist, 
+  data = dat2,
+#  mtry = floor(n_features / 3),
+  respect.unordered.factors = "order",
+  seed = 123
+)
+
+# get OOB RMSE
+(default_rmse <- sqrt(m.0_rf1$prediction.error))
+## [1] 24859.27
+
+# create hyperparameter grid
+hyper_grid <- expand.grid(
+  mtry = floor(n_features * c(.05, .15, .25, .333, .4)),
+  min.node.size = c(1, 3, 5, 10), 
+  replace = c(TRUE, FALSE),                               
+  sample.fraction = c(.5, .63, .8),                       
+  rmse = NA                                               
+)
+
+#hyper_grid <- hyper_grid[sample(nrow(hyper_grid),10),]
+
+# execute full cartesian grid search
+for(i in seq_len(nrow(hyper_grid))) {
+  # fit model for ith hyperparameter combination
+  fit <- ranger(
+  formula  = soilc ~ age+ temp +  rain +  stems + SoilMoist.cont, 
+    data            = data.frame(dat0), 
+    num.trees       = n_features * 10,
+    mtry            = hyper_grid$mtry[i],
+    min.node.size   = hyper_grid$min.node.size[i],
+    replace         = hyper_grid$replace[i],
+    sample.fraction = hyper_grid$sample.fraction[i],
+    verbose         = FALSE,
+    seed            = 123,
+    respect.unordered.factors = 'order',
+  )
+  # export OOB error 
+  hyper_grid$rmse[i] <- sqrt(fit$prediction.error)
+  #hyper_grid$mtry[i] <- fit$mtry
+
+}
+
+
+# assess top 10 models
+hyper_grid %>%
+  arrange(rmse) %>%
+  mutate(perc_gain = (default_rmse - rmse) / default_rmse * 100) %>%
+  head(10)
+
+hyper_grid %>%ggplot()+geom_jitter(aes(x=min.node.size, y=rmse, col=mtry, shape=as.factor(sample.fraction)))+theme_bw()+facet_wrap(~replace)
+
+```
+
+
+
+
+
+
+```{r}
+dat.all=rbind(dat1,dat0)
+dat.all%>%ggplot()+geom_density(aes(soilc, fill=as.factor(treatment)),alpha=0.5)
+dat.all%>%ggplot()+geom_density(aes(soilc, fill=as.factor(treatment)),alpha=0.5)+facet_wrap(~cut(SoilMoist.cont,2))
+#dat.all$treatment=as.numeric(dat.all$treatment)
+#dat.all$treatment=as.numeric(dat.all$treatment)-1
+
+mall.rf_impurity <- ranger(
+  formula  = soilc ~ treatment + temp +  rain +  stems.start + age.start +spruce.start+pine.start+ SoilMoist.cont, 
+  data = data.frame(dat.all), 
+  num.trees = 2000,
+  mtry = 3,
+  min.node.size = 4,
+  sample.fraction = 1,
+  replace = FALSE,
+  importance = "impurity",
+ # respect.unordered.factors = "order",
+  verbose = FALSE,
+  seed  = 123
+)
+
+p1.0 <- vip::vip(mall.rf_impurity, num_features = 8, geom="point")+theme_bw()
+
+
+
+m1.rf_impurity <- ranger(
+  formula  = soilc ~  temp +  rain +  stems.start + age.start + SoilMoist.cont+spruce.start+pine.start, 
+  data = dat1, 
+  num.trees = 2000,
+  mtry = 1,
+  min.node.size = 2,
+  sample.fraction = .80,
+  replace = FALSE,
+  importance = "impurity",
+ # respect.unordered.factors = "order",
+  verbose = FALSE,
+  seed  = 123
+)
+
+
+m1.rf_permutation <- ranger(
+  formula  = soilc ~  temp +  rain +  stems.start + age.start + SoilMoist.cont+spruce.start+pine.start, 
+  data = dat1, 
+  num.trees = 2000,
+  mtry = 1,
+  min.node.size = 2,
+  sample.fraction = 1,
+  replace = FALSE,
+  importance = "permutation",
+ # respect.unordered.factors = "order",
+  verbose = FALSE,
+  seed  = 123
+)
+
+p1.1 <- vip::vip(m1.rf_impurity, num_features = 6, geom="point")+theme_bw()
+p2 <- vip::vip(m1.rf_permutation, num_features = 6, bar = FALSE)
+gridExtra::grid.arrange(p1.1, p2, nrow = 1)
+
+
+m0.rf_impurity <- ranger(
+  formula  = soilc ~  temp +  rain +  stems.start + age.start + SoilMoist.cont+spruce.start+pine.start, 
+  data = dat0, 
+  num.trees = 2000,
+  mtry = 1,
+  min.node.size = 2,
+  sample.fraction = 1,
+  replace = FALSE,
+  importance = "impurity",
+  #respect.unordered.factors = "order",
+  verbose = FALSE,
+  seed  = 123
+)
+
+
+m0.rf_permutation <- ranger(
+  formula  = soilc ~  temp +  rain +  stems.start + age.start + SoilMoist.cont+spruce.start+pine.start, 
+  data = dat0, 
+  num.trees = 2000,
+  mtry = 1,
+  min.node.size = 2,
+  sample.fraction = 1,
+  replace = FALSE,
+  importance = "permutation",
+ # respect.unordered.factors = "order",
+  verbose = FALSE,
+  seed  = 123
+)
+
+p1.2 <- vip::vip(m0.rf_impurity, num_features = 8, geom="point")+theme_bw()
+p2 <- vip::vip(m0.rf_permutation, num_features = 8, bar = FALSE)
+gridExtra::grid.arrange(p1.2, p2, nrow = 1)
+
+gridExtra::grid.arrange(p1.0, p1.1,p1.2, nrow = 1)
+```
+
+Generate test data 
+```{r}
+test.data=dat3%>%filter(!Description %in% rbind(dat1$Description,dat0$Description))# remove the sampled training points
+```
+
+```{r}
+
+predC.slearn.0 = predict(mall.rf_impurity, data=test.data%>%mutate(treatment=0))
+test.data$predC.slearn.0 <- predC.slearn.0$predictions
+
+predC.slearn.1 = predict(mall.rf_impurity, data=test.data%>%mutate(treatment="T"))
+test.data$predC.slearn.1 <- predC.slearn.1$predictions
+
+
+predC.tlearn.0 = predict(m0.rf_impurity, data=test.data)
+test.data$predC.tlearn.0 <- predC.tlearn.0$predictions
+
+predC.tlearn.1 = predict(m1.rf_impurity, data=test.data)
+test.data$predC.tlearn.1 <- predC.tlearn.1$predictions
+
+test.data=test.data%>%mutate(ITE_tlearn = predC.tlearn.1-predC.tlearn.0)
+test.data=test.data%>%mutate(ITE_slearn = predC.slearn.1-predC.slearn.0)
+
+#now lets compute the true ITEs
+#test data has just one treatment per individual
+
+true=dat2%>%dplyr::select(Description, treatment, soilc)%>%unique()%>%pivot_wider(id_cols = Description,values_from = "soilc", names_from=treatment)%>%na.omit()%>%mutate(true_ITE= T-C)
+test.data=merge(test.data, true%>%dplyr::select(Description, true_ITE), by="Description")
+
+
+
+test.data%>%group_by(Description)
+
+test.data%>%ggplot()+geom_point(aes(x=treatment, y=soilc))+geom_line(aes(group=Description,x=treatment, y=soilc))
+
+test.data%>%ggplot()+geom_point(aes(x=true_ITE, y=ITE_tlearn))+geom_line(aes(x=true_ITE, y=true_ITE))
+
+test.data%>%ggplot()+geom_point(aes(x=true_ITE, y=ITE_slearn))+geom_line(aes(x=true_ITE, y=true_ITE))
+
+hist(test.data$true_ITE)
+
+
+
+px1=test.data%>%filter(treatment=="T")%>%ggplot()+geom_point(aes(x=soilc, y=predC.tlearn.1))+facet_grid(~treatment)+geom_line(aes(x=soilc, y=soilc))+ylim(30,125)+xlim(30,125)
+px2=test.data%>%filter(treatment=="C")%>%ggplot()+geom_point(aes(x=soilc, y=predC.tlearn.0))+facet_grid(~treatment)+geom_line(aes(x=soilc, y=soilc))+ylim(30,125)+xlim(30,125)
+px3=test.data%>%ggplot()+geom_point(aes(x=soilc, y=predC.slearn))+facet_grid(~treatment)+geom_line(aes(x=soilc, y=soilc))+ylim(30,125)+xlim(30,125)
+
+#gridExtra::grid.arrange(px1,px2,px3, ncol=3, widths=c(1,1,2))
+
+
+test.data%>%filter(treatment==1)%>%ggplot()+geom_point(aes(x=predC.slearn.1, y=predC.tlearn.1))+facet_grid(~treatment)+geom_line(aes(x=soilc, y=soilc))
+
+test.data%>%filter(treatment==0)%>%ggplot()+geom_point(aes(x=predC.slearn.0, y=predC.tlearn.0))+facet_grid(~treatment)+geom_line(aes(x=soilc, y=soilc))
+
+```
+
+
+
+```{r}
+true=dat2%>%filter(Description %in% test.data$Description)%>%dplyr::select(Description, treatment, soilc)%>%unique()%>%pivot_wider(id_cols = Description,values_from = "soilc", names_from=treatment)%>%na.omit()%>%mutate(true_ITE= T-C)
+
+#slearn=test.data%>%dplyr::select(Description, treatment, predC.slearn)%>%pivot_wider(id_cols = Description,values_from = "predC.slearn", names_from=treatment)%>%na.omit()%>%mutate(slearn_ITE=T-C)
+
+#tlearn=test.data%>%dplyr::select(Description, treatment, predC.tlearn.1, predC.tlearn.0)%>%pivot_wider(id_cols = Description,values_from = "predC.tlearn.1", names_from=treatment)%>%na.omit()%>%mutate(slearn_ITE=T-C)
+
+
+
+
+
+
+test.data=test.data%>%mutate(tlearn_ITE=predC.tlearn.1-predC.tlearn.0)
+test.data=test.data%>%mutate(slearn_ITE=predC.slearn.1-predC.slearn.0)
+
+test.data  <- merge(test.data, true, "Description")
+#test.data  <- merge(test.data, slearn%>%dplyr::select(Description, slearn_ITE), "Description")
+
+test.data%>%dplyr::select(Description, treatment, soilc, predC.slearn.0,predC.slearn.1, predC.tlearn.0, predC.tlearn.1, ITE_tlearn, slearn_ITE, true_ITE.y)
+
+p1=test.data%>%filter(soilc>0)%>%ggplot(aes(x=true_ITE.y, y=tlearn_ITE, col=soilc))+geom_point()+geom_line(aes(x=true_ITE.y, y=true_ITE.y))+theme_bw()+ylab("ITE prediction, \nT-learner approach")+xlab("True ITE")#+ylim(-120,100)
+p2=test.data%>%filter(soilc>0)%>%ggplot(aes(x=true_ITE.y, y=slearn_ITE,col=soilc))+geom_point()+geom_line(aes(x=true_ITE.y, y=true_ITE.y))+theme_bw()+ylab("ITE prediction, \nS-learner approach")+xlab("True ITE")#+ylim(-120,100)
+p3=test.data%>%filter(soilc>0)%>%ggplot(aes(x=tlearn_ITE, y=slearn_ITE,col=soilc))+geom_point()+geom_line(aes(x=true_ITE.y, y=true_ITE.y))+theme_bw()+ylab("ITE prediction, \nS-learner approach")+xlab("ITE prediction, \nT-learner approach")#+ylim(-120,100)
+
+
+gridExtra::grid.arrange(p1, p2, p3, nrow=1)
+```
+
+
+
+```{r}
+library(randomForest)
+test.data=dat3%>%filter(!Description %in% rbind(dat1$Description,dat0$Description))# remove the sampled training points
+
+
+
+varsforcethin <- test.data
+varsforcethin$treatment=1
+varsforceunthin <- test.data
+varsforceunthin$treatment=0
+
+library(randomForest)
+thinRF <- randomForest(x = dat1%>%dplyr::select(temp,  rain,  stems.start, age.start, SoilMoist.cont), y = as.numeric(dat1$soilc),  
+                  method = "rf", metric = "ROC",  ntree=1000,
+               importance = TRUE, stepFactor=1.5,keep.inbag=TRUE)
+
+unthinRF <- randomForest(x = dat0%>%dplyr::select(temp,  rain,  stems.start, age.start, SoilMoist.cont), y = as.numeric(dat0$soilc),  
+                  method = "rf", metric = "ROC",  ntree=1000,
+               importance = TRUE, stepFactor=1.5)
+
+allRF <- randomForest(x = dat.all%>%dplyr::select(treatment,temp,  rain,  stems.start, age.start, SoilMoist.cont), y = as.numeric(dat.all$soilc),  
+                  method = "rf", metric = "ROC",  ntree=1000,
+               importance = TRUE, stepFactor=1.5)
+
+importance(allRF)
+#plot(margin(thinRF)) 
+par(mfrow=c(2,3))
+#for(i in 1:6) partialPlot(thinRF,varsthinned,x.var=names(varsthinned%>%dplyr::select(!madake))[i])
+#for(i in 1:6) partialPlot(unthinRF,varsunthinned,x.var=names(varsthinned%>%dplyr::select(!madake))[i])
+
+#library(plotmo)
+#vars$meantemp
+#plotmo(thinRF,"meantemp", type="prob")
+
+test.data$predDIFF.RF <- predict(unthinRF, newdata=varsforceunthin, type="response")-predict(thinRF, newdata=varsforcethin, type="response")
+hist(test.data$predDIFF.RF)
+
+#vars2$predDIFF.glm <- predict(bestsecdecid, newdata=vars2%>%mutate(canopy_cover3="unthinned"), type="response")-predict(bestsecdecid, newdata=vars2%>%mutate(canopy_cover3="thinned"), type="response")
+
+
+#vars2$predDIFF.glm <- predict(bestsecdecid, newdata=vars2%>%mutate(canopy_cover3="unthinned"), type="response")-predict(bestsecdecid, newdata=vars2%>%mutate(canopy_cover3="thinned"), type="response")
+
+test.data$predDIFF.allRF <- predict(allRF, newdata=varsforcethin, type="response")-predict(allRF, newdata=varsforceunthin, type="response")
+
+test.data%>%ggplot()+geom_point(aes(x=predDIFF.RF, y=predDIFF.allRF))
+merge(test.data, true%>%dplyr::select(Description, true_ITE))%>%
+  ggplot()+geom_point(aes(x=true_ITE, y=predDIFF.allRF))
+
+merge(test.data, true%>%dplyr::select(Description, true_ITE))%>%
+  ggplot()+geom_point(aes(x=true_ITE, y=predDIFF.RF))
+```
+
+
