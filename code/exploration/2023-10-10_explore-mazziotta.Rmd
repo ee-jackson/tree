@@ -1,14 +1,28 @@
 ---
-title: "R Notebook"
-output: html_notebook
+title: "Explore Mazziotta"
+author: "Becks Spake"
+date: '`r format(Sys.time(), "%d %B, %Y")`' 
+always_allow_html: true
+output: 
+  github_document:
+    keep_html: true
 ---
+	
+```{r setup, include = FALSE}
+file_name <- rstudioapi::getSourceEditorContext()$path
+
+knitr::opts_chunk$set(
+  fig.path =
+    paste0("figures/", sub("\\.Rmd$", "", basename(file_name)), "/", sep = "")
+)
+```
 
 Read in the mahoosive dataset and laod tidy
 
 ```{r}
 library(tidyverse)
-#dat=read.csv("C:/Users/ij926050/Dropbox/TREE/Data/Manziotta/NFI_Projections_CCMS_climate.csv")
-dat
+dat=read.csv(here::here("data", "raw", "mazziotta", "NFI_Projections_CCMS_climate.csv"))
+glimpse(dat)
 
 
 ```
