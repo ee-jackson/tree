@@ -1,6 +1,7 @@
 ## Project specific ignores:
 
 code/exploration/*.html
+code/graveyard
 data/*
 .doc
 .docx
