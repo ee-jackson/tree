@@ -107,7 +107,7 @@ There is a map in the [Heureka
 wiki](https://www.heurekaslu.se/wiki/Heureka_Wiki) which shows the
 regions according to Swedish NFI definition.
 
-<img src="https://www.heurekaslu.se/wiki/File:Regioner.png" width="300">
+![](https://www.heurekaslu.se/w/images/thumb/b/b9/Regioner.png/560px-Regioner.png)
 
 This map defines the regions slightly differently to the [land use
 data](http://www.diva-portal.org/smash/get/diva2:1563052/FULLTEXT01.pdf)
