@@ -1,0 +1,89 @@
+---
+title: "Trial approach with Mazziotta data"
+author: '`r Sys.getenv("USER")`'
+date: '`r format(Sys.time(), "%d %B, %Y")`' 
+always_allow_html: true
+output: 
+  github_document:
+    keep_html: true
+---
+	
+```{r setup, include = FALSE}
+file_name <- rstudioapi::getSourceEditorContext()$path
+
+knitr::opts_chunk$set(
+  fig.path =
+    paste0("figures/", sub("\\.Rmd$", "", basename(file_name)), "/", sep = "")
+)
+
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
+```
+
+```{r packages, message=FALSE, warning=FALSE}
+library("tidyverse")
+library("here")
+library("janitor")
+library("rsample")
+```
+
+In this document I'm going to start coding up the main
+[approach](https://docs.google.com/document/d/1chDZ_8jM--HWPw2ElIUY2otEej0tJ42KKE3TMrgGMpA/edit#heading=h.mh4gg5x4o2y5) 
+using data from [Mazziotta et al. 2022](https://doi.org/10.1111/gcb.16364) whilst we're waiting for the full dataset.
+
+```{r data, message=FALSE}
+read_csv(here("data", "raw", "mazziotta","NFI_Projections_CCMS_climate.csv")) %>% 
+  clean_names() -> maz_dat
+
+glimpse(maz_dat)
+```
+
+We aim to predict individual-level treatment effects (ITE) using meta-learner algorithms. 
+We can evaluate the impact of various **decisions** on predictive accuracy.
+
+## Decision 1 - Assignment of NFI plots to a realised management regime
+
+i.e., whether plot is BAU or set-aside
+
+- Option 1 = Random assignment
+- Option 2 = Something more realistic, e.g. a spatial constraint
+
+[Data exists](http://www.diva-portal.org/smash/get/diva2:1563052/FULLTEXT01.pdf) on the % of forests in different land use categories for each region of Sweden (Northern, South-Northern, Mid and Southern).
+We could use these to assign NFI plots to a management regime.
+The Mazziotta data has a `region2` variable:
+
+```{r}
+maz_dat %>% 
+  distinct(region2)
+```
+
+But, there are 6 regions here (rather than 4 as in the land use data).
+There is a map in the [Heureka wiki](https://www.heurekaslu.se/wiki/Heureka_Wiki) which shows the regions according to Swedish NFI definition.
+
+<img src="https://www.heurekaslu.se/wiki/File:Regioner.png" width="300">
+
+This map defines the regions slightly differently to the [land use data](http://www.diva-portal.org/smash/get/diva2:1563052/FULLTEXT01.pdf) but I think we can say that
+
+- 1 is Northern with 12% unmanaged set-asides
+- 2 is South-Northern with 12.5% unmanaged set-asides
+- 3 is Mid with 8.5% unmanaged set-asides
+- 4 and 5 are Southern regions with 7% unmanaged set-asides
+
+Let's try and write the functions!
+
+```{r, eval = FALSE}
+assign_manage_weighted <- function(data = data) {
+  data %>% 
+    mutate(weight = case_when(
+      region2 == 1 ~ 0.12,
+      region2 == 2 ~ 0.125,
+      region2 == 3 ~ 0.085,
+      region2 == 4 | region == 5 ~ 0.07
+    )) %>% 
+    slice_sample(n = 100, weight_by = weight)
+}
+
+assign_manage_random <- function(data = data) {
+  code
+}
+```
+
