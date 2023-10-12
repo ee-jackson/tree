@@ -24,6 +24,8 @@ library("tidyverse")
 library("here")
 library("janitor")
 library("rsample")
+
+set.seed(123)
 ```
 
 In this document I'm going to start coding up the main
@@ -37,12 +39,42 @@ read_csv(here("data", "raw", "mazziotta","NFI_Projections_CCMS_climate.csv")) %>
 glimpse(maz_dat)
 ```
 
+In this data there should be 29,892 unique plots. 
+Where period is `0`, the data are actually observed and the time periods (`1` to `18`) are predictions from Heureka under three different climate scenarios and four different climate change mitigation solutions (every combination of each).
+
+As part of the climate change mitigation solutions, they also predicted the forest management that would be used for each plot (`forest_domain_data_treatment_control_category`). For each NFI plot and time step, a large number of management activities (such as thinning and clear felling) are simulated, that in sequence constitute different treatment schedules. Then the optimal treatment schedule for each plot is selected based on an objective function and possible constraints.
+
+For what we're doing now I think we only need two management options per plot.
+
+```{r}
+summary(as.factor(maz_dat$forest_domain_data_treatment_control_category))
+```
+
+Let's filter the data to only include plots that have predictions for both `SetAside (Unmanaged)` and `BAU - NoThinning`.
+
+```{r}
+maz_dat %>% 
+  filter(forest_domain_data_treatment_control_category == "SetAside (Unmanaged)" |
+           forest_domain_data_treatment_control_category == "BAU - NoThinning") ->  maz_dat_bau_sa
+
+maz_dat_bau_sa %>% 
+  group_by(id) %>% 
+  summarise(n = n_distinct(forest_domain_data_treatment_control_category),
+            .groups = "drop") %>% 
+  filter(n == 2) %>% 
+  select(id) -> plot_list
+
+maz_dat_bau_sa %>% 
+  filter(id %in% plot_list$id) -> test_plots
+
+```
+
 We aim to predict individual-level treatment effects (ITE) using meta-learner algorithms. 
 We can evaluate the impact of various **decisions** on predictive accuracy.
 
 ## Decision 1 - Assignment of NFI plots to a realised management regime
 
-i.e., whether plot is BAU or set-aside
+i.e., whether plot is treatment or control
 
 - Option 1 = Random assignment
 - Option 2 = Something more realistic, e.g. a spatial constraint
@@ -52,7 +84,7 @@ We could use these to assign NFI plots to a management regime.
 The Mazziotta data has a `region2` variable:
 
 ```{r}
-maz_dat %>% 
+test_plots %>% 
   distinct(region2)
 ```
 
@@ -68,22 +100,62 @@ This map defines the regions slightly differently to the [land use data](http://
 - 3 is Mid with 8.5% unmanaged set-asides
 - 4 and 5 are Southern regions with 7% unmanaged set-asides
 
-Let's try and write the functions!
+For each region we want we want the % of plots randomly selected for set-aside to match the percentages above.
 
-```{r, eval = FALSE}
-assign_manage_weighted <- function(data = data) {
+```{r}
+test_plots %>% 
+    select(id, region2) %>% 
+    distinct() -> id_list
+
+assign_group_weighted <- function(region, proportion, data = id_list) {
   data %>% 
-    mutate(weight = case_when(
-      region2 == 1 ~ 0.12,
-      region2 == 2 ~ 0.125,
-      region2 == 3 ~ 0.085,
-      region2 == 4 | region == 5 ~ 0.07
-    )) %>% 
-    slice_sample(n = 100, weight_by = weight)
+    filter(region2 == region) %>% 
+    slice_sample(prop = proportion)
 }
 
-assign_manage_random <- function(data = data) {
-  code
-}
+tibble(region = 1:5,
+       proportion = c(0.12, 0.125, 0.085, 0.07, 0.07)) -> weights
+
+pmap(weights, assign_group_weighted) %>% 
+  bind_rows() -> set_aside_ids
+
+semi_join(test_plots, set_aside_ids, by = c("id", "region2")) %>% 
+  mutate(real_manage = "set_aside") -> set_aside_df
+
+anti_join(test_plots, set_aside_ids, by = c("id", "region2")) %>% 
+  mutate(real_manage = "bau") -> bau_df
+
+bind_rows(bau_df, set_aside_df) -> assigned_data
+```
+
+```{r assign-weighted}
+assigned_data %>% 
+  select(id, region2, real_manage) %>% 
+  distinct() %>% 
+  ggplot(aes(x = region2, fill = real_manage)) +
+  geom_bar(stat = "count") +
+  ggtitle("Assignment based on region")
+
+```
+
+```{r assign-random}
+id_list %>% 
+  slice_sample(prop = 0.5) %>% 
+  mutate(real_manage = "set_aside") -> set_aside_ids_rand
+
+semi_join(test_plots, set_aside_ids_rand, by = c("id", "region2")) %>% 
+  mutate(real_manage = "set_aside") -> set_aside_df_rand
+
+anti_join(test_plots, set_aside_df_rand, by = c("id", "region2")) %>% 
+  mutate(real_manage = "bau") -> bau_df_rand
+
+bind_rows(bau_df_rand, set_aside_df_rand) -> assigned_data_rand
+
+assigned_data_rand %>% 
+  select(id, region2, real_manage) %>% 
+  distinct() %>% 
+  ggplot(aes(x = region2, fill = real_manage)) +
+  geom_bar(stat = "count") +
+  ggtitle("Random assignment to groups")
 ```
 
