@@ -3,8 +3,9 @@
 code/exploration/*.html
 code/graveyard
 data/*
-.doc
-.docx
+*.doc
+*.docx
+*.xlsx
 
 ## R ignores:
 
