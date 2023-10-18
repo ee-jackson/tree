@@ -1,1 +1,1 @@
-In GitHub, view the .md files for rendered html
+**In GitHub, view the `.md` files for rendered html**
