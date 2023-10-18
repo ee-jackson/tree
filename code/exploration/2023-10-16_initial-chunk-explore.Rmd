@@ -1,0 +1,138 @@
+---
+title: "Explore Heureka data"
+author: '`r Sys.getenv("USER")`'
+date: '`r format(Sys.time(), "%d %B, %Y")`' 
+always_allow_html: true
+output: 
+  github_document:
+    keep_html: true
+---
+	
+```{r setup, include = FALSE}
+file_name <- rstudioapi::getSourceEditorContext()$path
+
+knitr::opts_chunk$set(
+  fig.path =
+    paste0("figures/", sub("\\.Rmd$", "", basename(file_name)), "/", sep = "")
+)
+
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
+```
+
+We have the first chunk of data from Tord, which is one fifth of the total data available.
+Lets have a look at it!
+
+```{r packages, message=FALSE, warning=FALSE}
+library("tidyverse")
+library("here")
+library("janitor")
+```
+
+```{r}
+tord_dat <- read.csv(
+  here::here("data", "raw", "ForManSims_2016_RCP0_2.csv"), 
+  sep = ";", skipNul = TRUE) %>% 
+  clean_names()
+
+glimpse(tord_dat)
+```
+
+How big is our actual sample size? 
+First let's filter to only include plots that have been managed for both 'set aside' and 'BAU - no thinning'.
+
+```{r}
+tord_dat %>% 
+  filter(control_category_name == "SetAside (Unmanaged)" |
+           control_category_name == "BAU - NoThinning") ->  tord_dat_bau_sa
+
+tord_dat_bau_sa %>% 
+  group_by(description) %>% 
+  summarise(n = n_distinct(control_category_name),
+            .groups = "drop") %>% 
+  filter(n == 2) %>% 
+  select(description) -> plot_list
+
+tord_dat_bau_sa %>% 
+  filter(description %in% plot_list$description) -> plots_bau_sa
+```
+
+```{r}
+plots_bau_sa %>% 
+  filter(region == 5 & period == 20) %>% 
+  ggplot(aes(x = age, y = total_soil_carbon, colour = control_category_name)) +
+  geom_jitter(alpha = 0.5)
+```
+
+Becks says: "We can see that forest age is totally confounded with treatment. Of course! 
+Clearcutting + replanting (BAU) resets the age of the forest. 
+Unfortunately, this presents a challenge to implementing the potential outcome framework.
+This is because the forests were different ages to start with (NFI input data), 
+and so they will have been clearcut at different times, rendering different ages.
+Because age is such a dominant predictor of soil carbon, it would need including in our RF models. 
+But age is confounded with treatment.
+To get around this problem - we can choose stands that were a similar starting age. 
+So  that way, forest ‘age’ or ‘time since treatment’ are: totally confounded with treatment, and DO NOT VARY (so do not need specifying in the RF model).
+Of course, this will sacrifice some sample size." 
+
+Let's take a look at the age of the forests in the NFI input data.
+
+```{r}
+tord_dat %>% 
+  filter(period == 0) %>% 
+  ggplot(aes(x = age)) +
+  geom_histogram(binwidth = 10)
+```
+
+If we filter to a starting age of 40, how many plots do we get?
+
+```{r}
+# get a list of plots with a starting age of 40
+tord_dat %>% 
+  filter(period == 0 & age == 40) %>% 
+  select(description) %>% 
+  distinct() -> plots_aged_40
+
+# filter bau and set aside plots to only include plots with starting age of 40
+plots_bau_sa %>% 
+  filter(description %in% plots_aged_40$description) -> plots_bau_sa_40
+
+
+n_distinct(plots_bau_sa_40$description)
+
+```
+
+Lets see what soil carbon is doing for a subset of plots.
+
+```{r}
+plots_bau_sa_40 %>% 
+  filter(description == "2016 2019 4150" |
+           description == "2016 1054 3180"|
+           description == "2016 3002 2100"|
+           description == "2016 5826 1031") %>% 
+  ggplot(aes(x = period, y = total_soil_carbon, colour = control_category_name)) +
+  geom_point(alpha = 0.7) +
+  facet_wrap(~description, scales = "free_y")
+```
+
+Why are there so many replicates for BAU management?
+Something to do with the `alternative_no` variable?
+
+```{r}
+plots_bau_sa_40 %>% 
+  filter(description == "2016 2019 4150" |
+           description == "2016 1054 3180"|
+           description == "2016 3002 2100"|
+           description == "2016 5826 1031") %>% 
+  ggplot(aes(x = period, y = total_soil_carbon, 
+             colour = as.factor(alternative_no))) +
+  geom_point(alpha = 0.7) +
+  geom_path() +
+  facet_wrap(~description, scales = "free_y")
+```
+
+Tord said _"For each of the 32,000 plots, 
+different management alternatives are simulated into the future (20(?) periods à 5 yrs). 
+For each plot, these are numbered."_
+
+It looks like the different management alternatives represented by `alternative_no` represent BAU starting at different times.
+I guess for our workflow we'll only want to pick one of them, maybe the first or last?
