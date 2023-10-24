@@ -1,7 +1,7 @@
 Explore Heureka data
 ================
 eleanorjackson
-18 October, 2023
+24 October, 2023
 
 We have the first chunk of data from Tord, which is one fifth of the
 total data available. Lets have a look at it!
@@ -216,6 +216,96 @@ alternatives are simulated into the future (20(?) periods à 5 yrs). For
 each plot, these are numbered.”*
 
 It looks like the different management alternatives represented by
-`alternative_no` represent BAU starting at different times. I guess for
-our workflow we’ll only want to pick one of them, maybe the first or
-last?
+`alternative_no` represent BAU starting at different times. Ideally we
+want to pick an `alternative_no` where management happens at the same
+time period. Is there any structure to how `alternative_no` is numbered?
+
+Try selecting the `alternative_no` which hits the highest peak
+`total_soil_carbon` for each plot.
+
+``` r
+plots_bau_sa_40 %>% 
+  filter(description == "2016 2019 4150" |
+           description == "2016 1054 3180"|
+           description == "2016 3002 2100"|
+           description == "2016 5826 1031") %>% 
+  group_by(description, alternative_no) %>% 
+  summarise(max = max(total_soil_carbon)) %>% 
+  slice_max(max, n = 1) %>% 
+  inner_join(plots_bau_sa_40) %>% 
+  ggplot(aes(x = period, y = total_soil_carbon, 
+             colour = as.factor(alternative_no))) +
+  geom_point(alpha = 0.7) +
+  geom_path() +
+  facet_wrap(~description, scales = "free_y")
+```
+
+    ## `summarise()` has grouped output by 'description'. You can override using the
+    ## `.groups` argument.
+    ## Joining with `by = join_by(description, alternative_no)`
+
+![](figures/2023-10-16_initial-chunk-explore/unnamed-chunk-8-1.png)<!-- -->
+Now try selecting `alternative_no`s which hit their peak in the same
+`period`.
+
+``` r
+plots_bau_sa_40 %>% 
+  filter(description == "2016 2019 4150" |
+           description == "2016 1054 3180"|
+           description == "2016 3002 2100"|
+           description == "2016 5826 1031") %>% 
+  filter(period == 10) %>% 
+  group_by(description, alternative_no, .drop = FALSE) %>% 
+  summarise(max = max(total_soil_carbon)) %>% 
+  slice_max(max, n = 1) %>% 
+  inner_join(plots_bau_sa_40) %>% 
+  ggplot(aes(x = period, y = total_soil_carbon, 
+             colour = as.factor(alternative_no))) +
+  geom_point(alpha = 0.7) +
+  geom_path() +
+  facet_wrap(~description, scales = "free_y")
+```
+
+    ## `summarise()` has grouped output by 'description'. You can override using the
+    ## `.groups` argument.
+    ## Joining with `by = join_by(description, alternative_no)`
+
+![](figures/2023-10-16_initial-chunk-explore/unnamed-chunk-9-1.png)<!-- -->
+
+I guess this is the most useful for putting into the model?
+
+## Peat
+
+``` r
+plots_bau_sa_40 %>% 
+  filter(peat == 1) %>% 
+  distinct(description)
+```
+
+    ##      description
+    ## 1 2016 2552 2061
+    ## 2 2016 3047 1150
+    ## 3 2016 4642 1040
+    ## 4 2016 5581 2030
+
+There are just four plots in this subset where `peat == 1`.
+
+``` r
+plots_bau_sa_40 %>% 
+  filter(peat == 1) %>% 
+  ggplot(aes(x = period, y = total_soil_carbon, 
+             colour = as.factor(alternative_no))) +
+  geom_point(alpha = 0.7) +
+  geom_path() +
+  facet_wrap(~description, scales = "free_y")
+```
+
+![](figures/2023-10-16_initial-chunk-explore/unnamed-chunk-11-1.png)<!-- -->
+
+[Heureka wiki](https://www.heurekaslu.se/wiki/Carbon_sequestration):
+**On ditched organic soils (peat), soil carbon decreases over time
+(using emission factors), while the soil carbon stock in unditched
+peatland remains constant (default 896 ton C/ha) over time.**
+
+This makes sense with those figures. We probably don’t want to use plots
+with peat soils.
