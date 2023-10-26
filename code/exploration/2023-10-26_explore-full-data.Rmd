@@ -1,0 +1,125 @@
+---
+title: "Explore new data"
+author: '`r Sys.getenv("USER")`'
+date: '`r format(Sys.time(), "%d %B, %Y")`' 
+always_allow_html: true
+output: 
+  github_document:
+    keep_html: true
+---
+	
+```{r setup, include = FALSE}
+file_name <- rstudioapi::getSourceEditorContext()$path
+
+knitr::opts_chunk$set(
+  fig.path =
+    paste0("figures/", sub("\\.Rmd$", "", basename(file_name)), "/", sep = "")
+)
+
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
+```
+
+Tord has been able to send us the other 4/5th of the data :tada:
+
+Let's take a look at it and compare it to the data we already had.
+
+```{r packages, message=FALSE, warning=FALSE}
+library("tidyverse")
+library("here")
+library("janitor")
+```
+
+Load new data
+
+```{r}
+file_names <- 
+  as.list(dir(path = here::here("data", "raw"),
+                         pattern = "ForManSims*", full.names = TRUE))
+
+# don't load the first big file we recieved
+file_names[[1]] <- NULL
+
+data_list <- 
+  lapply(X = file_names, FUN = read.csv, sep = ";", skipNul = TRUE)
+
+
+names(data_list) <- 
+  lapply(file_names, basename)
+
+new_data <- 
+  bind_rows(data_list, .id='df') %>%
+  clean_names() 
+
+rm(data_list)
+glimpse(new_data)  
+```
+
+Load original data
+
+```{r}
+og_data <-
+  readRDS(here::here("data", "derived", "subset_ForManSims_2016_RCP0.rds")) %>%
+  mutate(df = "ForManSims_2016_RCP0.csv")
+```
+
+## Do the new data contain new plots?
+
+The new data contains `r n_distinct(new_data$description)` unique plots (`description` IDs), 
+and the original data has `r n_distinct(og_data$description)`.
+
+If we join the data does the number of unique plots = 30057 (25326 + 4731)?
+
+```{r}
+og_data_0 <- 
+  og_data %>% 
+  filter(period == 0)
+
+new_data_0 <- 
+  new_data %>% 
+  filter(period == 0)
+
+bind_rows(og_data_0, new_data_0) %>% 
+  distinct(description) %>% 
+  glimpse()
+  
+```
+
+We get 29,939 distinct plots, so there's an overlap of 118 plots. 
+Where are they duplicated?
+
+```{r}
+inner_join(og_data_0, new_data_0, by = "description") %>% 
+  select(df.x, df.y)
+```
+
+The overlaps are between `ForManSims_2017_RCP0.csv` and `ForManSims_2016_RCP0.csv` (the original data).
+
+Are all the variables duplicated or just the plot ID?
+
+```{r}
+bind_rows(og_data_0, new_data_0) %>% 
+  select(-df) %>% 
+  get_dupes() %>% 
+  nrow()
+```
+
+Looks like the entire rows are duplicated (236/2=118). 
+That's ok, these are easy to remove. 
+
+```{r}
+bind_rows(og_data_0, new_data_0) %>% 
+  distinct(across(-df), .keep_all = TRUE) -> all_data_0
+```
+
+## What management options have been simulated for plots in the new data?
+
+```{r}
+summary(as.factor(new_data$control_category_name))
+```
+
+Just the ones we want :thumbsup:
+
+## What is our sample size?
+
+Keep getting the `Error: vector memory exhausted (limit reached?)` message,
+might have to test this on the cluster.
