@@ -47,7 +47,7 @@ easy_toy_data_simulation(1000) %>%
   geom_point()
 ```
 
-![](figures/2023-07-10_explore_causal_quartets/unnamed-chunk-2-1.png)<!-- -->
+![](figures/2023-07-10_explore-causal-quartets/unnamed-chunk-2-1.png)<!-- -->
 
 ## Blog post
 
@@ -86,7 +86,7 @@ sim_dat %>%
   geom_point()
 ```
 
-![](figures/2023-07-10_explore_causal_quartets/unnamed-chunk-4-1.png)<!-- -->
+![](figures/2023-07-10_explore-causal-quartets/unnamed-chunk-4-1.png)<!-- -->
 
 ``` r
 sim_dat %>% 
@@ -94,7 +94,7 @@ sim_dat %>%
   geom_point()
 ```
 
-![](figures/2023-07-10_explore_causal_quartets/unnamed-chunk-5-1.png)<!-- -->
+![](figures/2023-07-10_explore-causal-quartets/unnamed-chunk-5-1.png)<!-- -->
 
 ## `quartets` package
 
@@ -143,7 +143,7 @@ p1 + p2 + plot_layout(guides = "collect")
 
     ## `geom_smooth()` using formula = 'y ~ x'
 
-![](figures/2023-07-10_explore_causal_quartets/unnamed-chunk-7-1.png)<!-- -->
+![](figures/2023-07-10_explore-causal-quartets/unnamed-chunk-7-1.png)<!-- -->
 
 So say you ran an experiment and got this data. You’d think that
 exposure to the treatment gave a better outcome.
@@ -160,7 +160,7 @@ quartets::heterogeneous_causal_quartet %>%
   facet_wrap(~dataset)
 ```
 
-![](figures/2023-07-10_explore_causal_quartets/unnamed-chunk-8-1.png)<!-- -->
+![](figures/2023-07-10_explore-causal-quartets/unnamed-chunk-8-1.png)<!-- -->
 
 ``` r
 quartets::heterogeneous_causal_quartet %>%
@@ -168,4 +168,4 @@ quartets::heterogeneous_causal_quartet %>%
   geom_density() 
 ```
 
-![](figures/2023-07-10_explore_causal_quartets/unnamed-chunk-9-1.png)<!-- -->
+![](figures/2023-07-10_explore-causal-quartets/unnamed-chunk-9-1.png)<!-- -->
