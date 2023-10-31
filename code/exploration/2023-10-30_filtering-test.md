@@ -18,6 +18,8 @@ library("janitor")
     `Initial State`)
 4.  Select plots which have had a `BAU - NoThinning` action happen at
     the same time period
+5.  Select plots where BAU and set aside have the same soil carbon at
+    period 1
 
 ## 1. Read in a subset of the data and remove peat plots.
 
@@ -154,6 +156,20 @@ plots_bau_sa %>%
   bind_rows(plots_bau_12) -> test_plots
 ```
 
+## Select plots where BAU and set aside have the same soil carbon at period 1
+
+``` r
+test_plots %>%
+  filter(period == 1) %>% 
+  group_by(description) %>% 
+  mutate(dupes = as.integer(n_distinct(total_soil_carbon) == 1)) %>% 
+  filter(dupes == 1) %>% 
+  select(description) -> list_same_start
+
+test_plots %>%
+  filter(description %in% list_same_start$description) -> test_plots
+```
+
 Check!
 
 ``` r
@@ -174,6 +190,6 @@ test_plots %>%
     ## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
     ## generated.
 
-![](figures/2023-10-30_filtering-test/unnamed-chunk-9-1.png)<!-- -->
+![](figures/2023-10-30_filtering-test/unnamed-chunk-10-1.png)<!-- -->
 
 These look good!
