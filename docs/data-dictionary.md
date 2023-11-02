@@ -5,7 +5,7 @@ Note that file uses a semi-colon delimiter!
 
 |variable                           |definition                        |
 |:----------------------------------|:---------------------------------|
-|`description`                      | |
+|`description`                      |year-trakt-plot |
 |`period`                           |Five year time period from `0` to `20`, `0` is observed data and time periods > `0` are predictions from Heureka. |
 |`alternative_no`                   ||
 |`represented_area`                 ||
