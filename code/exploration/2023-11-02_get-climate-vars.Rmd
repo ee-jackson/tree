@@ -1,0 +1,173 @@
+---
+title: "Get climatic variables for NFI plots"
+author: '`r Sys.getenv("USER")`'
+date: '`r format(Sys.time(), "%d %B, %Y")`' 
+always_allow_html: true
+output: 
+  github_document:
+    keep_html: true
+---
+	
+```{r setup, include = FALSE}
+file_name <- rstudioapi::getSourceEditorContext()$path
+
+knitr::opts_chunk$set(
+  fig.path =
+    paste0("figures/", sub("\\.Rmd$", "", basename(file_name)), "/", sep = "")
+)
+
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
+```
+
+```{r packages, message=FALSE, warning=FALSE}
+library("tidyverse")
+library("here")
+library("janitor")
+library("tidymodels")
+library("ncdf4")
+library("sf")
+```
+
+Mean annual temperature and precipitation are going to be useful for predicting soil carbon.
+But this data isn't included in what we got from Tord. 
+[The Climatic Research Unit](https://www.uea.ac.uk/groups-and-centres/climatic-research-unit)
+has high-res global climate data available online [here](https://crudata.uea.ac.uk/cru/data/hrg/).
+
+I've just downloaded the most recent data for monthly average daily mean temperature (degrees Celsius).
+They also have precipitation (millimetres per month), but I'll start with temp first.
+
+The data is stored as a NetCDF file.
+I'm using this [this blog post](https://pjbartlein.github.io/REarthSysSci/netCDF.html) to figure out how to deal with that.
+
+```{r}
+temp_nc <- nc_open(here::here("data", "raw", "cru_ts4.07.2021.2022.tmp.dat.nc"))
+
+print(temp_nc)
+
+# get the variables out
+lon <- ncvar_get(temp_nc,"lon")
+lat <- ncvar_get(temp_nc,"lat")
+tmp_array <- ncvar_get(temp_nc, "tmp")
+
+# replace missing values with NA
+fill_value <- ncatt_get(temp_nc, "tmp", attname = "_FillValue")
+
+tmp_array <- tmp_array %>% 
+  na_if(fill_value$value) 
+  
+```
+
+```{r}
+ncatt_get(temp_nc, "time", "units")
+
+date <- ncvar_get(temp_nc,"time") %>% 
+  as.Date(origin = "1900-1-1")
+
+date
+```
+
+Ok, looks like we've got monthly average temperature for 2021 and 2022.
+
+```{r}
+dim(tmp_array)
+```
+
+The data is in a weird 3D raster format, with the third dimension being the date.
+We should be able to visualise the data at a single time point by selecting one "slice".
+
+```{r}
+image(lon, lat, tmp_array[ , , 1], col = viridis_pal(option = "B")(10))
+```
+
+We need to reshape the data into a 2D data frame.
+
+```{r}
+
+make_2d <- function(data_slice, lon, lat) {
+  lonlat <- as.matrix(expand.grid(lon, lat))
+  data_vec <- as.vector(data_slice)
+  cbind(lonlat, data_vec) %>% 
+    data.frame() 
+}
+
+data_list <- apply(X = tmp_array, MARGIN = 3, FUN = make_2d, 
+      lon = lon, lat = lat)
+
+names(data_list) <- date
+
+flat_data <- bind_rows(data_list, .id = "date") %>% 
+  rename("tmp" = "data_vec",
+         "lon" = "Var1",
+         "lat" = "Var2") %>% 
+    drop_na()
+
+glimpse(flat_data)
+```
+
+Get MAT (mean annual temperature).
+
+```{r}
+mat_data <- flat_data %>% 
+  mutate(year = substr(date, 1, 4)) %>% 
+  group_by(lon, lat, year) %>% 
+  summarise(mat = mean(tmp), .groups = "drop")
+
+glimpse(mat_data)
+```
+
+Now we somehow need to match MAT to the NFI plots.
+
+```{r warning=FALSE}
+nfi_coords <- readxl::read_excel(
+  here::here("data", "raw", "NFI plot coords NFI 2016-2020.xlsx"), 
+  col_types = c("numeric", "text", "text", "numeric", "numeric", "numeric", 
+                "numeric", "numeric", "numeric", "numeric", "numeric", 
+                "numeric", "numeric")) %>% 
+  select(-"...1") %>% 
+  clean_names()
+
+nfi_data <- readRDS(
+  here::here("data", "derived", "ForManSims_RCP0_same_time.rds")
+  ) %>% 
+  filter(control_category_name == "Initial state") %>%
+  mutate(description = str_replace_all(description, " ", "")) %>% 
+  inner_join(nfi_coords)
+
+```
+
+Let's try `st_join()` with `st_nearest_feature`, 
+It should match each plot to the nearest point in the climate data.
+
+```{r}
+# convert coordinates to sf objects
+
+nfi_data_sf <- st_as_sf(x = nfi_data,                         
+           coords = c("ost_wgs84", "nord_wgs84"),
+           crs = "WGS84")
+
+# will just use 2022 for now
+mat_data_sf <- mat_data %>% 
+  filter(year == "2022") %>% 
+  st_as_sf(coords = c("lon", "lat"),
+           crs = "WGS84")
+
+nfi_mat <- st_join(
+  nfi_data_sf,
+  mat_data_sf,
+  join = st_nearest_feature)
+  
+```
+
+```{r, nfi-plots-2022-mat}
+ggplot() + 
+  geom_sf(data = nfi_mat, 
+          aes(colour = mat), 
+          alpha = 0.7) +
+  scale_colour_viridis_c(option = "B") +
+  ggtitle("Mean annual temperature, 2022")
+
+```
+
+Nice!
+
+TO DO: precipitation and maybe get annual means for all years of period zero NFI plots.
