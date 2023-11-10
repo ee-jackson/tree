@@ -93,7 +93,9 @@ plots_bau %>%
   filter(period == 12) %>%
   group_by(description, alternative_no, .drop = FALSE) %>%
   summarise(total_soil_carbon_max = max(total_soil_carbon)) %>%
-  slice_max(total_soil_carbon_max, n = 1) %>%
+  ungroup() %>%
+  group_by(description) %>%
+  slice_max(total_soil_carbon_max, n = 1, with_ties = FALSE) %>%
   ungroup() %>%
   inner_join(plots_bau) -> plots_bau_12
 

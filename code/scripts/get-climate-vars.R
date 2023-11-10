@@ -154,8 +154,15 @@ map_plots <- lapply(unique(nfi_data_sf$taxar),
   bind_rows() %>%
   st_drop_geometry()
 
-
 full_join(mat_plots, map_plots) %>%
-  select(-year) %>%
+  select(-year) -> plots_0
+
+readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time.rds")) %>%
+  mutate(description = str_replace_all(description, " ", "")) %>%
+  filter(control_category_name != "Initial state") %>%
+  bind_rows(plots_0) %>%
+  group_by(description) %>%
+  arrange(period, .by_group =TRUE) %>%
+  ungroup() %>%
   saveRDS(file =
             here::here("data", "derived", "ForManSims_RCP0_same_time_clim.rds"))
