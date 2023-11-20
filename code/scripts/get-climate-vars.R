@@ -106,7 +106,6 @@ map_data <- pre_data %>%
 
 # Match to NFI plots ------------------------------------------------------
 
-
 nfi_coords <- readxl::read_excel(
   here::here("data", "raw", "NFI plot coords NFI 2016-2020.xlsx"),
   col_types = c("numeric", "text", "text","numeric","numeric","numeric",
@@ -160,6 +159,7 @@ full_join(mat_plots, map_plots) %>%
 readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time.rds")) %>%
   mutate(description = str_replace_all(description, " ", "")) %>%
   filter(control_category_name != "Initial state") %>%
+  filter(period == 0 | period == 20) %>%
   bind_rows(plots_0) %>%
   group_by(description) %>%
   arrange(period, .by_group =TRUE) %>%
