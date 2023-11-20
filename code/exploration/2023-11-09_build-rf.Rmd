@@ -1,0 +1,306 @@
+---
+title: "Build random forests"
+author: '`r Sys.getenv("USER")`'
+date: '`r format(Sys.time(), "%d %B, %Y")`' 
+always_allow_html: true
+output: 
+  github_document:
+    keep_html: true
+---
+	
+```{r setup, include = FALSE}
+file_name <- rstudioapi::getSourceEditorContext()$path
+
+knitr::opts_chunk$set(
+  fig.path =
+    paste0("figures/", sub("\\.Rmd$", "", basename(file_name)), "/", sep = "")
+)
+
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
+```
+
+__EL to build good RF models using all data? - both t and s. So we get an idea of what the predictors are (see previous study review), and the documentation of how soil carbon was measured. Avoid collider variables. Check ITE accuracy.__
+
+_El to narrow forest type (spruce or pine dom, whichever has bigger N), also include other variables as predcitors including soil moisture, and play with e,g., basal area, stem density, take out region, code up the tuning parameters to always pick the 'best'. Remove plots which have second round of cutting. And add the 1:1 line, true CATE (x) vs predicted CATE (y)._
+
+```{r packages, message=FALSE, warning=FALSE}
+library("tidyverse")
+library("here")
+library("causalToolbox")
+library("tidymodels")
+library("ggcorrplot")
+library("vip")
+```
+
+```{r}
+data <-
+  readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time_clim.rds")) 
+```
+
+```{r}
+summary(as.factor(data$forest_domain_name))
+```
+
+```{r}
+
+data %>% 
+  filter(period == 0) %>% 
+  mutate(prop_spruce = volume_spruce/ standing_volume,
+         forest_domain_name = gsub(" \\(.*", "", forest_domain_name)) %>%
+  ggplot() +
+  geom_histogram(aes(x = prop_spruce))+
+  facet_wrap(~forest_domain_name)
+
+data %>% 
+  filter(period == 0) %>% 
+  mutate(prop_pine = volume_pine/ standing_volume,
+         forest_domain_name = gsub(" \\(.*", "", forest_domain_name)) %>% 
+  ggplot() +
+  geom_histogram(aes(x = prop_pine))+
+  facet_wrap(~forest_domain_name)
+```
+
+```{r}
+data %>%
+  filter(period == 0) %>%
+  ggplot() +
+  geom_point(aes(ost_wgs84, nord_wgs84, colour = forest_domain_name),
+             alpha = 0.7) +
+  scale_colour_viridis_d(option = "B")
+```
+
+Most of the Spruce dominated plots seem to be in the South.
+
+I don't really know how plots were assigned into `forest_domain_name` groups 
+and I can't find any info online, 
+so I might just use all plots where the volume of Spruce is >50%?
+
+```{r}
+data %>% 
+  filter(period == 0) %>% 
+  mutate(prop_pine = volume_pine/ standing_volume) %>% 
+  filter(prop_pine >= 0.5) %>% 
+  select(description) -> spruce_dom_plots
+
+data %>% 
+  filter(description %in% spruce_dom_plots$description) -> data_spruce 
+```
+
+## Assign plots to a realised management regime
+
+Random assignment where set aside is not treated (0) and BAU is treated (1).
+
+```{r}
+data_spruce %>% 
+    select(description) %>% 
+    distinct() -> id_list
+
+id_list %>% 
+  slice_sample(prop = 0.5) -> treat_ids
+
+data_spruce %>%
+  mutate(tr =
+           case_when(description %in% treat_ids$description ~ 1,
+                     .default = 0)) -> data_assigned
+
+```
+
+## Find best predictors and tune hyperparameters
+
+Will use {tidymodels} for this and build a RF s-learner.
+
+
+I think that a lot of these vars will be correlated but just putting them all in now to see what happens. 
+
+```{r}
+data_assigned %>% 
+  filter(period == 0) %>% 
+  select(altitude , mat , map , soil_moist_code , basal_area_conifer , 
+      basal_area_deciduous, ditch , basal_area , closure ,
+      no_of_stems , standing_volume , spruce_bark_beetle_index, volume_pine,
+      volume_spruce, volume_birch, volume_aspen, volume_oak, volume_beech,
+      volume_southern_broadleaf, volume_larch) %>% 
+  cor(method = "spearman", use = "pairwise.complete.obs") -> cor_mat
+
+ggcorrplot(cor_mat, hc.order = TRUE, type = "lower",
+     outline.col = "white", lab = FALSE, insig = "blank")
+```
+
+Let's drop some of those highly correlated variables.
+
+```{r}
+data_assigned %>% 
+  filter(period == 0) %>% 
+  select(altitude , mat , map , soil_moist_code, ditch,
+      no_of_stems, volume_pine,
+      volume_spruce, volume_birch, volume_aspen, volume_oak, volume_beech,
+      volume_southern_broadleaf, volume_larch) %>% 
+  cor(method = "spearman", use = "pairwise.complete.obs") -> cor_mat
+
+ggcorrplot(cor_mat, hc.order = TRUE, type = "lower",
+     outline.col = "white", lab = FALSE, insig = "blank")
+```
+
+Think I'll go with these!
+
+```{r}
+#select features 
+data_assigned %>%
+  filter(period == 0) %>%
+  select(
+    description,
+    soil_moist_code,
+    altitude, mat, map, ditch, no_of_stems, volume_pine, volume_spruce,
+    volume_birch, volume_aspen, volume_oak, volume_beech, 
+    volume_southern_broadleaf, volume_larch
+  ) -> features
+
+data_assigned %>% 
+  select(description, tr, control_category_name, total_soil_carbon) %>% 
+  pivot_wider(id_cols = c(description, tr), names_from = control_category_name, values_from = total_soil_carbon) %>% 
+  mutate(soil_carbon_obs = case_when(tr == 0 ~ `SetAside (Unmanaged)`,
+                                tr == 1 ~ `BAU - NoThinning`)) %>% 
+  rename(soil_carbon_initial = `Initial state`,
+         soil_carbon_0 = `SetAside (Unmanaged)`, 
+         soil_carbon_1 = `BAU - NoThinning`) %>% 
+  left_join(features) -> data_obs
+```
+
+
+### test/train split
+
+```{r}
+data_split <- initial_split(data_obs, prop = 1/3)
+train_data <- training(data_split)
+test_data <- testing(data_split)
+```
+
+```{r}
+rf_tune <- rand_forest(mtry = tune(), min_n = tune()) %>%
+  set_engine("ranger", num.threads = 3) %>%
+  set_mode("regression")
+
+finalize(mtry(), select(train_data, -description, - soil_carbon_0, 
+                        - soil_carbon_1, -soil_carbon_obs))
+
+tree_grid <- grid_regular(mtry(c(1, 6)),
+                          min_n(),
+                          levels = 5)
+
+rf_recipe <- recipe(soil_carbon_obs ~ tr + 
+      altitude + mat + map + ditch + no_of_stems + volume_pine + volume_spruce +
+    volume_birch + volume_aspen + volume_oak + volume_beech + 
+    volume_southern_broadleaf + volume_larch,
+    data = train_data)
+
+rf_workflow <- workflow() %>%
+  add_recipe(rf_recipe) %>%
+  add_model(rf_tune)
+
+# create a set of cross-validation resamples to use for tuning
+trees_folds <- vfold_cv(train_data, v = 25)
+
+rf_tune_res <- 
+  tune_grid(rf_workflow,
+            resamples = trees_folds,
+            grid = tree_grid,
+            control = control_grid(save_pred = TRUE),
+            metrics = metric_set(rmse))
+```
+
+Our best model has `min_n` of `r select_best(rf_tune_res, "rmse")$min_n` and `mtry` of `r select_best(rf_tune_res, "rmse")$mtry`.
+
+```{r}
+best_auc <- select_best(rf_tune_res, "rmse")
+
+final_rf <- finalize_model(
+  rf_tune,
+  best_auc
+)
+
+final_rf
+
+```
+
+```{r}
+final_rf %>%
+  set_engine("ranger", importance = "permutation") %>%
+  fit(soil_carbon_obs ~ .,
+    data = train_data %>% select(-description, - soil_carbon_0, 
+                                 - soil_carbon_1)
+  ) %>%
+  vip(geom = "point")
+```
+
+# Fit meta learners!
+
+[{causalToolbox}](https://github.com/forestry-labs/causalToolbox) package and associated papers: https://arxiv.org/pdf/1706.03461.pdf and https://arxiv.org/pdf/1811.02833.pdf
+
+## S-learner
+
+*S_RF is an implementation of the S-Learner combined with Random Forests [(Breiman 2001)](https://doi.org/10.1023/A:1010933404324).*
+
+```{r}
+# create the hte object 
+s_learn <- S_RF(feat = select(train_data, altitude, mat, map, soil_moist_code, basal_area_conifer, basal_area_deciduous, soil_carbon_initial), 
+     tr = train_data$tr, yobs = train_data$soil_carbon_obs, nthread = 2)
+
+# estimate the CATE
+cate_s_learn <- EstimateCate(s_learn, 
+                             select(test_data, altitude, mat, map, soil_moist_code, basal_area_conifer, basal_area_deciduous, soil_carbon_initial))
+
+test_data %>% 
+  mutate(cate_s_learn = cate_s_learn,
+         cate_real = soil_carbon_1 - soil_carbon_0) %>% 
+  ggplot() +
+  geom_point(aes(x = cate_real, y = cate_s_learn)) +
+  geom_abline(intercept = 0, slope = 1, colour = "blue") +
+  theme_bw()
+  
+```
+
+## T-learner
+
+*T_RF is an implementation of the T-learner combined with Random Forest [(Breiman 2001)](https://doi.org/10.1023/A:1010933404324) for both response functions.*
+
+```{r}
+# create the hte object 
+t_learn <- T_RF(feat = select(train_data, altitude, mat, map, soil_moist_code, basal_area_conifer, basal_area_deciduous, soil_carbon_initial), 
+     tr = train_data$tr, yobs = train_data$soil_carbon_obs, nthread = 2)
+
+# estimate the CATE
+cate_t_learn <- EstimateCate(t_learn, 
+                             select(test_data, altitude, mat, map, soil_moist_code, basal_area_conifer, basal_area_deciduous, soil_carbon_initial))
+
+test_data %>% 
+  mutate(cate_t_learn = cate_t_learn,
+         cate_real = soil_carbon_1 - soil_carbon_0) %>% 
+  ggplot() +
+  geom_point(aes(x = cate_real, y = cate_t_learn)) +
+  geom_abline(intercept = 0, slope = 1, colour = "blue") +
+  theme_bw()
+  
+```
+
+## X-learner
+
+*X_RF is an implementation of the X-learner with Random Forests [(Breiman 2001)](https://doi.org/10.1023/A:1010933404324) in the first and second stage.*
+
+```{r}
+# create the hte object 
+x_learn <- X_RF(feat = select(train_data, altitude, mat, map, soil_moist_code, basal_area_conifer, basal_area_deciduous, soil_carbon_initial), 
+     tr = train_data$tr, yobs = train_data$soil_carbon_obs, nthread = 2)
+
+# estimate the CATE
+cate_x_learn <- EstimateCate(x_learn, 
+                             select(test_data, altitude, mat, map, soil_moist_code, basal_area_conifer, basal_area_deciduous, soil_carbon_initial))
+
+test_data %>% 
+  mutate(cate_t_learn = cate_x_learn,
+         cate_real = soil_carbon_1 - soil_carbon_0) %>% 
+  ggplot() +
+  geom_point(aes(x = cate_real, y = cate_x_learn)) +
+  geom_abline(intercept = 0, slope = 1, colour = "blue") +
+  theme_bw()
+  
+```
