@@ -19,9 +19,7 @@ knitr::opts_chunk$set(
 ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
 ```
 
-__EL to build good RF models using all data? - both t and s. So we get an idea of what the predictors are (see previous study review), and the documentation of how soil carbon was measured. Avoid collider variables. Check ITE accuracy.__
-
-_El to narrow forest type (spruce or pine dom, whichever has bigger N), also include other variables as predcitors including soil moisture, and play with e,g., basal area, stem density, take out region, code up the tuning parameters to always pick the 'best'. Remove plots which have second round of cutting. And add the 1:1 line, true CATE (x) vs predicted CATE (y)._
+_El to narrow forest type (spruce or pine dom, whichever has bigger N), also include other variables as predictors including soil moisture, and play with e,g., basal area, stem density, take out region, code up the tuning parameters to always pick the 'best'. Remove plots which have second round of cutting. And add the 1:1 line, true CATE (x) vs predicted CATE (y)._
 
 ```{r packages, message=FALSE, warning=FALSE}
 library("tidyverse")
@@ -188,9 +186,10 @@ tree_grid <- grid_regular(mtry(c(1, 6)),
                           levels = 5)
 
 rf_recipe <- recipe(soil_carbon_obs ~ tr + 
-      altitude + mat + map + ditch + no_of_stems + volume_pine + volume_spruce +
-    volume_birch + volume_aspen + volume_oak + volume_beech + 
-    volume_southern_broadleaf + volume_larch,
+    soil_carbon_initial + altitude + mat + map + ditch + no_of_stems + 
+      volume_pine + volume_spruce + volume_birch + volume_aspen + 
+      volume_oak + volume_beech + 
+      volume_southern_broadleaf + volume_larch,
     data = train_data)
 
 rf_workflow <- workflow() %>%
@@ -242,12 +241,20 @@ final_rf %>%
 
 ```{r}
 # create the hte object 
-s_learn <- S_RF(feat = select(train_data, altitude, mat, map, soil_moist_code, basal_area_conifer, basal_area_deciduous, soil_carbon_initial), 
+s_learn <- S_RF(feat = select(train_data, soil_carbon_initial, altitude, 
+                              mat, map, ditch, no_of_stems, volume_pine,
+                              volume_spruce, volume_birch, volume_aspen,
+                              volume_oak, volume_beech, 
+                              volume_southern_broadleaf, volume_larch), 
      tr = train_data$tr, yobs = train_data$soil_carbon_obs, nthread = 2)
 
 # estimate the CATE
 cate_s_learn <- EstimateCate(s_learn, 
-                             select(test_data, altitude, mat, map, soil_moist_code, basal_area_conifer, basal_area_deciduous, soil_carbon_initial))
+                             select(test_data, soil_carbon_initial, altitude, 
+                              mat, map, ditch, no_of_stems, volume_pine,
+                              volume_spruce, volume_birch, volume_aspen,
+                              volume_oak, volume_beech, 
+                              volume_southern_broadleaf, volume_larch))
 
 test_data %>% 
   mutate(cate_s_learn = cate_s_learn,
@@ -265,12 +272,20 @@ test_data %>%
 
 ```{r}
 # create the hte object 
-t_learn <- T_RF(feat = select(train_data, altitude, mat, map, soil_moist_code, basal_area_conifer, basal_area_deciduous, soil_carbon_initial), 
+t_learn <- T_RF(feat = select(train_data, soil_carbon_initial, altitude, 
+                              mat, map, ditch, no_of_stems, volume_pine,
+                              volume_spruce, volume_birch, volume_aspen,
+                              volume_oak, volume_beech, 
+                              volume_southern_broadleaf, volume_larch), 
      tr = train_data$tr, yobs = train_data$soil_carbon_obs, nthread = 2)
 
 # estimate the CATE
 cate_t_learn <- EstimateCate(t_learn, 
-                             select(test_data, altitude, mat, map, soil_moist_code, basal_area_conifer, basal_area_deciduous, soil_carbon_initial))
+                             select(test_data, soil_carbon_initial, altitude, 
+                              mat, map, ditch, no_of_stems, volume_pine,
+                              volume_spruce, volume_birch, volume_aspen,
+                              volume_oak, volume_beech, 
+                              volume_southern_broadleaf, volume_larch))
 
 test_data %>% 
   mutate(cate_t_learn = cate_t_learn,
@@ -288,12 +303,20 @@ test_data %>%
 
 ```{r}
 # create the hte object 
-x_learn <- X_RF(feat = select(train_data, altitude, mat, map, soil_moist_code, basal_area_conifer, basal_area_deciduous, soil_carbon_initial), 
+x_learn <- X_RF(feat = select(train_data, soil_carbon_initial, altitude, 
+                              mat, map, ditch, no_of_stems, volume_pine,
+                              volume_spruce, volume_birch, volume_aspen,
+                              volume_oak, volume_beech, 
+                              volume_southern_broadleaf, volume_larch), 
      tr = train_data$tr, yobs = train_data$soil_carbon_obs, nthread = 2)
 
 # estimate the CATE
 cate_x_learn <- EstimateCate(x_learn, 
-                             select(test_data, altitude, mat, map, soil_moist_code, basal_area_conifer, basal_area_deciduous, soil_carbon_initial))
+                             select(test_data, soil_carbon_initial, altitude, 
+                              mat, map, ditch, no_of_stems, volume_pine,
+                              volume_spruce, volume_birch, volume_aspen,
+                              volume_oak, volume_beech, 
+                              volume_southern_broadleaf, volume_larch))
 
 test_data %>% 
   mutate(cate_t_learn = cate_x_learn,
