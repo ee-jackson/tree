@@ -57,9 +57,19 @@ all_data %>%
 
 # Select plots with a starting age of 40 (+/- 10 years) -------------------
 
+all_data_no_peat %>%
+  filter(period == 0) %>%
+  summarise(median(age)) %>%
+  signif(1) %>%
+  pluck (1,1) -> median_age
+
+print(paste0("median age is ", median_age))
+
 # get a list of plots with a starting age of 40 (+/- 10 years)
 all_data_no_peat %>%
-  filter(period == 0 & age < 50 & age > 30) %>%
+  filter(period == 0 &
+           age < (median_age + 10) &
+           age > (median_age - 10)) %>%
   select(description) %>%
   distinct() -> list_40
 
