@@ -156,7 +156,20 @@ map_plots <- lapply(unique(nfi_data_sf$taxar),
 full_join(mat_plots, map_plots) %>%
   select(-year) -> plots_0
 
+# don't include plots with double thinning
 readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time.rds")) %>%
+  filter(control_category_name == "BAU - NoThinning") %>%
+  filter(period == 20 |
+           period == 19) %>%
+  pivot_wider(id_cols = description,
+              values_from = total_soil_carbon,
+              names_from = period) %>%
+  mutate(jump = `20` - `19`) %>%
+  filter(jump < 5 & jump > -5) %>%
+  select(description) -> small_jumps
+
+readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time.rds")) %>%
+  filter(description %in% small_jumps$description) %>%
   mutate(description = str_replace_all(description, " ", "")) %>%
   filter(control_category_name != "Initial state") %>%
   filter(period == 0 | period == 20) %>%
