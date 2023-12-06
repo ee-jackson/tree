@@ -1,17 +1,17 @@
 Matching
 ================
 eleanorjackson
-05 December, 2023
+06 December, 2023
 
 **‘We define “matching” broadly to be any method that aims to equate (or
 “balance”) the distribution of covariates in the treated and control
-groups.’ ([Stuart 2010](https://doi.org/10.1214%2F09-STS313))**
+groups.’ [(Stuart 2010)](https://doi.org/10.1214%2F09-STS313)**
 
 We want to test the effect that matching your training data might have
 on predictions of the ITE.
 
 In this notebook I’m going to explore what
-{[MatchIt](https://kosukeimai.github.io/MatchIt/)} has to offer and
+[{MatchIt}](https://kosukeimai.github.io/MatchIt/) has to offer and
 learn how to use it.
 
 ``` r
@@ -19,6 +19,7 @@ library("tidyverse")
 library("here")
 library("MatchIt")
 library("tidymodels")
+set.seed(123)
 ```
 
 # Prep data
@@ -129,44 +130,44 @@ summary(out_initial)
     ## 
     ## Summary of Balance for All Data:
     ##                           Means Treated Means Control Std. Mean Diff.
-    ## distance                         0.5350        0.5084          0.3260
-    ## soil_carbon_initial             67.9480       67.6145          0.0258
-    ## altitude                       216.3861      237.8028         -0.1554
-    ## mat                              5.0349        4.7296          0.1217
-    ## map                             52.8582       52.3145          0.0545
-    ## soil_moist_code                  2.0633        2.0727         -0.0210
-    ## ditch                            0.0791        0.0381          0.1521
-    ## no_of_stems                   1647.1393     1819.7094         -0.1175
-    ## volume_pine                    113.2990      115.0263         -0.0277
-    ## volume_spruce                   14.0990       11.8264          0.1104
-    ## volume_birch                     7.7490        6.7290          0.0715
-    ## volume_aspen                     0.0313        0.1183         -0.2095
-    ## volume_oak                       0.0627        0.1189         -0.0950
+    ## distance                         0.5283        0.4957          0.3689
+    ## soil_carbon_initial             66.1303       67.3125         -0.1025
+    ## altitude                       221.3419      226.0847         -0.0316
+    ## mat                              5.0680        4.6551          0.1685
+    ## map                             52.9970       51.7384          0.1341
+    ## soil_moist_code                  1.9935        2.0576         -0.1479
+    ## ditch                            0.0645        0.0847         -0.0823
+    ## no_of_stems                   1514.0112     1543.6243         -0.0227
+    ## volume_pine                    111.3951      113.8400         -0.0386
+    ## volume_spruce                   11.4060       11.3704          0.0020
+    ## volume_birch                     7.4279        5.8890          0.1073
+    ## volume_aspen                     0.1060        0.1164         -0.0061
+    ## volume_oak                       0.2401        0.1004          0.0558
     ## volume_beech                     0.0000        0.0000          0.0000
-    ## volume_southern_broadleaf        0.0167        0.0000          0.0563
+    ## volume_southern_broadleaf        0.0000        0.0000          0.0000
     ## volume_larch                     0.0000        0.0000          0.0000
     ##                           Var. Ratio eCDF Mean eCDF Max
-    ## distance                      1.0521    0.0931   0.1752
-    ## soil_carbon_initial           0.8875    0.0240   0.0641
-    ## altitude                      0.8270    0.0357   0.0681
-    ## mat                           0.9294    0.0316   0.1012
-    ## map                           1.1260    0.0138   0.0519
-    ## soil_moist_code               0.9980    0.0038   0.0112
-    ## ditch                              .    0.0411   0.0411
-    ## no_of_stems                   0.5424    0.0183   0.0578
-    ## volume_pine                   1.0103    0.0159   0.0554
-    ## volume_spruce                 1.1550    0.0486   0.1076
-    ## volume_birch                  1.1965    0.0246   0.0595
-    ## volume_aspen                  0.0523    0.0016   0.0038
-    ## volume_oak                    0.1874    0.0029   0.0069
+    ## distance                      0.9755    0.1007   0.1777
+    ## soil_carbon_initial           0.8420    0.0231   0.0615
+    ## altitude                      1.2925    0.0300   0.0780
+    ## mat                           0.8747    0.0445   0.1085
+    ## map                           1.0148    0.0441   0.0851
+    ## soil_moist_code               1.0213    0.0176   0.0382
+    ## ditch                              .    0.0202   0.0202
+    ## no_of_stems                   0.8080    0.0144   0.0483
+    ## volume_pine                   0.9760    0.0142   0.0508
+    ## volume_spruce                 1.1774    0.0205   0.0542
+    ## volume_birch                  1.8379    0.0185   0.0498
+    ## volume_aspen                  1.6824    0.0029   0.0069
+    ## volume_oak                    6.5203    0.0035   0.0090
     ## volume_beech                       .    0.0000   0.0000
-    ## volume_southern_broadleaf        N/A    0.0016   0.0032
+    ## volume_southern_broadleaf          .    0.0000   0.0000
     ## volume_larch                       .    0.0000   0.0000
     ## 
     ## Sample Sizes:
     ##           Control Treated
-    ## All           289     316
-    ## Matched       289     316
+    ## All           295     310
+    ## Matched       295     310
     ## Unmatched       0       0
     ## Discarded       0       0
 
@@ -180,11 +181,11 @@ Smaller values for `Std. Mean Diff.` indicate better balance,
 `eCDF Mean` and `eCDF Max` should be close to zero with `Var. Ratio`
 close to one.
 
-It looks like `volume_birch` is the most unbalanced.
+It looks like `mat` is the most unbalanced.
 
 ``` r
 ggplot(train_data) +
-  geom_density(aes(x = volume_birch, 
+  geom_density(aes(x = mat, 
                    fill = as.factor(tr), 
                    group = as.factor(tr)), 
                alpha = 0.6)
@@ -211,9 +212,9 @@ matching, subclassification, or profile matching can be used.”*
 may be possible, in which case generalised full matching and
 subclassification are faster solutions.”*
 
-It seems like optimal pair matching would be best
-(`method = "optimal"`), but if it’s too slow we could go for generalised
-full matching (`method = "quick"`).
+It seems like optimal full matching would be best (`method = "full"`),
+but if it’s too slow we could go for generalised full matching
+(`method = "quick"`).
 
 ``` r
 out_matched <-
@@ -222,23 +223,18 @@ out_matched <-
       no_of_stems + volume_pine + volume_spruce + volume_birch + volume_aspen + 
       volume_oak + volume_beech + volume_southern_broadleaf + volume_larch,
     data = train_data,
-    method = "optimal",
+    method = "full",
     distance = "glm"
   )
-```
 
-    ## Warning: Fewer control units than treated units; not all treated units will get
-    ## a match.
-
-``` r
 print(out_matched)
 ```
 
     ## A matchit object
-    ##  - method: 1:1 optimal pair matching
+    ##  - method: Optimal full matching
     ##  - distance: Propensity score
     ##              - estimated with logistic regression
-    ##  - number of obs.: 605 (original), 578 (matched)
+    ##  - number of obs.: 605 (original), 605 (matched)
     ##  - target estimand: ATT
     ##  - covariates: soil_carbon_initial, altitude, mat, map, soil_moist_code, ditch, no_of_stems, volume_pine, volume_spruce, volume_birch, volume_aspen, volume_oak, volume_beech, volume_southern_broadleaf, volume_larch
 
@@ -252,50 +248,51 @@ summary(out_matched, un = FALSE)
     ##     map + soil_moist_code + ditch + no_of_stems + volume_pine + 
     ##     volume_spruce + volume_birch + volume_aspen + volume_oak + 
     ##     volume_beech + volume_southern_broadleaf + volume_larch, 
-    ##     data = train_data, method = "optimal", distance = "glm")
+    ##     data = train_data, method = "full", distance = "glm")
     ## 
     ## Summary of Balance for Matched Data:
     ##                           Means Treated Means Control Std. Mean Diff.
-    ## distance                         0.5225        0.5084          0.1726
-    ## soil_carbon_initial             67.6135       67.6145         -0.0001
-    ## altitude                       222.5952      237.8028         -0.1104
-    ## mat                              4.8948        4.7296          0.0658
-    ## map                             52.7115       52.3145          0.0398
-    ## soil_moist_code                  2.0588        2.0727         -0.0310
-    ## ditch                            0.0415        0.0381          0.0128
-    ## no_of_stems                   1660.6937     1819.7094         -0.1083
-    ## volume_pine                    112.3315      115.0263         -0.0433
-    ## volume_spruce                   12.3506       11.8264          0.0255
-    ## volume_birch                     7.1168        6.7290          0.0272
-    ## volume_aspen                     0.0342        0.1183         -0.2025
-    ## volume_oak                       0.0414        0.1189         -0.1310
+    ## distance                         0.5283        0.5285         -0.0022
+    ## soil_carbon_initial             66.1303       65.8686          0.0227
+    ## altitude                       221.3419      218.5319          0.0187
+    ## mat                              5.0680        5.0281          0.0163
+    ## map                             52.9970       52.5392          0.0488
+    ## soil_moist_code                  1.9935        1.9818          0.0271
+    ## ditch                            0.0645        0.0589          0.0227
+    ## no_of_stems                   1514.0112     1541.6385         -0.0212
+    ## volume_pine                    111.3951      107.3854          0.0633
+    ## volume_spruce                   11.4060       11.6422         -0.0133
+    ## volume_birch                     7.4279        7.2760          0.0106
+    ## volume_aspen                     0.1060        0.0909          0.0089
+    ## volume_oak                       0.2401        0.2873         -0.0188
     ## volume_beech                     0.0000        0.0000          0.0000
     ## volume_southern_broadleaf        0.0000        0.0000          0.0000
     ## volume_larch                     0.0000        0.0000          0.0000
     ##                           Var. Ratio eCDF Mean eCDF Max Std. Pair Dist.
-    ## distance                      0.7566    0.0577   0.1349          0.1743
-    ## soil_carbon_initial           0.9048    0.0135   0.0415          1.0166
-    ## altitude                      0.8450    0.0237   0.0519          0.9404
-    ## mat                           0.9319    0.0204   0.0761          1.0140
-    ## map                           1.1144    0.0136   0.0484          1.0342
-    ## soil_moist_code               1.0092    0.0035   0.0069          0.7288
-    ## ditch                              .    0.0035   0.0035          0.1410
-    ## no_of_stems                   0.5266    0.0172   0.0484          0.9904
-    ## volume_pine                   1.0244    0.0194   0.0554          1.1268
-    ## volume_spruce                 0.8759    0.0295   0.0900          0.8543
-    ## volume_birch                  1.0914    0.0159   0.0519          0.7751
-    ## volume_aspen                  0.0572    0.0014   0.0035          0.3673
-    ## volume_oak                    0.0916    0.0031   0.0069          0.2708
+    ## distance                      0.9786    0.0031   0.0194          0.0151
+    ## soil_carbon_initial           1.0613    0.0156   0.0527          1.0272
+    ## altitude                      1.1834    0.0235   0.0684          1.1310
+    ## mat                           0.8409    0.0309   0.0773          1.0633
+    ## map                           0.9712    0.0177   0.0704          1.0365
+    ## soil_moist_code               1.3778    0.0113   0.0252          0.7053
+    ## ditch                              .    0.0056   0.0056          0.4523
+    ## no_of_stems                   0.6534    0.0278   0.0775          0.9945
+    ## volume_pine                   1.2093    0.0186   0.0569          1.1789
+    ## volume_spruce                 1.0611    0.0291   0.0769          0.9091
+    ## volume_birch                  1.1415    0.0152   0.0384          0.7426
+    ## volume_aspen                  1.9402    0.0014   0.0039          0.1446
+    ## volume_oak                    2.2488    0.0110   0.0232          0.1380
     ## volume_beech                       .    0.0000   0.0000          0.0000
     ## volume_southern_broadleaf          .    0.0000   0.0000          0.0000
     ## volume_larch                       .    0.0000   0.0000          0.0000
     ## 
     ## Sample Sizes:
-    ##           Control Treated
-    ## All           289     316
-    ## Matched       289     289
-    ## Unmatched       0      27
-    ## Discarded       0       0
+    ##               Control Treated
+    ## All            295.       310
+    ## Matched (ESS)  145.07     310
+    ## Matched        295.       310
+    ## Unmatched        0.         0
+    ## Discarded        0.         0
 
 ``` r
 plot(summary(out_matched))
@@ -315,13 +312,13 @@ We don’t have any unmatched units, which is good.
 
 ``` r
 plot(out_matched, type = "density", interactive = FALSE,
-     which.xs = ~ volume_birch + ditch + map)
+     which.xs = ~ mat + map + soil_carbon_initial)
 ```
 
 ![](figures/2023-12-05_explore-matching/unnamed-chunk-10-1.png)<!-- -->
 
-I can’t see much difference, but I guess the treatment groups were
-already quite well matched.
+I can’t see a big difference, but they have moved a little. I guess the
+treatment groups were already quite well matched.
 
 We can extract the matched data.
 
@@ -331,31 +328,31 @@ matched_data <- match.data(out_matched)
 glimpse(matched_data)
 ```
 
-    ## Rows: 578
+    ## Rows: 605
     ## Columns: 23
-    ## $ description               <chr> "201835961050", "201715193120", "20172697312…
-    ## $ tr                        <dbl> 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0,…
-    ## $ soil_carbon_initial       <dbl> 54.13351, 54.21619, 54.48513, 107.56960, 55.…
-    ## $ soil_carbon_0             <dbl> 68.74851, 49.10580, 58.11764, 110.06690, 59.…
-    ## $ soil_carbon_1             <dbl> 62.40365, 46.08447, 49.64525, 102.28420, 51.…
-    ## $ soil_carbon_obs           <dbl> 68.74851, 46.08447, 58.11764, 102.28420, 59.…
-    ## $ soil_moist_code           <int> 2, 2, 2, 3, 1, 2, 3, 2, 2, 2, 2, 2, 2, 2, 2,…
-    ## $ altitude                  <int> 607, 390, 177, 77, 284, 311, 270, 37, 12, 75…
-    ## $ mat                       <dbl> 2.78333335, 0.77499994, 0.08333334, 6.608333…
-    ## $ map                       <dbl> 42.52500, 49.76667, 43.66667, 45.48333, 57.7…
+    ## $ description               <chr> "201930274150", "201935774100", "20172516306…
+    ## $ tr                        <dbl> 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1,…
+    ## $ soil_carbon_initial       <dbl> 65.21490, 65.13894, 65.06004, 74.34764, 66.1…
+    ## $ soil_carbon_0             <dbl> 69.93696, 67.15486, 64.10593, 87.16634, 65.4…
+    ## $ soil_carbon_1             <dbl> 60.85133, 61.99760, 59.62754, 71.15314, 59.2…
+    ## $ soil_carbon_obs           <dbl> 69.93696, 61.99760, 64.10593, 71.15314, 59.2…
+    ## $ soil_moist_code           <int> 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 3, 2,…
+    ## $ altitude                  <int> 224, 307, 268, 135, 142, 287, 291, 126, 99, …
+    ## $ mat                       <dbl> 4.0333334, 4.5750001, 3.1500001, 4.5333335, …
+    ## $ map                       <dbl> 62.10833, 60.75833, 50.50000, 57.50000, 46.7…
     ## $ ditch                     <int> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,…
-    ## $ no_of_stems               <dbl> 2801.1200, 763.9420, 2259.9950, 1527.8840, 9…
-    ## $ volume_pine               <dbl> 44.75982, 51.64837, 117.70550, 102.51750, 72…
-    ## $ volume_spruce             <dbl> 5.783790, 0.000000, 4.027051, 10.125820, 16.…
-    ## $ volume_birch              <dbl> 18.286330, 0.000000, 0.000000, 23.104450, 0.…
+    ## $ no_of_stems               <dbl> 2858.2560, 1496.0530, 1846.1930, 1688.9700, …
+    ## $ volume_pine               <dbl> 79.92663, 170.42520, 129.45330, 147.70820, 7…
+    ## $ volume_spruce             <dbl> 13.321650, 0.000000, 5.956279, 47.802460, 20…
+    ## $ volume_birch              <dbl> 0.000000, 0.000000, 0.000000, 0.000000, 36.7…
     ## $ volume_aspen              <dbl> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,…
-    ## $ volume_oak                <dbl> 0.00000, 0.00000, 0.00000, 0.00000, 0.00000,…
+    ## $ volume_oak                <dbl> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,…
     ## $ volume_beech              <dbl> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,…
     ## $ volume_southern_broadleaf <dbl> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,…
     ## $ volume_larch              <dbl> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,…
-    ## $ distance                  <dbl> 0.3995060, 0.4722327, 0.4776318, 0.5176498, …
-    ## $ weights                   <dbl> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,…
-    ## $ subclass                  <fct> 1, 13, 112, 98, 213, 224, 235, 246, 226, 257…
+    ## $ distance                  <dbl> 0.5361771, 0.5115933, 0.4407283, 0.4395186, …
+    ## $ weights                   <dbl> 3.8064516, 1.0000000, 6.6612903, 1.0000000, …
+    ## $ subclass                  <fct> 209, 1, 77, 77, 145, 164, 109, 17, 173, 160,…
 
 `distance`, `weights` and `subclass` columns have been added to the
 data. When we model the data, we’re supposed to include the matching

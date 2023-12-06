@@ -19,11 +19,11 @@ knitr::opts_chunk$set(
 ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
 ```
 
-__'We define “matching” broadly to be any method that aims to equate (or “balance”) the distribution of covariates in the treated and control groups.' ([Stuart 2010](https://doi.org/10.1214%2F09-STS313))__
+__'We define “matching” broadly to be any method that aims to equate (or “balance”) the distribution of covariates in the treated and control groups.' [(Stuart 2010)](https://doi.org/10.1214%2F09-STS313)__
 
 We want to test the effect that matching your training data might have on predictions of the ITE.
 
-In this notebook I'm going to explore what {[MatchIt](https://kosukeimai.github.io/MatchIt/)} 
+In this notebook I'm going to explore what [{MatchIt}](https://kosukeimai.github.io/MatchIt/) 
 has to offer and learn how to use it.
 
 ```{r packages, message=FALSE, warning=FALSE}
@@ -31,6 +31,7 @@ library("tidyverse")
 library("here")
 library("MatchIt")
 library("tidymodels")
+set.seed(123)
 ```
 
 # Prep data
@@ -131,11 +132,11 @@ plot(summary(out_initial))
 
 Smaller values for `Std. Mean Diff.` indicate better balance, `eCDF Mean` and `eCDF Max` should be close to zero with `Var. Ratio` close to one.
 
-It looks like `volume_birch` is the most unbalanced. 
+It looks like `mat` is the most unbalanced. 
 
 ```{r}
 ggplot(train_data) +
-  geom_density(aes(x = volume_birch, 
+  geom_density(aes(x = mat, 
                    fill = as.factor(tr), 
                    group = as.factor(tr)), 
                alpha = 0.6)
@@ -155,7 +156,7 @@ _"If the target of inference is the ATE, optimal or generalized full matching, s
 
 _"For large datasets, neither optimal full matching nor profile matching may be possible, in which case generalised full matching and subclassification are faster solutions."_
 
-It seems like optimal pair matching would be best (`method = "optimal"`), 
+It seems like optimal full matching would be best (`method = "full"`), 
 but if it's too slow we could go for generalised full matching (`method = "quick"`). 
 
 ```{r}
@@ -165,7 +166,7 @@ out_matched <-
       no_of_stems + volume_pine + volume_spruce + volume_birch + volume_aspen + 
       volume_oak + volume_beech + volume_southern_broadleaf + volume_larch,
     data = train_data,
-    method = "optimal",
+    method = "full",
     distance = "glm"
   )
 
@@ -186,11 +187,12 @@ We don't have any unmatched units, which is good.
 
 ```{r}
 plot(out_matched, type = "density", interactive = FALSE,
-     which.xs = ~ volume_birch + ditch + map)
+     which.xs = ~ mat + map + soil_carbon_initial)
 ```
 
-I can't see much difference, 
-but I guess the treatment groups were already quite well matched.
+I can't see a big difference, 
+but they have moved a little.
+I guess the treatment groups were already quite well matched.
 
 We can extract the matched data.
 
