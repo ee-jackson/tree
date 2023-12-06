@@ -156,8 +156,10 @@ _"If the target of inference is the ATE, optimal or generalized full matching, s
 
 _"For large datasets, neither optimal full matching nor profile matching may be possible, in which case generalised full matching and subclassification are faster solutions."_
 
-It seems like optimal full matching would be best (`method = "full"`), 
-but if it's too slow we could go for generalised full matching (`method = "quick"`). 
+It seems like optimal full matching would be best 
+([`method = "full"`](https://kosukeimai.github.io/MatchIt/articles/matching-methods.html#optimal-full-matching-method-full)), 
+but if it's too slow we could go for generalised full matching 
+([`method = "quick"`](https://kosukeimai.github.io/MatchIt/articles/matching-methods.html#generalized-full-matching-method-quick)). 
 
 ```{r}
 out_matched <-
@@ -167,7 +169,8 @@ out_matched <-
       volume_oak + volume_beech + volume_southern_broadleaf + volume_larch,
     data = train_data,
     method = "full",
-    distance = "glm"
+    distance = "glm",
+    estimand = "ATE"
   )
 
 print(out_matched)
@@ -183,7 +186,8 @@ plot(summary(out_matched))
 plot(out_matched, type = "jitter", interactive = FALSE)
 ```
 
-We don't have any unmatched units, which is good.
+We don't have any unmatched units, 
+I think this is due to the kind of matching we're doing?
 
 ```{r}
 plot(out_matched, type = "density", interactive = FALSE,
@@ -203,4 +207,39 @@ glimpse(matched_data)
 ```
 
 `distance`, `weights` and `subclass` columns have been added to the data.
-When we model the data, we're supposed to include the matching weights in the estimation.
+When we model the data, we need to include the matching weights in the estimation - 
+they can be used like propensity scores. 
+
+_"The primary output of full matching is a set of matching weights that can be applied to the matched sample; in this way, full matching can be seen as a robust alternative to propensity score weighting, robust in the sense that the propensity score model does not need to be correct to estimate the treatment effect without bias."_
+
+`distance` is the propensity score and 
+`weights` is the probability of a non-treated plot being treated or
+the probability of a treated plot not being treated.
+
+We do this because _"If [a treated individual] has a low probability of treatment, that individual looks like the untreated. However, [it] was treated. This must be interesting. We have a treated that looks like the untreated, so we will give that entity a high weight."_ (Causal Inference for the Brave and True, [Source](https://www.franciscoyira.com/post/matching-in-r-3-propensity-score-iptw/))
+
+To achieve common support we need to have treatment and control units across the propensity score range,
+and to estimate the ATE, 
+the distributions of propensity scores for the treated and untreated units should completely overlap.
+
+```{r}
+ggplot(matched_data) +
+  geom_density(aes(x = distance, 
+                   group = as.factor(tr), 
+                   fill = as.factor(tr)),
+               alpha = 0.6) +
+  xlim(0,1)
+```
+
+Looks good, for every value of `distance` (propensity score), 
+there are both treated and untreated plots.
+
+# Fit model
+
+I was going to try and fit a t-learner using the weights/propensity scores,
+but I can't see how to include these in the models.
+Then I realised... isn't that what the X-learner does? 
+The X-learner adjusts the predicted treatment effects by the propensity scores to estimate CATEs.
+
+So, I think I must be using the wrong kind of matching method.
+I guess we want a method that removes plots that can't be matched / don't have overlap.

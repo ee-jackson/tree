@@ -212,9 +212,10 @@ matching, subclassification, or profile matching can be used.”*
 may be possible, in which case generalised full matching and
 subclassification are faster solutions.”*
 
-It seems like optimal full matching would be best (`method = "full"`),
+It seems like optimal full matching would be best
+([`method = "full"`](https://kosukeimai.github.io/MatchIt/articles/matching-methods.html#optimal-full-matching-method-full)),
 but if it’s too slow we could go for generalised full matching
-(`method = "quick"`).
+([`method = "quick"`](https://kosukeimai.github.io/MatchIt/articles/matching-methods.html#generalized-full-matching-method-quick)).
 
 ``` r
 out_matched <-
@@ -224,7 +225,8 @@ out_matched <-
       volume_oak + volume_beech + volume_southern_broadleaf + volume_larch,
     data = train_data,
     method = "full",
-    distance = "glm"
+    distance = "glm",
+    estimand = "ATE"
   )
 
 print(out_matched)
@@ -235,7 +237,7 @@ print(out_matched)
     ##  - distance: Propensity score
     ##              - estimated with logistic regression
     ##  - number of obs.: 605 (original), 605 (matched)
-    ##  - target estimand: ATT
+    ##  - target estimand: ATE
     ##  - covariates: soil_carbon_initial, altitude, mat, map, soil_moist_code, ditch, no_of_stems, volume_pine, volume_spruce, volume_birch, volume_aspen, volume_oak, volume_beech, volume_southern_broadleaf, volume_larch
 
 ``` r
@@ -248,51 +250,51 @@ summary(out_matched, un = FALSE)
     ##     map + soil_moist_code + ditch + no_of_stems + volume_pine + 
     ##     volume_spruce + volume_birch + volume_aspen + volume_oak + 
     ##     volume_beech + volume_southern_broadleaf + volume_larch, 
-    ##     data = train_data, method = "full", distance = "glm")
+    ##     data = train_data, method = "full", distance = "glm", estimand = "ATE")
     ## 
     ## Summary of Balance for Matched Data:
     ##                           Means Treated Means Control Std. Mean Diff.
-    ## distance                         0.5283        0.5285         -0.0022
-    ## soil_carbon_initial             66.1303       65.8686          0.0227
-    ## altitude                       221.3419      218.5319          0.0187
-    ## mat                              5.0680        5.0281          0.0163
-    ## map                             52.9970       52.5392          0.0488
-    ## soil_moist_code                  1.9935        1.9818          0.0271
-    ## ditch                            0.0645        0.0589          0.0227
-    ## no_of_stems                   1514.0112     1541.6385         -0.0212
-    ## volume_pine                    111.3951      107.3854          0.0633
-    ## volume_spruce                   11.4060       11.6422         -0.0133
-    ## volume_birch                     7.4279        7.2760          0.0106
-    ## volume_aspen                     0.1060        0.0909          0.0089
-    ## volume_oak                       0.2401        0.2873         -0.0188
+    ## distance                         0.5124        0.5125         -0.0010
+    ## soil_carbon_initial             67.6904       66.5726          0.0927
+    ## altitude                       221.4864      222.2147         -0.0052
+    ## mat                              4.9453        4.8463          0.0390
+    ## map                             52.5053       52.1487          0.0381
+    ## soil_moist_code                  2.0560        2.0188          0.0863
+    ## ditch                            0.0659        0.0715         -0.0215
+    ## no_of_stems                   1550.2004     1542.6068          0.0055
+    ## volume_pine                    110.6185      110.5327          0.0013
+    ## volume_spruce                   11.5027       11.5097         -0.0004
+    ## volume_birch                     7.3993        6.5997          0.0634
+    ## volume_aspen                     0.1532        0.1033          0.0331
+    ## volume_oak                       0.1593        0.1961         -0.0194
     ## volume_beech                     0.0000        0.0000          0.0000
     ## volume_southern_broadleaf        0.0000        0.0000          0.0000
     ## volume_larch                     0.0000        0.0000          0.0000
     ##                           Var. Ratio eCDF Mean eCDF Max Std. Pair Dist.
-    ## distance                      0.9786    0.0031   0.0194          0.0151
-    ## soil_carbon_initial           1.0613    0.0156   0.0527          1.0272
-    ## altitude                      1.1834    0.0235   0.0684          1.1310
-    ## mat                           0.8409    0.0309   0.0773          1.0633
-    ## map                           0.9712    0.0177   0.0704          1.0365
-    ## soil_moist_code               1.3778    0.0113   0.0252          0.7053
-    ## ditch                              .    0.0056   0.0056          0.4523
-    ## no_of_stems                   0.6534    0.0278   0.0775          0.9945
-    ## volume_pine                   1.2093    0.0186   0.0569          1.1789
-    ## volume_spruce                 1.0611    0.0291   0.0769          0.9091
-    ## volume_birch                  1.1415    0.0152   0.0384          0.7426
-    ## volume_aspen                  1.9402    0.0014   0.0039          0.1446
-    ## volume_oak                    2.2488    0.0110   0.0232          0.1380
+    ## distance                      0.9845    0.0030   0.0116          0.0150
+    ## soil_carbon_initial           1.1939    0.0193   0.0650          0.9822
+    ## altitude                      1.2522    0.0273   0.0702          1.2010
+    ## mat                           0.8573    0.0289   0.0701          1.0271
+    ## map                           0.9882    0.0170   0.0490          1.0403
+    ## soil_moist_code               1.4630    0.0168   0.0472          0.7091
+    ## ditch                              .    0.0056   0.0056          0.4231
+    ## no_of_stems                   0.7696    0.0240   0.0644          0.9402
+    ## volume_pine                   1.0925    0.0120   0.0428          1.1717
+    ## volume_spruce                 1.0424    0.0177   0.0542          0.9454
+    ## volume_birch                  1.3000    0.0142   0.0402          0.8451
+    ## volume_aspen                  2.7552    0.0020   0.0050          0.1619
+    ## volume_oak                    2.1184    0.0074   0.0170          0.1817
     ## volume_beech                       .    0.0000   0.0000          0.0000
     ## volume_southern_broadleaf          .    0.0000   0.0000          0.0000
     ## volume_larch                       .    0.0000   0.0000          0.0000
     ## 
     ## Sample Sizes:
     ##               Control Treated
-    ## All            295.       310
-    ## Matched (ESS)  145.07     310
-    ## Matched        295.       310
-    ## Unmatched        0.         0
-    ## Discarded        0.         0
+    ## All            295.    310.  
+    ## Matched (ESS)  232.03  245.66
+    ## Matched        295.    310.  
+    ## Unmatched        0.      0.  
+    ## Discarded        0.      0.
 
 ``` r
 plot(summary(out_matched))
@@ -308,7 +310,8 @@ plot(out_matched, type = "jitter", interactive = FALSE)
 
 ![](figures/2023-12-05_explore-matching/unnamed-chunk-9-1.png)<!-- -->
 
-We don’t have any unmatched units, which is good.
+We don’t have any unmatched units, I think this is due to the kind of
+matching we’re doing?
 
 ``` r
 plot(out_matched, type = "density", interactive = FALSE,
@@ -351,9 +354,56 @@ glimpse(matched_data)
     ## $ volume_southern_broadleaf <dbl> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,…
     ## $ volume_larch              <dbl> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,…
     ## $ distance                  <dbl> 0.5361771, 0.5115933, 0.4407283, 0.4395186, …
-    ## $ weights                   <dbl> 3.8064516, 1.0000000, 6.6612903, 1.0000000, …
+    ## $ weights                   <dbl> 2.4380165, 0.7685950, 3.9008264, 0.5855962, …
     ## $ subclass                  <fct> 209, 1, 77, 77, 145, 164, 109, 17, 173, 160,…
 
 `distance`, `weights` and `subclass` columns have been added to the
-data. When we model the data, we’re supposed to include the matching
-weights in the estimation.
+data. When we model the data, we need to include the matching weights in
+the estimation - they can be used like propensity scores.
+
+*“The primary output of full matching is a set of matching weights that
+can be applied to the matched sample; in this way, full matching can be
+seen as a robust alternative to propensity score weighting, robust in
+the sense that the propensity score model does not need to be correct to
+estimate the treatment effect without bias.”*
+
+`distance` is the propensity score and `weights` is the probability of a
+non-treated plot being treated or the probability of a treated plot not
+being treated.
+
+We do this because *“If \[a treated individual\] has a low probability
+of treatment, that individual looks like the untreated. However, \[it\]
+was treated. This must be interesting. We have a treated that looks like
+the untreated, so we will give that entity a high weight.”* (Causal
+Inference for the Brave and True,
+[Source](https://www.franciscoyira.com/post/matching-in-r-3-propensity-score-iptw/))
+
+To achieve common support we need to have treatment and control units
+across the propensity score range, and to estimate the ATE, the
+distributions of propensity scores for the treated and untreated units
+should completely overlap.
+
+``` r
+ggplot(matched_data) +
+  geom_density(aes(x = distance, 
+                   group = as.factor(tr), 
+                   fill = as.factor(tr)),
+               alpha = 0.6) +
+  xlim(0,1)
+```
+
+![](figures/2023-12-05_explore-matching/unnamed-chunk-12-1.png)<!-- -->
+
+Looks good, for every value of `distance` (propensity score), there are
+both treated and untreated plots.
+
+# Fit model
+
+I was going to try and fit a t-learner using the weights/propensity
+scores, but I can’t see how to include these in the models. Then I
+realised… isn’t that what the X-learner does? The X-learner adjusts the
+predicted treatment effects by the propensity scores to estimate CATEs.
+
+So, I think I must be using the wrong kind of matching method. I guess
+we want a method that removes plots that can’t be matched / don’t have
+overlap.
