@@ -1,0 +1,84 @@
+---
+title: "Testing the `assign_treatment` function"
+author: '`r Sys.getenv("USER")`'
+date: '`r format(Sys.time(), "%d %B, %Y")`' 
+always_allow_html: true
+output: 
+  github_document:
+    keep_html: true
+---
+	
+```{r setup, include = FALSE}
+file_name <- rstudioapi::getSourceEditorContext()$path
+
+knitr::opts_chunk$set(
+  fig.path =
+    paste0("figures/", sub("\\.Rmd$", "", basename(file_name)), "/", sep = "")
+)
+
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
+```
+
+```{r packages, message=FALSE, warning=FALSE}
+library("tidyverse")
+library("patchwork")
+library("here")
+set.seed(123)
+```
+
+```{r message=FALSE, warning=FALSE, results='hide'}
+function_dir <- list.files(here::here("code", "functions"),
+                           full.names = TRUE)
+
+sapply(function_dir, source)
+```
+
+```{r}
+data <-
+  readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time_clim.rds"))
+```
+
+```{r}
+data_random <- 
+  assign_treatment(df = data, assignment = "random")
+
+data_blocked <-
+  assign_treatment(df = data, assignment = "blocked")
+
+data_correlated <-
+  assign_treatment(df = data, assignment = "correlated")
+```
+
+```{r fig.height=5, fig.width=15}
+plot_altitude <- function(df, name) {
+  ggplot(data = df) +
+   geom_density(aes(x = altitude, 
+                   group = as.factor(tr), 
+                   fill = as.factor(tr)),
+               alpha = 0.6) +
+    ggtitle(name)
+}
+
+plot_altitude(data_random, "random") + 
+  plot_altitude(data_blocked, "blocked") +
+  plot_altitude(data_correlated, "correlated") 
+
+```
+
+```{r fig.height=5, fig.width=15}
+plot_region <- function(df, name) {
+  df %>% 
+    select(description, region, tr) %>% 
+    mutate(tr = as.factor(tr),
+           region = as.factor(region)) %>% 
+  distinct() %>% 
+  ggplot(aes(x = region, fill = tr)) +
+    geom_bar(stat = "count") +
+    ggtitle(name)
+}
+
+plot_region(data_random, "random") + 
+  plot_region(data_blocked, "blocked") +
+  plot_region(data_correlated, "correlated") 
+
+```
