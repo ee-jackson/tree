@@ -176,6 +176,18 @@ readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time.rds")) %>%
   bind_rows(plots_0) %>%
   group_by(description) %>%
   arrange(period, .by_group =TRUE) %>%
-  ungroup() %>%
+  ungroup() -> single_thin_data
+
+
+# only spruce dominated plots ---------------------------------------------
+
+single_thin_data %>%
+  filter(period == 0) %>%
+  mutate(prop_pine = volume_pine/ standing_volume) %>%
+  filter(prop_pine >= 0.5) %>%
+  select(description) -> spruce_dom_plots
+
+single_thin_data %>%
+  filter(description %in% spruce_dom_plots$description) %>%
   saveRDS(file =
             here::here("data", "derived", "ForManSims_RCP0_same_time_clim.rds"))
