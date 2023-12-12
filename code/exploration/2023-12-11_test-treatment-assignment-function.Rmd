@@ -26,16 +26,16 @@ library("here")
 set.seed(123)
 ```
 
+```{r}
+data <-
+  readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time_clim.rds"))
+```
+
 ```{r message=FALSE, warning=FALSE, results='hide'}
 function_dir <- list.files(here::here("code", "functions"),
                            full.names = TRUE)
 
 sapply(function_dir, source)
-```
-
-```{r}
-data <-
-  readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time_clim.rds"))
 ```
 
 ```{r}
@@ -82,3 +82,19 @@ plot_region(data_random, "random") +
   plot_region(data_correlated, "correlated") 
 
 ```
+
+Testing sample imbalance in treated vs non-treated with the `proportion_not_treated` argument.
+
+```{r fig.height=5, fig.width=10}
+data_random_33 <- 
+  assign_treatment(df = data, assignment = "random",
+                   proportion_not_treated = 0.33)
+
+data_correlated_66 <-
+  assign_treatment(df = data, assignment = "correlated",
+                   proportion_not_treated = 0.66)
+
+plot_region(data_random_33, "random") + 
+  plot_region(data_correlated_66, "correlated") 
+```
+

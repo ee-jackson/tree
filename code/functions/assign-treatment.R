@@ -1,20 +1,22 @@
 #' Assign treatment group to individual plot.
 #' @param df The clean data.
 #' @param assignment One of "random", "blocked" or "correlated".
+#' @param proportion_not_treated The proportion of the data that will be
+#' assigned 0. Not applicable when assignment = "blocked".
 #' @return The data with an extra column "tr" indicating treatment assignment.
 #' @import dplyr
 #' @importFrom tibble tibble
 #' @importFrom purrr pmap
 #' @export
 
-assign_treatment <- function(df, assignment) {
+assign_treatment <- function(df, assignment, proportion_not_treated = 0.5) {
 
   if (assignment == "random") {
 
     df |>
       dplyr::select(description) |>
       dplyr::distinct() |>
-      dplyr::slice_sample(prop = 0.5) -> no_treat_ids_rand
+      dplyr::slice_sample(prop = proportion_not_treated) -> no_treat_ids_rand
 
     df |>
       dplyr::mutate(tr =
@@ -52,7 +54,7 @@ assign_treatment <- function(df, assignment) {
     df |>
       dplyr::select(description, altitude) |>
       dplyr::distinct() |>
-      dplyr::slice_sample(prop = 0.5,
+      dplyr::slice_sample(prop = proportion_not_treated,
                    weight_by = altitude) |>
       dplyr::select(description) -> no_treat_ids_corr
 

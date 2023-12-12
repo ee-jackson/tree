@@ -1,7 +1,7 @@
 Testing the `assign_treatment` function
 ================
 eleanorjackson
-11 December, 2023
+12 December, 2023
 
 ``` r
 library("tidyverse")
@@ -11,15 +11,15 @@ set.seed(123)
 ```
 
 ``` r
+data <-
+  readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time_clim.rds"))
+```
+
+``` r
 function_dir <- list.files(here::here("code", "functions"),
                            full.names = TRUE)
 
 sapply(function_dir, source)
-```
-
-``` r
-data <-
-  readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time_clim.rds"))
 ```
 
 ``` r
@@ -68,3 +68,21 @@ plot_region(data_random, "random") +
 ```
 
 ![](figures/2023-12-11_test-treatment-assignment-function/unnamed-chunk-5-1.png)<!-- -->
+
+Testing sample imbalance in treated vs non-treated with the
+`proportion_not_treated` argument.
+
+``` r
+data_random_33 <- 
+  assign_treatment(df = data, assignment = "random",
+                   proportion_not_treated = 0.33)
+
+data_correlated_66 <-
+  assign_treatment(df = data, assignment = "correlated",
+                   proportion_not_treated = 0.66)
+
+plot_region(data_random_33, "random") + 
+  plot_region(data_correlated_66, "correlated") 
+```
+
+![](figures/2023-12-11_test-treatment-assignment-function/unnamed-chunk-6-1.png)<!-- -->
