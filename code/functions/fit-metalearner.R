@@ -204,7 +204,8 @@ fit_metalearner <- function(df, learner, n_train) {
 
     x_learn_out <- test_data |>
       dplyr::mutate(cate_x_learn = cate_x_learn,
-             cate_real = soil_carbon_1 - soil_carbon_0) |>
+             cate_real = soil_carbon_1 - soil_carbon_0,
+             diff = abs(cate_x_learn - cate_real)) |>
       dplyr::left_join(lat_lon,
                        by = "description")
 
