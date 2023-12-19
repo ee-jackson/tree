@@ -1,0 +1,121 @@
+---
+title: ""
+author: '`r Sys.getenv("USER")`'
+date: '`r format(Sys.time(), "%d %B, %Y")`' 
+always_allow_html: true
+output: 
+  github_document:
+    keep_html: true
+---
+	
+```{r setup, include = FALSE}
+file_name <- rstudioapi::getSourceEditorContext()$path
+
+knitr::opts_chunk$set(
+  fig.path =
+    paste0("figures/", sub("\\.Rmd$", "", basename(file_name)), "/", sep = "")
+)
+
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
+```
+
+```{r packages, message=FALSE, warning=FALSE, results='hide'}
+library("tidyverse")
+library("here")
+
+set.seed(123)
+
+# get my functions
+function_dir <- list.files(here::here("code", "functions"),
+                           full.names = TRUE)
+
+sapply(function_dir, source)
+```
+
+```{r}
+clean_data <-
+  readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time_clim.rds")) %>% 
+  dplyr::filter(! description == "201846093080")
+```
+
+For some reason, this plot `2018 4609 3080` only has an entry at period zero.
+Need to go back and find where this bug was introduced!
+
+Generate a table of every combination of these 4 "design features".
+
+```{r}
+keys <- expand.grid(
+  assignment = c("random", "blocked", "correlated"),
+  proportion_not_treated = c(0.5, 0.33, 0.66), 
+  learner = c("s", "t", "x"),
+  n_train = c(100, 200, 400, 800, 1600)
+  )
+
+glimpse(keys)
+```
+
+135 combinations!
+
+```{r}
+purrr::map2(
+  .f = assign_treatment,
+  .x = as.vector(keys$assignment), 
+  .y = as.vector(keys$proportion_not_treated),
+  df = clean_data) -> assigned_data
+
+keys %>% 
+  mutate(df_assigned = assigned_data) -> keys_assigned
+```
+
+Test function with one set of variables first.
+
+```{r}
+fit_metalearner(keys_assigned$df_assigned[[1]], keys_assigned$learner[[1]], keys_assigned$n_train[[1]])
+```
+
+Run `fit_metalearner` function for every row.
+
+```{r}
+pmap(list(df = keys_assigned$df_assigned,
+          learner = keys_assigned$learner, 
+          n_train = keys_assigned$n_train
+          ), fit_metalearner) -> model_out
+
+keys %>% 
+  mutate(df_out = model_out) -> keys_out
+```
+
+Get median error for each row
+
+```{r}
+keys_out %>% 
+  unite(col = "test_id", remove = FALSE,
+        assignment, proportion_not_treated, n_train, learner) %>% 
+  unnest(df_out) %>% 
+  group_by(test_id,
+           assignment, proportion_not_treated, n_train, learner) %>% 
+  summarise(median_error = median(abs(diff)),
+            .groups = "drop") -> results
+
+```
+
+... and plot
+
+```{r}
+ggplot(results, aes(x = learner, y = median_error)) +
+  geom_boxplot() +
+  geom_jitter(aes(colour = n_train, shape = as.factor(proportion_not_treated)))
+```
+
+!!!
+
+```{r}
+ggplot(results, aes(x = assignment, y = median_error)) +
+  geom_boxplot() +
+  geom_jitter(aes(colour = learner))
+```
+
+Not much difference between different treatment assignment groups.
+
+I think most of the variation in error is coming from 
+the choice of metalearner (`learner`) and the sample size (`n_train`)
