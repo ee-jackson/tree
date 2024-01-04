@@ -107,7 +107,7 @@ fit_metalearner <- function(df, learner, n_train, var_omit) {
     s_learn_out <- test_data |>
       dplyr::mutate(cate_s_learn = cate_s_learn,
              cate_real = soil_carbon_1 - soil_carbon_0,
-             diff = abs(cate_s_learn - cate_real)) |>
+             diff = cate_s_learn - cate_real) |>
       dplyr::left_join(lat_lon,
                        by = "description")
 
@@ -147,7 +147,7 @@ fit_metalearner <- function(df, learner, n_train, var_omit) {
     t_learn_out <- test_data |>
       dplyr::mutate(cate_t_learn = cate_t_learn,
              cate_real = soil_carbon_1 - soil_carbon_0,
-             diff = abs(cate_t_learn - cate_real)) |>
+             diff = cate_t_learn - cate_real) |>
       dplyr::left_join(lat_lon,
                        by = "description")
 
@@ -185,7 +185,7 @@ fit_metalearner <- function(df, learner, n_train, var_omit) {
     x_learn_out <- test_data |>
       dplyr::mutate(cate_x_learn = cate_x_learn,
              cate_real = soil_carbon_1 - soil_carbon_0,
-             diff = abs(cate_x_learn - cate_real)) |>
+             diff = cate_x_learn - cate_real) |>
       dplyr::left_join(lat_lon,
                        by = "description")
 
