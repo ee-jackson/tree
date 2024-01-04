@@ -96,5 +96,5 @@ As defined by Tord.
 |`description`                      |Unique plot ID |
 |`delyta_inve`                      |Unique plot ID |
 |`taxar`                            |Field NFI survey year (simulation year 0, t_0); they survey 1/5 of the plots each year so our sims thus start from each of the five years 2016-2020|
-|`trakt_nr`                        |Tract (see the NFI instruction for def.)|
+|`trakt_nr`                        |Tract (see the [NFI instructions](https://www.slu.se/globalassets/ew/org/centrb/rt/dokument/faltinst/nfi_fieldwork_instructions_eng.pdf) for def.)|
 |`palslag_nr`                      |Plot (radius 10 m)|
