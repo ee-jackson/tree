@@ -15,6 +15,7 @@ library("ncdf4")
 library("R.utils")
 library("janitor")
 library("sf")
+library("zoo")
 
 
 # Download data -----------------------------------------------------------
@@ -96,12 +97,22 @@ tmp_data <- bind_rows(cru_ts4_list_flat[[2]], cru_ts4_list_flat[[4]])
 mat_data <- tmp_data %>%
   mutate(year = substr(date, 1, 4)) %>%
   group_by(lon, lat, year) %>%
-  summarise(mat = mean(tmp), .groups = "drop")
+  summarise(mat_1yr = mean(tmp), .groups = "drop") %>%
+  group_by(lon, lat) %>%
+  arrange(year, .by_group = TRUE) %>%
+  mutate(mat_5yr = zoo::rollmean(mat_1yr, 5, fill = NA, align = "right")) %>%
+  ungroup() %>%
+  filter(year %in% c("2016", "2017", "2018", "2019", "2020") )
 
 map_data <- pre_data %>%
   mutate(year = substr(date, 1, 4)) %>%
   group_by(lon, lat, year) %>%
-  summarise(map = mean(pre), .groups = "drop")
+  summarise(map_1yr = mean(pre), .groups = "drop") %>%
+  group_by(lon, lat) %>%
+  arrange(year, .by_group = TRUE) %>%
+  mutate(map_5yr = zoo::rollmean(map_1yr, 5, fill = NA, align = "right")) %>%
+  ungroup() %>%
+  filter(year %in% c("2016", "2017", "2018", "2019", "2020") )
 
 
 # Match to NFI plots ------------------------------------------------------
@@ -115,8 +126,8 @@ nfi_coords <- readxl::read_excel(
   clean_names()
 
 nfi_data <- readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time.rds")) %>%
-  filter(control_category_name == "Initial state") %>%
   mutate(description = str_replace_all(description, " ", "")) %>%
+  distinct(description) %>%
   inner_join(nfi_coords)
 
 # convert coordinates to sf objects
@@ -156,7 +167,9 @@ map_plots <- lapply(unique(nfi_data_sf$taxar),
 full_join(mat_plots, map_plots) %>%
   select(-year) -> plots_0
 
-# don't include plots with double thinning
+
+# no double thinned plots -------------------------------------------------
+
 readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time.rds")) %>%
   filter(control_category_name == "BAU - NoThinning") %>%
   filter(period == 20 |
@@ -166,28 +179,28 @@ readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time.rds")) %>%
               names_from = period) %>%
   mutate(jump = `20` - `19`) %>%
   filter(jump < 5 & jump > -5) %>%
-  select(description) -> small_jumps
-
-readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time.rds")) %>%
-  filter(description %in% small_jumps$description) %>%
-  mutate(description = str_replace_all(description, " ", "")) %>%
-  filter(control_category_name != "Initial state") %>%
-  filter(period == 0 | period == 20) %>%
-  bind_rows(plots_0) %>%
-  group_by(description) %>%
-  arrange(period, .by_group =TRUE) %>%
-  ungroup() -> single_thin_data
+  select(description) -> small_jump_plots
 
 
 # only spruce dominated plots ---------------------------------------------
 
-single_thin_data %>%
+readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time.rds")) %>%
   filter(period == 0) %>%
   mutate(prop_pine = volume_pine/ standing_volume) %>%
   filter(prop_pine >= 0.5) %>%
   select(description) -> spruce_dom_plots
 
-single_thin_data %>%
+
+# filter + save -----------------------------------------------------------
+
+readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time.rds")) %>%
+  filter(description %in% small_jump_plots$description) %>%
   filter(description %in% spruce_dom_plots$description) %>%
+  mutate(description = str_replace_all(description, " ", "")) %>%
+  filter(period == 0 | period == 20) %>%
+  inner_join(plots_0) %>%
+  group_by(description) %>%
+  arrange(period, .by_group =TRUE) %>%
+  ungroup() %>%
   saveRDS(file =
             here::here("data", "derived", "ForManSims_RCP0_same_time_clim.rds"))
