@@ -24,6 +24,7 @@ library("tidyverse")
 library("here")
 library("tidymodels")
 library("vip")
+library("patchwork")
 
 set.seed(123)
 
@@ -35,16 +36,18 @@ Import the median ITE prediction errors
 ```{r}
 ml_results <- readRDS(here("data", "derived", "results.rds"))
 
+ml_out <- readRDS(here("data", "derived", "model_out.rds"))
+
 glimpse(ml_results)
 ```
 
 I'm just going to do a quick glm for curiosity's sake.
 
 ```{r}
-glm(median_error ~ learner + 
-      n_train + 
-      proportion_not_treated +
-      assignment +
+glm(median_error ~ learner * 
+      n_train * 
+      proportion_not_treated *
+      assignment *
       var_omit, 
     ml_results, family = gaussian) -> glm_out
 
@@ -109,7 +112,8 @@ final_rf %>%
   fit(median_error ~ .,
     data = ml_results %>% select(-test_id)
   ) %>%
-  vip(geom = "point")
+  vip(geom = "point", aesthetics = list(size = 3)) +
+  theme_classic(base_size = 20)
 ```
 
 ### fit model
@@ -135,11 +139,14 @@ final_res %>%
 plot_panels <- function(meta_learner, x_var, data) {
   data %>% 
     filter(learner == meta_learner) %>% 
-    ggplot(aes(y = .data$median_error, x = .data[[x_var]] )) +
-    geom_jitter(width = 0.1, alpha = 0.5, size = 0.5) +
+    ggplot(aes(y = .data$median_error, x = .data[[x_var]], 
+               colour = .data$n_train, shape = .data$assignment)) +
+    geom_jitter(width = 0.1, alpha = 0.7, size = 1) +
     ylim(-3, 6) +
-    geom_hline(yintercept = 0, colour = "red", size = 0.1, linetype = 2) +
-    theme_classic(base_size = 6)
+    scale_color_viridis_c() +
+    geom_hline(yintercept = 0, colour = "red", linewidth = 0.1, linetype = 2) +
+    theme_classic(base_size = 8) +
+    guides(color = "none", shape = "none")
 }
 
 keys <- expand.grid(
@@ -157,3 +164,203 @@ patchwork::wrap_plots(plot_list)
 ```
 
 First row is s, then t, then x.
+
+```{r}
+# plot_panels_all <- function(meta_learner, x_var, data) {
+#   data %>% 
+#     filter(learner == meta_learner) %>% 
+#     ggplot(aes(y = .data$diff, x = .data[[x_var]], 
+#                colour = .data$n_train, shape = .data$assignment)) +
+#     geom_jitter(width = 0.1, alpha = 0.5, size = 0.5) +
+#     ylim(-30, 30) +
+#     scale_color_viridis_c() +
+#     geom_hline(yintercept = 0, colour = "red", linewidth = 0.1, linetype = 2) +
+#     theme_classic(base_size = 6) +
+#     guides(color = "none")
+# }
+#   
+# purrr::pmap(list(meta_learner = keys$meta_learner,
+#           x_var = keys$x_var), plot_panels_all, data = unnest(ml_out, df_out)) -> plot_list
+# 
+# patchwork::wrap_plots(plot_list)
+```
+
+
+```{r warning=FALSE, fig.height=12, fig.width=4}
+
+ml_out %>% 
+  filter(learner == "s",
+         assignment == "random", proportion_not_treated == 0.5,
+         n_train == 1600, var_omit == FALSE) %>% 
+  mutate(rep = 1:3) %>% 
+  unnest(df_out) %>%
+  ggplot() +
+  geom_hline(yintercept = 0, colour = "grey", linetype = 2) +
+  geom_vline(xintercept = 0, colour = "grey", linetype = 2) +
+  geom_point(aes(x = cate_real, y = cate_s_learn, colour = abs(diff))) +
+  geom_abline(intercept = 0, slope = 1, colour = "blue") +
+  scale_color_gradient(low = "lightblue", high = "red3",
+                       limits = c(0, 30)) +
+  xlim(-30, 30) +
+  ylim(-30, 30) +
+  ggtitle("S-learner") -> p1
+
+ml_out %>% 
+  filter(learner == "t",
+         assignment == "random", proportion_not_treated == 0.5,
+         n_train == 1600, var_omit == FALSE) %>% 
+  mutate(rep = 1:3) %>% 
+  unnest(df_out) %>%
+  ggplot() +
+  geom_hline(yintercept = 0, colour = "grey", linetype = 2) +
+  geom_vline(xintercept = 0, colour = "grey", linetype = 2) +
+  geom_point(aes(x = cate_real, y = cate_t_learn, colour = abs(diff))) +
+  geom_abline(intercept = 0, slope = 1, colour = "blue") +
+  scale_color_gradient(low = "lightblue", high = "red3",
+                       limits = c(0, 30)) +
+  xlim(-30, 30) +
+  ylim(-30, 30) +
+  ggtitle("T-learner") -> p2
+
+
+ml_out %>% 
+  filter(learner == "x",
+         assignment == "random", proportion_not_treated == 0.5,
+         n_train == 1600, var_omit == FALSE) %>% 
+  mutate(rep = 1:3) %>% 
+  unnest(df_out) %>%
+  ggplot() +
+  geom_hline(yintercept = 0, colour = "grey", linetype = 2) +
+  geom_vline(xintercept = 0, colour = "grey", linetype = 2) +
+  geom_point(aes(x = cate_real, y = cate_x_learn, colour = abs(diff))) +
+  geom_abline(intercept = 0, slope = 1, colour = "blue") +
+  scale_color_gradient(low = "lightblue", high = "red3",
+                       limits = c(0, 30)) +
+  xlim(-30, 30) +
+  ylim(-30, 30) +
+  ggtitle("X-learner") -> p3
+
+p1 / p2 / p3 +
+  plot_layout(guides = "collect") +
+  plot_annotation(title = "Sample size = 1600")
+```
+
+```{r warning=FALSE, fig.height=12, fig.width=4}
+
+ml_out %>% 
+  filter(learner == "s",
+         assignment == "random", proportion_not_treated == 0.5,
+         n_train == 100, var_omit == FALSE) %>% 
+  mutate(rep = 1:3) %>% 
+  unnest(df_out) %>%
+  ggplot() +
+  geom_hline(yintercept = 0, colour = "grey", linetype = 2) +
+  geom_vline(xintercept = 0, colour = "grey", linetype = 2) +
+  geom_point(aes(x = cate_real, y = cate_s_learn, colour = abs(diff))) +
+  geom_abline(intercept = 0, slope = 1, colour = "blue") +
+  scale_color_gradient(low = "lightblue", high = "red3",
+                       limits = c(0, 30)) +
+  xlim(-30, 30) +
+  ylim(-30, 30) +
+  ggtitle("S-learner") -> p4
+
+ml_out %>% 
+  filter(learner == "t",
+         assignment == "random", proportion_not_treated == 0.5,
+         n_train == 100, var_omit == FALSE) %>% 
+  mutate(rep = 1:3) %>% 
+  unnest(df_out) %>%
+  ggplot() +
+  geom_hline(yintercept = 0, colour = "grey", linetype = 2) +
+  geom_vline(xintercept = 0, colour = "grey", linetype = 2) +
+  geom_point(aes(x = cate_real, y = cate_t_learn, colour = abs(diff))) +
+  geom_abline(intercept = 0, slope = 1, colour = "blue") +
+  scale_color_gradient(low = "lightblue", high = "red3",
+                       limits = c(0, 30)) +
+  xlim(-30, 30) +
+  ylim(-30, 30) +
+  ggtitle("T-learner") -> p5
+
+
+ml_out %>% 
+  filter(learner == "x",
+         assignment == "random", proportion_not_treated == 0.5,
+         n_train == 100, var_omit == FALSE) %>% 
+  mutate(rep = 1:3) %>% 
+  unnest(df_out) %>%
+  ggplot() +
+  geom_hline(yintercept = 0, colour = "grey", linetype = 2) +
+  geom_vline(xintercept = 0, colour = "grey", linetype = 2) +
+  geom_point(aes(x = cate_real, y = cate_x_learn, colour = abs(diff))) +
+  geom_abline(intercept = 0, slope = 1, colour = "blue") +
+  scale_color_gradient(low = "lightblue", high = "red3",
+                       limits = c(0, 30)) +
+  xlim(-30, 30) +
+  ylim(-30, 30) +
+  ggtitle("X-learner") -> p6
+
+p4 / p5 / p6 +
+  plot_layout(guides = "collect") +
+  plot_annotation(title = "Sample size = 100")
+  
+```
+
+
+```{r warning=FALSE, fig.height=12, fig.width=4}
+
+ml_out %>% 
+  filter(learner == "s",
+         assignment == "random", proportion_not_treated == 0.75,
+         n_train == 1600, var_omit == FALSE) %>% 
+  mutate(rep = 1:3) %>% 
+  unnest(df_out) %>%
+  ggplot() +
+  geom_hline(yintercept = 0, colour = "grey", linetype = 2) +
+  geom_vline(xintercept = 0, colour = "grey", linetype = 2) +
+  geom_point(aes(x = cate_real, y = cate_s_learn, colour = abs(diff))) +
+  geom_abline(intercept = 0, slope = 1, colour = "blue") +
+  scale_color_gradient(low = "lightblue", high = "red3",
+                       limits = c(0, 30)) +
+  xlim(-30, 30) +
+  ylim(-30, 30) +
+  ggtitle("S-learner") -> p7
+
+ml_out %>% 
+  filter(learner == "t",
+         assignment == "random", proportion_not_treated == 0.75,
+         n_train == 1600, var_omit == FALSE) %>% 
+  mutate(rep = 1:3) %>% 
+  unnest(df_out) %>%
+  ggplot() +
+  geom_hline(yintercept = 0, colour = "grey", linetype = 2) +
+  geom_vline(xintercept = 0, colour = "grey", linetype = 2) +
+  geom_point(aes(x = cate_real, y = cate_t_learn, colour = abs(diff))) +
+  geom_abline(intercept = 0, slope = 1, colour = "blue") +
+  scale_color_gradient(low = "lightblue", high = "red3",
+                       limits = c(0, 30)) +
+  xlim(-30, 30) +
+  ylim(-30, 30) +
+  ggtitle("T-learner") -> p8
+
+
+ml_out %>% 
+  filter(learner == "x",
+         assignment == "random", proportion_not_treated == 0.75,
+         n_train == 1600, var_omit == FALSE) %>% 
+  mutate(rep = 1:3) %>% 
+  unnest(df_out) %>%
+  ggplot() +
+  geom_hline(yintercept = 0, colour = "grey", linetype = 2) +
+  geom_vline(xintercept = 0, colour = "grey", linetype = 2) +
+  geom_point(aes(x = cate_real, y = cate_x_learn, colour = abs(diff))) +
+  geom_abline(intercept = 0, slope = 1, colour = "blue") +
+  scale_color_gradient(low = "lightblue", high = "red3",
+                       limits = c(0, 30)) +
+  xlim(-30, 30) +
+  ylim(-30, 30) +
+  ggtitle("X-learner") -> p9
+
+p7 / p8 / p9 +
+  plot_layout(guides = "collect") +
+  plot_annotation(title = "75% not treated")
+```
