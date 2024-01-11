@@ -1,0 +1,202 @@
+Explanatory visualisations
+================
+eleanorjackson
+11 January, 2024
+
+Making some vis for presentation purposes.
+
+``` r
+library("tidyverse")
+library("here")
+library("maps")
+library("patchwork")
+
+clean_data <-
+  readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time_clim.rds"))
+
+function_dir <- list.files(here::here("code", "functions"),
+                           full.names = TRUE)
+
+sapply(function_dir, source)
+```
+
+    ##         /Users/eleanorjackson/Projects/tree/code/functions/assign-treatment.R
+    ## value   ?                                                                    
+    ## visible FALSE                                                                
+    ##         /Users/eleanorjackson/Projects/tree/code/functions/fit-metalearner.R
+    ## value   ?                                                                   
+    ## visible FALSE
+
+``` r
+clean_data %>% 
+  filter(period == 0) %>%
+  ggplot(aes(ost_wgs84, nord_wgs84, colour = as.factor(taxar))) +
+  borders("world", regions = "sweden") +
+  geom_point(alpha = 0.5, shape = 16) +
+  scale_color_viridis_d() +
+  coord_quickmap() +
+  theme_void() +
+  theme(legend.title=element_blank())
+```
+
+![](figures/2024-01-11_explanatory-vis/unnamed-chunk-1-1.png)<!-- -->
+
+``` r
+data_random <- 
+  assign_treatment(df = clean_data, assignment = "random")
+
+data_blocked <-
+  assign_treatment(df = clean_data, assignment = "blocked")
+
+data_correlated <-
+  assign_treatment(df = clean_data, assignment = "correlated")
+
+
+data_random %>% 
+  filter(period == 0) %>%
+  ggplot(aes(ost_wgs84, nord_wgs84, colour = as.factor(tr))) +
+  borders("world", regions = "sweden") +
+  geom_point(alpha = 0.5, shape = 16) +
+  coord_quickmap() +
+  theme_void() +
+  theme(legend.title=element_blank()) +
+  ggtitle("Random") -> p1
+
+data_blocked %>% 
+  filter(period == 0) %>%
+  ggplot(aes(ost_wgs84, nord_wgs84, colour = as.factor(tr))) +
+  borders("world", regions = "sweden") +
+  geom_point(alpha = 0.5, shape = 16) +
+  coord_quickmap() +
+  theme_void() +
+  theme(legend.title=element_blank()) +
+  ggtitle("Spatially blocked") -> p2
+
+data_correlated %>% 
+  filter(period == 0) %>%
+  ggplot(aes(ost_wgs84, nord_wgs84, colour = as.factor(tr))) +
+  borders("world", regions = "sweden") +
+  geom_point(alpha = 0.5, shape = 16) +
+  coord_quickmap() +
+  theme_void() +
+  theme(legend.title=element_blank()) +
+  ggtitle("Correlated with altitude") -> p3
+
+p1 + p2 + p3 +
+  plot_layout(guides = "collect")
+```
+
+![](figures/2024-01-11_explanatory-vis/unnamed-chunk-2-1.png)<!-- -->
+
+``` r
+data_25 <- 
+  assign_treatment(df = clean_data, assignment = "random", 
+                   proportion_not_treated = 0.25)
+
+data_50 <-
+  assign_treatment(df = clean_data, assignment = "random",
+                   proportion_not_treated = 0.5)
+
+data_75 <-
+  assign_treatment(df = clean_data, assignment = "random",
+                   proportion_not_treated = 0.75)
+
+
+data_25 %>% 
+  filter(period == 0) %>%
+  ggplot(aes(ost_wgs84, nord_wgs84, colour = as.factor(tr))) +
+  borders("world", regions = "sweden") +
+  geom_point(alpha = 0.5, shape = 16) +
+  coord_quickmap() +
+  theme_void() +
+  theme(legend.title=element_blank()) +
+  ggtitle("25% not treated") -> p4
+
+data_50 %>% 
+  filter(period == 0) %>%
+  ggplot(aes(ost_wgs84, nord_wgs84, colour = as.factor(tr))) +
+  borders("world", regions = "sweden") +
+  geom_point(alpha = 0.5, shape = 16) +
+  coord_quickmap() +
+  theme_void() +
+  theme(legend.title=element_blank()) +
+  ggtitle("50% not treated") -> p5
+
+data_75 %>% 
+  filter(period == 0) %>%
+  ggplot(aes(ost_wgs84, nord_wgs84, colour = as.factor(tr))) +
+  borders("world", regions = "sweden") +
+  geom_point(alpha = 0.5, shape = 16) +
+  coord_quickmap() +
+  theme_void() +
+  theme(legend.title=element_blank()) +
+  ggtitle("75% not treated") -> p6
+
+p4 + p5 + p6 +
+  plot_layout(guides = "collect")
+```
+
+![](figures/2024-01-11_explanatory-vis/unnamed-chunk-3-1.png)<!-- -->
+
+``` r
+data_random %>% 
+  filter(period == 0) %>%
+  slice_sample(n = 100) %>% 
+  ggplot(aes(ost_wgs84, nord_wgs84, colour = as.factor(tr))) +
+  borders("world", regions = "sweden") +
+  geom_point(alpha = 0.5, shape = 16) +
+  coord_quickmap() +
+  theme_void() +
+  theme(legend.title=element_blank()) +
+  ggtitle("100") -> p7
+
+data_random %>% 
+  filter(period == 0) %>%
+  slice_sample(n = 200) %>% 
+  ggplot(aes(ost_wgs84, nord_wgs84, colour = as.factor(tr))) +
+  borders("world", regions = "sweden") +
+  geom_point(alpha = 0.5, shape = 16) +
+  coord_quickmap() +
+  theme_void() +
+  theme(legend.title=element_blank()) +
+  ggtitle("200") -> p8
+
+data_random %>% 
+  filter(period == 0) %>%
+  slice_sample(n = 400) %>% 
+  ggplot(aes(ost_wgs84, nord_wgs84, colour = as.factor(tr))) +
+  borders("world", regions = "sweden") +
+  geom_point(alpha = 0.5, shape = 16) +
+  coord_quickmap() +
+  theme_void() +
+  theme(legend.title=element_blank()) +
+  ggtitle("400") -> p9
+
+data_random %>% 
+  filter(period == 0) %>%
+  slice_sample(n = 800) %>% 
+  ggplot(aes(ost_wgs84, nord_wgs84, colour = as.factor(tr))) +
+  borders("world", regions = "sweden") +
+  geom_point(alpha = 0.5, shape = 16) +
+  coord_quickmap() +
+  theme_void() +
+  theme(legend.title=element_blank()) +
+  ggtitle("800") -> p10
+
+data_random %>% 
+  filter(period == 0) %>%
+  slice_sample(n = 1600) %>% 
+  ggplot(aes(ost_wgs84, nord_wgs84, colour = as.factor(tr))) +
+  borders("world", regions = "sweden") +
+  geom_point(alpha = 0.5, shape = 16) +
+  coord_quickmap() +
+  theme_void() +
+  theme(legend.title=element_blank()) +
+  ggtitle("1600") -> p11
+
+
+p7 + p8 + p9 + p10 + p11 +
+  plot_layout(guides = "collect", nrow = 1)
+```
+
+![](figures/2024-01-11_explanatory-vis/unnamed-chunk-4-1.png)<!-- -->
