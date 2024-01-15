@@ -1,7 +1,7 @@
 Fit the meta-meta model and explore preliminary results
 ================
 eleanorjackson
-11 January, 2024
+15 January, 2024
 
 ``` r
 library("tidyverse")
@@ -535,17 +535,21 @@ final_res %>%
 
 ## Visualise!
 
+First col is s, then t, then x.
+
 ``` r
-plot_panels <- function(meta_learner, x_var, data) {
+plot_panels <- function(meta_learner, x_var, jitter_width, data) {
   data %>% 
     filter(learner == meta_learner) %>% 
-    ggplot(aes(y = .data$median_error, x = .data[[x_var]], 
-               colour = .data$n_train, shape = .data$assignment)) +
-    geom_jitter(width = 0.1, alpha = 0.7, size = 1) +
+    ggplot(aes(y = .data$median_error, x = .data[[x_var]])) +
+    geom_jitter(aes(colour = .data$n_train, shape = .data$assignment),
+                width = jitter_width, height = 0, alpha = 0.7, size = 1.5) +
+    geom_hline(yintercept = 0, colour = "red", linewidth = 0.7, linetype = 2) +
+    stat_summary(fun = "median", fill = "white", colour = "black", 
+                 size = 0.5, shape = 21, stroke = 0.5) +
     ylim(-3, 6) +
     scale_color_viridis_c() +
-    geom_hline(yintercept = 0, colour = "red", linewidth = 0.1, linetype = 2) +
-    theme_classic(base_size = 8) +
+    theme_classic(base_size = 10) +
     guides(color = "none", shape = "none")
 }
 
@@ -554,37 +558,21 @@ keys <- expand.grid(
   x_var = c("assignment", "proportion_not_treated", "n_train", "var_omit")
   ) %>% 
   mutate(x_var = as.character(x_var)) %>% 
+  mutate(jitter_width = case_when(x_var == "assignment" ~ 0.2,
+                                  x_var == "proportion_not_treated" ~ 0.05,
+                                  x_var == "n_train" ~ 80,
+                                  x_var == "var_omit" ~ 0.2,
+                                  .default = 0.5)) %>% 
   arrange(meta_learner)
 
 purrr::pmap(list(meta_learner = keys$meta_learner,
-          x_var = keys$x_var), plot_panels, data = ml_results) -> plot_list
+          x_var = keys$x_var, jitter_width = keys$jitter_width), 
+          plot_panels, data = ml_results) -> plot_list
 
-patchwork::wrap_plots(plot_list)
+patchwork::wrap_plots(plot_list, ncol = 3, byrow = FALSE)
 ```
 
 ![](figures/2024-01-05_explore-prelim-results/unnamed-chunk-7-1.png)<!-- -->
-
-First row is s, then t, then x.
-
-``` r
-# plot_panels_all <- function(meta_learner, x_var, data) {
-#   data %>% 
-#     filter(learner == meta_learner) %>% 
-#     ggplot(aes(y = .data$diff, x = .data[[x_var]], 
-#                colour = .data$n_train, shape = .data$assignment)) +
-#     geom_jitter(width = 0.1, alpha = 0.5, size = 0.5) +
-#     ylim(-30, 30) +
-#     scale_color_viridis_c() +
-#     geom_hline(yintercept = 0, colour = "red", linewidth = 0.1, linetype = 2) +
-#     theme_classic(base_size = 6) +
-#     guides(color = "none")
-# }
-#   
-# purrr::pmap(list(meta_learner = keys$meta_learner,
-#           x_var = keys$x_var), plot_panels_all, data = unnest(ml_out, df_out)) -> plot_list
-# 
-# patchwork::wrap_plots(plot_list)
-```
 
 ``` r
 ml_out %>% 
@@ -642,6 +630,56 @@ ml_out %>%
 p1 / p2 / p3 +
   plot_layout(guides = "collect") +
   plot_annotation(title = "Sample size = 1600")
+```
+
+![](figures/2024-01-05_explore-prelim-results/unnamed-chunk-8-1.png)<!-- -->
+
+``` r
+ml_out %>% 
+  filter(learner == "s",
+         proportion_not_treated == 0.5,
+         var_omit == FALSE) %>% 
+  unnest(df_out) %>%
+  ggplot() +
+  geom_hline(yintercept = 0, colour = "grey", linetype = 2) +
+  geom_vline(xintercept = 0, colour = "grey", linetype = 2) +
+  geom_point(aes(x = cate_real, y = cate_s_learn, colour = n_train, shape = assignment), alpha = 0.7) +
+  geom_abline(intercept = 0, slope = 1, colour = "blue") +
+  xlim(-30, 30) +
+  ylim(-30, 30) +
+  ggtitle("S-learner") -> p1
+
+ml_out %>% 
+  filter(learner == "t",
+         proportion_not_treated == 0.5,
+         var_omit == FALSE) %>% 
+  unnest(df_out) %>%
+  ggplot() +
+  geom_hline(yintercept = 0, colour = "grey", linetype = 2) +
+  geom_vline(xintercept = 0, colour = "grey", linetype = 2) +
+  geom_point(aes(x = cate_real, y = cate_t_learn, colour = n_train, shape = assignment), alpha = 0.7) +
+  geom_abline(intercept = 0, slope = 1, colour = "blue") +
+  xlim(-30, 30) +
+  ylim(-30, 30) +
+  ggtitle("T-learner") -> p2
+
+
+ml_out %>% 
+  filter(learner == "x",
+         proportion_not_treated == 0.5,
+         var_omit == FALSE) %>% 
+  unnest(df_out) %>%
+  ggplot() +
+  geom_hline(yintercept = 0, colour = "grey", linetype = 2) +
+  geom_vline(xintercept = 0, colour = "grey", linetype = 2) +
+  geom_point(aes(x = cate_real, y = cate_x_learn, colour = n_train, shape = assignment), alpha = 0.7) +
+  geom_abline(intercept = 0, slope = 1, colour = "blue") +
+  xlim(-30, 30) +
+  ylim(-30, 30) +
+  ggtitle("X-learner") -> p3
+
+p1 / p2 / p3 +
+  plot_layout(guides = "collect")
 ```
 
 ![](figures/2024-01-05_explore-prelim-results/unnamed-chunk-9-1.png)<!-- -->
@@ -765,3 +803,209 @@ p7 / p8 / p9 +
 ```
 
 ![](figures/2024-01-05_explore-prelim-results/unnamed-chunk-11-1.png)<!-- -->
+
+# meta-learner vips
+
+``` r
+function_dir <- list.files(here::here("code", "functions"),
+                           full.names = TRUE)
+
+sapply(function_dir, source)
+```
+
+    ##         /Users/eleanorjackson/Projects/tree/code/functions/assign-treatment.R
+    ## value   ?                                                                    
+    ## visible FALSE                                                                
+    ##         /Users/eleanorjackson/Projects/tree/code/functions/fit-metalearner.R
+    ## value   ?                                                                   
+    ## visible FALSE
+
+``` r
+clean_data <-
+  readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time_clim.rds"))
+
+assigned_data <- assign_treatment(clean_data, "random")
+
+features <- assigned_data |>
+    dplyr::filter(period == 0) |>
+    dplyr::select(
+      description,
+      soil_moist_code,
+      altitude, mat_5yr, map_5yr, ditch, no_of_stems, volume_pine, volume_spruce,
+      volume_birch, volume_aspen, volume_oak, volume_beech,
+      volume_southern_broadleaf, volume_larch
+   )
+
+data_obs <- assigned_data |>
+    dplyr::select(description, tr, control_category_name, total_soil_carbon) |>
+    tidyr::pivot_wider(id_cols = c(description, tr),
+                names_from = control_category_name,
+                values_from = total_soil_carbon) |>
+    dplyr::mutate(soil_carbon_obs =
+                    dplyr::case_when(tr == 0 ~ `SetAside (Unmanaged)`,
+                                       tr == 1 ~ `BAU - NoThinning`)) |>
+    dplyr::rename(soil_carbon_initial = `Initial state`,
+           soil_carbon_0 = `SetAside (Unmanaged)`,
+           soil_carbon_1 = `BAU - NoThinning`) |>
+    dplyr::left_join(features,
+                     by = "description")
+  
+feat_list <- c("soil_carbon_initial", "altitude",
+                   "mat_5yr", "map_5yr", "ditch", "no_of_stems", "volume_pine",
+                   "volume_spruce", "volume_birch", "volume_aspen",
+                   "volume_oak", "volume_beech", "soil_moist_code",
+                   "volume_southern_broadleaf", "volume_larch")
+
+  train_data_0 <- data_obs |>
+    dplyr::filter(tr == 0) |>
+    dplyr::slice_sample(n = 1600/2)
+
+  train_data_1 <- data_obs |>
+    dplyr::filter(tr == 1) |>
+    dplyr::slice_sample(n = 1600/2)
+  
+train_data <- dplyr::bind_rows(train_data_0, train_data_1)
+  
+  test_data_0 <- data_obs |>
+    dplyr::filter(! description %in% train_data$description) |>
+    dplyr::filter(tr == 0) |>
+    dplyr::slice_sample(n = 107)
+
+  test_data_1 <- data_obs |>
+    dplyr::filter(! description %in% train_data$description) |>
+    dplyr::filter(tr == 1) |>
+    dplyr::slice_sample(n = 107)
+
+  test_data <- dplyr::bind_rows(test_data_0, test_data_1)
+```
+
+## S leaner vip
+
+``` r
+rf_tune <- rand_forest(mtry = tune(), min_n = tune()) %>%
+  set_engine("ranger", num.threads = 3) %>%
+  set_mode("regression")
+
+tree_grid <- grid_regular(mtry(c(1, 5)),
+                          min_n(),
+                          levels = 5)
+
+rf_recipe <- recipe(soil_carbon_obs ~ 
+                      altitude +
+                   mat_5yr + map_5yr + ditch + no_of_stems + volume_pine +
+                   volume_spruce + volume_birch + volume_aspen +
+                   volume_oak + volume_beech + soil_moist_code +
+                   volume_southern_broadleaf + volume_larch,
+    data = train_data)
+
+rf_workflow <- workflow() %>%
+  add_recipe(rf_recipe) %>%
+  add_model(rf_tune)
+
+# create a set of cross-validation resamples to use for tuning
+trees_folds <- vfold_cv(train_data, v = 25)
+
+rf_tune_res <- 
+  tune_grid(rf_workflow,
+            resamples = trees_folds,
+            grid = tree_grid,
+            control = control_grid(save_pred = TRUE),
+            metrics = metric_set(rmse))
+
+best_auc <- select_best(rf_tune_res, "rmse")
+
+final_rf <- finalize_model(
+  rf_tune,
+  best_auc
+)
+
+final_rf %>%
+  set_engine("ranger", importance = "permutation") %>%
+  fit(soil_carbon_obs ~ .,
+    data = test_data %>% select(-description,- soil_carbon_0, -soil_carbon_1)
+  ) %>%
+  vip(geom = "point", aesthetics = list(size = 2)) +
+  theme_classic(base_size = 10) -> s_plot
+```
+
+## T zero vip
+
+``` r
+rf_t0_recipe <- recipe(soil_carbon_obs ~ 
+                      altitude +
+                   mat_5yr + map_5yr + ditch + no_of_stems + volume_pine +
+                   volume_spruce + volume_birch + volume_aspen +
+                   volume_oak + volume_beech + soil_moist_code +
+                   volume_southern_broadleaf + volume_larch,
+    data = train_data_0)
+
+rf_t0_workflow <- workflow() %>%
+  add_recipe(rf_recipe) %>%
+  add_model(rf_tune)
+
+rf_t0_tune_res <- 
+  tune_grid(rf_workflow,
+            resamples = trees_folds,
+            grid = tree_grid,
+            control = control_grid(save_pred = TRUE),
+            metrics = metric_set(rmse))
+
+best_auc_t0 <- select_best(rf_tune_res, "rmse")
+
+final_rf_t0 <- finalize_model(
+  rf_tune,
+  best_auc_t0
+)
+
+final_rf_t0 %>%
+  set_engine("ranger", importance = "permutation") %>%
+  fit(soil_carbon_obs ~ .,
+    data = test_data %>% select(-description,- soil_carbon_0, -soil_carbon_1)
+  ) %>%
+  vip(geom = "point", aesthetics = list(size = 2)) +
+  theme_classic(base_size = 10) -> t0_plot
+```
+
+## T one vip
+
+``` r
+rf_t1_recipe <- recipe(soil_carbon_obs ~ 
+                      altitude +
+                   mat_5yr + map_5yr + ditch + no_of_stems + volume_pine +
+                   volume_spruce + volume_birch + volume_aspen +
+                   volume_oak + volume_beech + soil_moist_code +
+                   volume_southern_broadleaf + volume_larch,
+    data = train_data_1)
+
+rf_t1_workflow <- workflow() %>%
+  add_recipe(rf_recipe) %>%
+  add_model(rf_tune)
+
+rf_t1_tune_res <- 
+  tune_grid(rf_workflow,
+            resamples = trees_folds,
+            grid = tree_grid,
+            control = control_grid(save_pred = TRUE),
+            metrics = metric_set(rmse))
+
+best_auc_t1 <- select_best(rf_tune_res, "rmse")
+
+final_rf_t1 <- finalize_model(
+  rf_tune,
+  best_auc_t1
+)
+
+final_rf_t1 %>%
+  set_engine("ranger", importance = "permutation") %>%
+  fit(soil_carbon_obs ~ .,
+    data = test_data %>% select(-description,- soil_carbon_0, -soil_carbon_1)
+  ) %>%
+  vip(geom = "point", aesthetics = list(size = 2)) +
+  theme_classic(base_size = 10) -> t1_plot
+```
+
+``` r
+s_plot / t0_plot / t1_plot 
+```
+
+![](figures/2024-01-05_explore-prelim-results/unnamed-chunk-16-1.png)<!-- -->
