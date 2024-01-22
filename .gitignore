@@ -2,6 +2,7 @@
 
 code/exploration/*.html
 code/graveyard
+output/plots
 data/*
 *.doc
 *.docx
