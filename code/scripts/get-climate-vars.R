@@ -198,9 +198,10 @@ readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time.rds")) %>%
   filter(description %in% spruce_dom_plots$description) %>%
   mutate(description = str_replace_all(description, " ", "")) %>%
   filter(period == 0 | period == 20) %>%
+  filter(soil_moist_code != 4) %>%
   inner_join(plots_0) %>%
   group_by(description) %>%
-  arrange(period, .by_group =TRUE) %>%
+  arrange(period, .by_group = TRUE) %>%
   ungroup() %>%
   saveRDS(file =
             here::here("data", "derived", "ForManSims_RCP0_same_time_clim.rds"))
