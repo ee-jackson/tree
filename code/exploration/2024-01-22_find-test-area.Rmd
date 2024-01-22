@@ -1,0 +1,103 @@
+---
+title: "Find a region of covariate overlap"
+author: '`r Sys.getenv("USER")`'
+date: '`r format(Sys.time(), "%d %B, %Y")`' 
+always_allow_html: true
+output: 
+  github_document:
+    keep_html: true
+---
+	
+```{r setup, include = FALSE}
+file_name <- rstudioapi::getSourceEditorContext()$path
+
+knitr::opts_chunk$set(
+  fig.path =
+    paste0("figures/", sub("\\.Rmd$", "", basename(file_name)), "/", sep = "")
+)
+
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
+```
+
+Find a geographical area of covariate overlap to use as testing data. 
+Currently using random 200 plots but ideally in the real world people don’t 
+predict outside of parameter space. 
+Always remove these points from the training data.
+
+```{r packages, message=FALSE, warning=FALSE}
+library("tidyverse")
+library("here")
+library("FactoMineR")
+library("factoextra")
+library("ggmap")
+library("maps")
+
+clean_data <-
+  readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time_clim.rds")) %>% 
+  filter(period == 0)
+```
+
+## Normalise data
+
+```{r}
+feat_list <- c("total_soil_carbon", "altitude",
+                   "mat_5yr", "map_5yr", "ditch", "no_of_stems", "volume_pine",
+                   "volume_spruce", "volume_birch", "volume_aspen",
+                   "volume_oak", "volume_beech", "soil_moist_code",
+                   "volume_southern_broadleaf", "volume_larch")
+
+corr_matrix <- clean_data %>% 
+  column_to_rownames(var = "description") %>%  
+  select(all_of(feat_list)) %>% 
+  scale() 
+```
+
+## Make PCA
+
+```{r}
+# compute pca
+data_pca <- princomp(corr_matrix)
+
+# see results 
+summary(data_pca)
+```
+
+## Plot
+
+```{r}
+fviz_pca_var(data_pca)
+```
+
+### Latitude
+
+```{r}
+fviz_mca_ind(data_pca, 
+             geom = "point", 
+             col.ind = clean_data$nord_wgs84) + 
+  scale_colour_viridis_c()
+```
+
+```{r}
+ggplot(clean_data, aes(ost_wgs84, nord_wgs84, colour = nord_wgs84)) +
+  borders("world", regions = "sweden") +
+  geom_point() +
+  scale_color_viridis_c() +
+  coord_quickmap()
+```
+
+### Longitude
+
+```{r}
+fviz_mca_ind(data_pca, 
+             geom = "point", 
+             col.ind = clean_data$ost_wgs84)+ 
+  scale_colour_viridis_c()
+```
+
+```{r}
+ggplot(clean_data, aes(ost_wgs84, nord_wgs84, colour = ost_wgs84)) +
+  borders("world", regions = "sweden") +
+  geom_point() +
+  scale_color_viridis_c() +
+  coord_quickmap()
+```
