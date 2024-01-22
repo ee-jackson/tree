@@ -1,5 +1,5 @@
 ---
-title: "Exploring the 'spatially blocked' treatment assignment variable"
+title: "Predictor variable pairs plots"
 author: '`r Sys.getenv("USER")`'
 date: '`r format(Sys.time(), "%d %B, %Y")`' 
 always_allow_html: true
@@ -18,9 +18,6 @@ knitr::opts_chunk$set(
 
 ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
 ```
-
-X-learner isn’t doing as well as expected. 
-Emma suggested it could be because the “spatially blocking” treatment assignment could be inducing more collinearity than the correlation with latitude.
 
 ```{r packages, message=FALSE, warning=FALSE}
 library("tidyverse")
@@ -59,16 +56,17 @@ out_tr_assignment <-
          proportion_not_treated == 0.50) %>% 
   unnest(df_out)
 
-feat_list_sm_out <- c("soil_carbon_initial", "soil_moist_code", "altitude",
+feat_list_sm_out <- c("soil_carbon_obs","soil_carbon_initial", "soil_moist_code", "altitude",
                    "mat_5yr", "map_5yr", "no_of_stems", "volume_pine",
                    "volume_spruce", "volume_birch", "nord_wgs84")
 
 out_tr_assignment %>% 
   mutate(soil_moist_code = as.ordered(soil_moist_code)) %>% 
+  filter(assignment == "correlated") %>% 
   ggpairs(progress = FALSE, 
           columns = feat_list_sm_out,
-          mapping = aes(colour = assignment, alpha = 0.5)) +
-  theme_classic(base_size = 7)
+          mapping = aes(colour = as.factor(tr), alpha = 0.5)) +
+  theme_classic(base_size = 7) 
   
 ```
 

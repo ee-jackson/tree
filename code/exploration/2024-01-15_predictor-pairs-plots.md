@@ -1,11 +1,7 @@
-Exploring the ‘spatially blocked’ treatment assignment variable
+Predictor variable pairs plots
 ================
 eleanorjackson
-15 January, 2024
-
-X-learner isn’t doing as well as expected. Emma suggested it could be
-because the “spatially blocking” treatment assignment could be inducing
-more collinearity than the correlation with latitude.
+22 January, 2024
 
 ``` r
 library("tidyverse")
@@ -35,7 +31,7 @@ clean_data %>%
   ggpairs(progress = FALSE)
 ```
 
-![](figures/2024-01-15_spatial-block-collinearity/unnamed-chunk-1-1.png)<!-- -->
+![](figures/2024-01-15_predictor-pairs-plots/unnamed-chunk-1-1.png)<!-- -->
 
 ``` r
 out_tr_assignment <- 
@@ -45,16 +41,17 @@ out_tr_assignment <-
          proportion_not_treated == 0.50) %>% 
   unnest(df_out)
 
-feat_list_sm_out <- c("soil_carbon_initial", "soil_moist_code", "altitude",
+feat_list_sm_out <- c("soil_carbon_obs","soil_carbon_initial", "soil_moist_code", "altitude",
                    "mat_5yr", "map_5yr", "no_of_stems", "volume_pine",
                    "volume_spruce", "volume_birch", "nord_wgs84")
 
 out_tr_assignment %>% 
   mutate(soil_moist_code = as.ordered(soil_moist_code)) %>% 
+  filter(assignment == "correlated") %>% 
   ggpairs(progress = FALSE, 
           columns = feat_list_sm_out,
-          mapping = aes(colour = assignment, alpha = 0.5)) +
-  theme_classic(base_size = 7)
+          mapping = aes(colour = as.factor(tr), alpha = 0.5)) +
+  theme_classic(base_size = 7) 
 ```
 
-![](figures/2024-01-15_spatial-block-collinearity/unnamed-chunk-2-1.png)<!-- -->
+![](figures/2024-01-15_predictor-pairs-plots/unnamed-chunk-2-1.png)<!-- -->
