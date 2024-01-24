@@ -20,7 +20,7 @@ ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
 ```
 
 Find a geographical area of covariate overlap to use as testing data. 
-Currently using random 200 plots but ideally in the real world people don’t 
+Currently using random 215 plots but ideally in the real world people don’t 
 predict outside of parameter space. 
 Always remove these points from the training data.
 
@@ -31,6 +31,8 @@ library("FactoMineR")
 library("factoextra")
 library("ggmap")
 library("maps")
+library("sf")
+library("patchwork")
 
 clean_data <-
   readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time_clim.rds")) %>% 
@@ -70,34 +72,177 @@ fviz_pca_var(data_pca)
 
 ### Latitude
 
-```{r}
+```{r fig.width = 10, fig.height = 5}
 fviz_mca_ind(data_pca, 
              geom = "point", 
              col.ind = clean_data$nord_wgs84) + 
-  scale_colour_viridis_c()
-```
-
-```{r}
-ggplot(clean_data, aes(ost_wgs84, nord_wgs84, colour = nord_wgs84)) +
+  scale_colour_viridis_c() +
+  
+  ggplot(clean_data, aes(ost_wgs84, nord_wgs84, colour = nord_wgs84)) +
   borders("world", regions = "sweden") +
   geom_point() +
   scale_color_viridis_c() +
-  coord_quickmap()
+  coord_quickmap() +
+  theme(legend.position = "none")
 ```
 
 ### Longitude
 
-```{r}
+```{r fig.width = 10, fig.height = 5}
 fviz_mca_ind(data_pca, 
              geom = "point", 
              col.ind = clean_data$ost_wgs84)+ 
-  scale_colour_viridis_c()
-```
-
-```{r}
-ggplot(clean_data, aes(ost_wgs84, nord_wgs84, colour = ost_wgs84)) +
+  scale_colour_viridis_c() +
+  
+  ggplot(clean_data, aes(ost_wgs84, nord_wgs84, colour = ost_wgs84)) +
   borders("world", regions = "sweden") +
   geom_point() +
   scale_color_viridis_c() +
-  coord_quickmap()
+  coord_quickmap() +
+  theme(legend.position = "none")
+```
+
+### Region
+
+```{r fig.width = 10, fig.height = 5}
+fviz_mca_ind(data_pca, 
+             geom = "point", alpha = 0.7,
+             col.ind = as.factor(clean_data$region)) +
+  
+  ggplot(clean_data, aes(ost_wgs84, nord_wgs84, colour = as.factor(region))) +
+  borders("world", regions = "sweden") +
+  geom_point(alpha = 0.7) +
+  coord_quickmap() +
+  theme(legend.position = "none")
+```
+
+## Create grid
+
+Going for something long and thin..
+
+```{r}
+# make data a sf object
+data_sf <- st_as_sf(clean_data, 
+                    coords = c("ost_wgs84", "nord_wgs84"),
+                    crs = "WGS84")
+
+# project the points
+data_sf %>% 
+  st_transform(crs = st_crs(3152)) -> data_projected
+
+# make grid
+fishnet <- st_make_grid(
+  data_projected,
+  cellsize = c(40000, 1200000), # units are meters
+  what = "polygons",
+  square = TRUE,
+  crs = st_crs(3152))
+
+# plot
+ggplot(data_projected) +
+  geom_sf(aes(col=as.factor(region)), alpha = 0.6, shape = 16) +
+  geom_sf(data = fishnet, fill  = NA)
+```
+
+How many plots in each rectangle? We can have up to 215.
+
+```{r}
+# convert polygons to sf object and add id column
+fishnet %>%
+	st_sf(crs = st_crs(3152)) %>%
+	mutate(net_id = row_number()) -> fishnet_sf
+
+# calculate which plots are in which squares
+joined <- st_intersection(data_projected, fishnet_sf)
+
+joined %>% 
+  group_by(net_id) %>% 
+  summarise(n()) %>% 
+  slice_max(order_by = `n()`, n = 10)
+```
+
+Which plots cover the greatest range of latitudes?
+
+```{r}
+joined %>%  
+  group_by(net_id) %>% 
+  summarise(range = max(nord_stord) - min(nord_stord)) %>% 
+  slice_max(order_by = range, n = 10)
+```
+
+Which plots cover the most regions?
+
+```{r}
+joined %>%  
+  group_by(net_id) %>% 
+  summarise(n_distinct(region)) %>% 
+  slice_max(order_by = `n_distinct(region)`, n = 10)
+```
+
+Let's compare a few that look promising.
+
+```{r}
+joined %>% 
+  filter(net_id == 8 | net_id == 11 | net_id == 10 | net_id == 4) %>%  
+  ggplot() +
+  geom_sf(aes(col = as.factor(region)), alpha = 0.6, shape = 16) +
+  facet_wrap(~net_id, nrow = 1)
+```
+
+```{r message=FALSE}
+clean_data %>% 
+  left_join(joined) -> data_nets
+
+data_nets %>% 
+  mutate(net_col = case_when(net_id == 8 ~ "net_8",
+                            net_id == 4 ~ "net_4",
+                             net_id == 10 ~ "net_10",
+                             net_id == 11 ~ "net_11",
+                              .default = "other")) -> nets_test
+
+fviz_mca_ind(data_pca, 
+             geom = "point", alpha = 0.6, shape = 16,
+             col.ind = as.factor(nets_test$net_col), 
+             palette = c("red", "blue", "forestgreen", "orange", "lightgrey")) 
+```
+
+```{r echo=FALSE}
+data_nets %>% 
+  mutate(net_col = case_when(net_id == 10 ~ "net_10",
+                              .default = "other")) -> nets_test_10
+
+fviz_mca_ind(data_pca, 
+             geom = "point", alpha = 0.5, shape = 16,
+             col.ind = as.factor(nets_test_10$net_col), addEllipses = TRUE,
+             palette = c("red", "lightgrey")) -> p1
+
+data_nets %>% 
+  mutate(net_col = case_when(net_id == 11 ~ "net_11",
+                              .default = "other")) -> nets_test_11
+
+fviz_mca_ind(data_pca, 
+             geom = "point", alpha = 0.5, shape = 16,
+             col.ind = as.factor(nets_test_11$net_col), addEllipses = TRUE,
+             palette = c("blue", "lightgrey")) -> p2
+
+data_nets %>% 
+  mutate(net_col = case_when(net_id == 4 ~ "net_4",
+                              .default = "other")) -> nets_test_4
+
+fviz_mca_ind(data_pca, 
+             geom = "point", alpha = 0.5, shape = 16,
+             col.ind = as.factor(nets_test_4$net_col), addEllipses = TRUE,
+             palette = c("forestgreen", "lightgrey")) -> p3
+
+data_nets %>% 
+  mutate(net_col = case_when(net_id == 8 ~ "net_8",
+                              .default = "other")) -> nets_test_8
+
+fviz_mca_ind(data_pca, 
+             geom = "point", alpha = 0.5, shape = 16,
+             col.ind = as.factor(nets_test_8$net_col), addEllipses = TRUE,
+             palette = c("orange", "lightgrey")) -> p4
+
+(p1 + p2) /
+  (p3 + p4)
 ```

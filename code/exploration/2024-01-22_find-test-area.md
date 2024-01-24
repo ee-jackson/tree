@@ -1,10 +1,10 @@
 Find a region of covariate overlap
 ================
 eleanorjackson
-22 January, 2024
+24 January, 2024
 
 Find a geographical area of covariate overlap to use as testing data.
-Currently using random 200 plots but ideally in the real world people
+Currently using random 215 plots but ideally in the real world people
 don’t predict outside of parameter space. Always remove these points
 from the training data.
 
@@ -15,6 +15,8 @@ library("FactoMineR")
 library("factoextra")
 library("ggmap")
 library("maps")
+library("sf")
+library("patchwork")
 
 clean_data <-
   readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time_clim.rds")) %>% 
@@ -74,20 +76,17 @@ fviz_pca_var(data_pca)
 fviz_mca_ind(data_pca, 
              geom = "point", 
              col.ind = clean_data$nord_wgs84) + 
-  scale_colour_viridis_c()
-```
-
-![](figures/2024-01-22_find-test-area/unnamed-chunk-4-1.png)<!-- -->
-
-``` r
-ggplot(clean_data, aes(ost_wgs84, nord_wgs84, colour = nord_wgs84)) +
+  scale_colour_viridis_c() +
+  
+  ggplot(clean_data, aes(ost_wgs84, nord_wgs84, colour = nord_wgs84)) +
   borders("world", regions = "sweden") +
   geom_point() +
   scale_color_viridis_c() +
-  coord_quickmap()
+  coord_quickmap() +
+  theme(legend.position = "none")
 ```
 
-![](figures/2024-01-22_find-test-area/unnamed-chunk-5-1.png)<!-- -->
+![](figures/2024-01-22_find-test-area/unnamed-chunk-4-1.png)<!-- -->
 
 ### Longitude
 
@@ -95,17 +94,191 @@ ggplot(clean_data, aes(ost_wgs84, nord_wgs84, colour = nord_wgs84)) +
 fviz_mca_ind(data_pca, 
              geom = "point", 
              col.ind = clean_data$ost_wgs84)+ 
-  scale_colour_viridis_c()
+  scale_colour_viridis_c() +
+  
+  ggplot(clean_data, aes(ost_wgs84, nord_wgs84, colour = ost_wgs84)) +
+  borders("world", regions = "sweden") +
+  geom_point() +
+  scale_color_viridis_c() +
+  coord_quickmap() +
+  theme(legend.position = "none")
+```
+
+![](figures/2024-01-22_find-test-area/unnamed-chunk-5-1.png)<!-- -->
+
+### Region
+
+``` r
+fviz_mca_ind(data_pca, 
+             geom = "point", alpha = 0.7,
+             col.ind = as.factor(clean_data$region)) +
+  
+  ggplot(clean_data, aes(ost_wgs84, nord_wgs84, colour = as.factor(region))) +
+  borders("world", regions = "sweden") +
+  geom_point(alpha = 0.7) +
+  coord_quickmap() +
+  theme(legend.position = "none")
 ```
 
 ![](figures/2024-01-22_find-test-area/unnamed-chunk-6-1.png)<!-- -->
 
+## Create grid
+
+Going for something long and thin..
+
 ``` r
-ggplot(clean_data, aes(ost_wgs84, nord_wgs84, colour = ost_wgs84)) +
-  borders("world", regions = "sweden") +
-  geom_point() +
-  scale_color_viridis_c() +
-  coord_quickmap()
+# make data a sf object
+data_sf <- st_as_sf(clean_data, 
+                    coords = c("ost_wgs84", "nord_wgs84"),
+                    crs = "WGS84")
+
+# project the points
+data_sf %>% 
+  st_transform(crs = st_crs(3152)) -> data_projected
+
+# make grid
+fishnet <- st_make_grid(
+  data_projected,
+  cellsize = c(40000, 1200000), # units are meters
+  what = "polygons",
+  square = TRUE,
+  crs = st_crs(3152))
+
+# plot
+ggplot(data_projected) +
+  geom_sf(aes(col=as.factor(region)), alpha = 0.6, shape = 16) +
+  geom_sf(data = fishnet, fill  = NA)
 ```
 
 ![](figures/2024-01-22_find-test-area/unnamed-chunk-7-1.png)<!-- -->
+
+How many plots in each rectangle? We can have up to 215.
+
+``` r
+# convert polygons to sf object and add id column
+fishnet %>%
+    st_sf(crs = st_crs(3152)) %>%
+    mutate(net_id = row_number()) -> fishnet_sf
+
+# calculate which plots are in which squares
+joined <- st_intersection(data_projected, fishnet_sf)
+```
+
+    ## Warning: attribute variables are assumed to be spatially constant throughout
+    ## all geometries
+
+``` r
+joined %>% 
+  group_by(net_id) %>% 
+  summarise(n()) %>% 
+  slice_max(order_by = `n()`, n = 10)
+```
+
+    ## Simple feature collection with 10 features and 2 fields
+    ## Geometry type: MULTIPOINT
+    ## Dimension:     XY
+    ## Bounding box:  xmin: -166587.8 ymin: -311730.6 xmax: 232385.6 ymax: 870493.4
+    ## Projected CRS: ST74
+    ## # A tibble: 10 × 3
+    ##    net_id `n()`                                                         geometry
+    ##     <int> <int>                                                 <MULTIPOINT [m]>
+    ##  1      6   278 ((-86915.86 251084.1), (-86906.36 470000.9), (-86899.16 507713.…
+    ##  2      7   269 ((-46786.73 233312.6), (-46773.6 -86204.4), (-46681.69 -71331.7…
+    ##  3      8   184 ((-6843.858 -43148.55), (-6823.834 383729.7), (-6583.053 257567…
+    ##  4      4   164 ((-166587.8 337514), (-166571.9 338854.3), (-166405.4 337044.4)…
+    ##  5      5   146 ((-124943.9 -9534.224), (-124491.8 295833.6), (-124428.4 297509…
+    ##  6      9   140 ((33181.9 200392.3), (33312.16 251268.8), (34925.66 173698.3), …
+    ##  7     11    93 ((113438.7 107826.4), (113714.8 587436.6), (113935.9 123407.6),…
+    ##  8     10    92 ((73745.81 442563.3), (74270.85 570011.6), (74310.33 595749.7),…
+    ##  9     12    74 ((153402.9 581711.6), (153492.5 -92646.56), (153638.9 817691), …
+    ## 10     13    68 ((193306.6 771943.6), (193525.1 567498), (194083.5 642854.5), (…
+
+Which plots cover the greatest range of latitudes?
+
+``` r
+joined %>%  
+  group_by(net_id) %>% 
+  summarise(range = max(nord_stord) - min(nord_stord)) %>% 
+  slice_max(order_by = range, n = 10)
+```
+
+    ## Simple feature collection with 10 features and 2 fields
+    ## Geometry type: MULTIPOINT
+    ## Dimension:     XY
+    ## Bounding box:  xmin: -206521.1 ymin: -327142.1 xmax: 193035 ymax: 833274.5
+    ## Projected CRS: ST74
+    ## # A tibble: 10 × 3
+    ##    net_id   range                                                       geometry
+    ##     <int>   <dbl>                                               <MULTIPOINT [m]>
+    ##  1      8 1004902 ((-6843.858 -43148.55), (-6823.834 383729.7), (-6583.053 2575…
+    ##  2     11  990608 ((113438.7 107826.4), (113714.8 587436.6), (113935.9 123407.6…
+    ##  3     10  963678 ((73745.81 442563.3), (74270.85 570011.6), (74310.33 595749.7…
+    ##  4     12  916807 ((153402.9 581711.6), (153492.5 -92646.56), (153638.9 817691)…
+    ##  5      7  899674 ((-46786.73 233312.6), (-46773.6 -86204.4), (-46681.69 -71331…
+    ##  6      4  843676 ((-166587.8 337514), (-166571.9 338854.3), (-166405.4 337044.…
+    ##  7      5  823944 ((-124943.9 -9534.224), (-124491.8 295833.6), (-124428.4 2975…
+    ##  8      6  788043 ((-86915.86 251084.1), (-86906.36 470000.9), (-86899.16 50771…
+    ##  9      9  769575 ((33181.9 200392.3), (33312.16 251268.8), (34925.66 173698.3)…
+    ## 10      3  699393 ((-206521.1 245249.2), (-205860.2 -189877.9), (-205581.8 2735…
+
+Which plots cover the most regions?
+
+``` r
+joined %>%  
+  group_by(net_id) %>% 
+  summarise(n_distinct(region)) %>% 
+  slice_max(order_by = `n_distinct(region)`, n = 10)
+```
+
+    ## Simple feature collection with 11 features and 2 fields
+    ## Geometry type: MULTIPOINT
+    ## Dimension:     XY
+    ## Bounding box:  xmin: -244040.4 ymin: -327142.1 xmax: 193035 ymax: 833274.5
+    ## Projected CRS: ST74
+    ## # A tibble: 11 × 3
+    ##    net_id `n_distinct(region)`                                          geometry
+    ##     <int>                <int>                                  <MULTIPOINT [m]>
+    ##  1      4                    5 ((-166587.8 337514), (-166571.9 338854.3), (-166…
+    ##  2      5                    5 ((-124943.9 -9534.224), (-124491.8 295833.6), (-…
+    ##  3     11                    5 ((113438.7 107826.4), (113714.8 587436.6), (1139…
+    ##  4      3                    4 ((-206521.1 245249.2), (-205860.2 -189877.9), (-…
+    ##  5      6                    4 ((-86915.86 251084.1), (-86906.36 470000.9), (-8…
+    ##  6      8                    4 ((-6843.858 -43148.55), (-6823.834 383729.7), (-…
+    ##  7      9                    4 ((33181.9 200392.3), (33312.16 251268.8), (34925…
+    ##  8     10                    4 ((73745.81 442563.3), (74270.85 570011.6), (7431…
+    ##  9     12                    4 ((153402.9 581711.6), (153492.5 -92646.56), (153…
+    ## 10      2                    3 ((-244040.4 35242.7), (-243327.1 50186.1), (-242…
+    ## 11      7                    3 ((-46786.73 233312.6), (-46773.6 -86204.4), (-46…
+
+Let’s compare a few that look promising.
+
+``` r
+joined %>% 
+  filter(net_id == 8 | net_id == 11 | net_id == 10 | net_id == 4) %>%  
+  ggplot() +
+  geom_sf(aes(col = as.factor(region)), alpha = 0.6, shape = 16) +
+  facet_wrap(~net_id, nrow = 1)
+```
+
+![](figures/2024-01-22_find-test-area/unnamed-chunk-11-1.png)<!-- -->
+
+``` r
+clean_data %>% 
+  left_join(joined) -> data_nets
+
+data_nets %>% 
+  mutate(net_col = case_when(net_id == 8 ~ "net_8",
+                            net_id == 4 ~ "net_4",
+                             net_id == 10 ~ "net_10",
+                             net_id == 11 ~ "net_11",
+                              .default = "other")) -> nets_test
+
+fviz_mca_ind(data_pca, 
+             geom = "point", alpha = 0.6, shape = 16,
+             col.ind = as.factor(nets_test$net_col), 
+             palette = c("red", "blue", "forestgreen", "orange", "lightgrey")) 
+```
+
+![](figures/2024-01-22_find-test-area/unnamed-chunk-12-1.png)<!-- -->
+
+![](figures/2024-01-22_find-test-area/unnamed-chunk-13-1.png)<!-- -->
