@@ -1,6 +1,6 @@
 ## Project specific ignores:
 
-code/exploration/*.html
+code/notebooks/*.html
 code/graveyard
 output/plots
 data/*
