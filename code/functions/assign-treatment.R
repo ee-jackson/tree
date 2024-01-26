@@ -27,29 +27,51 @@ assign_treatment <- function(df, assignment, proportion_not_treated = 0.5) {
 
     return(data_assigned_rand)
 
-  } else if (assignment == "blocked") {
+  } else if (assignment == "blocked_ordered") {
 
     df |>
       dplyr::select(description, region) |>
       dplyr::distinct() -> id_region
 
-    tibble::tibble(region_code = c(1, 3:5, 21, 22),
-           proportion = c(0.12, 0.085, 0.07, 0.07, 0.125, 0.125)) -> weights
+    tibble::tibble(region_code = c(1, 3:5, 22, 21),
+           proportion = c(0.20, 0.60, 0.80, 0.80, 0.40, 0.20)) -> weights_ord
 
-    purrr::pmap(weights, slice_by_region, data = id_region) |>
+    purrr::pmap(weights_ord, slice_by_region, data = id_region) |>
       dplyr::bind_rows() |>
-      dplyr::select(description) -> no_treat_ids_block
+      dplyr::select(description) -> no_treat_ids_block_ord
 
     df |>
       dplyr::mutate(tr =
                       dplyr::case_when(
-                        description %in% no_treat_ids_block$description ~ 0,
+                        description %in% no_treat_ids_block_ord$description ~ 0,
                         .default = 1)
-      ) -> data_assigned_block
+      ) -> data_assigned_block_ord
 
-    return(data_assigned_block)
+    return(data_assigned_block_ord)
 
-  } else if (assignment == "correlated") {
+  } else if (assignment == "blocked_random") {
+
+    df |>
+      dplyr::select(description, region) |>
+      dplyr::distinct() -> id_region
+
+    tibble::tibble(region_code = c(1, 3:5, 22, 21),
+                   proportion = c(0.40, 0.20, 0.80, 0.80, 0.60, 0.40)) -> weights_rand
+
+    purrr::pmap(weights_rand, slice_by_region, data = id_region) |>
+      dplyr::bind_rows() |>
+      dplyr::select(description) -> no_treat_ids_block_rand
+
+    df |>
+      dplyr::mutate(tr =
+                      dplyr::case_when(
+                        description %in% no_treat_ids_block_rand$description ~ 0,
+                        .default = 1)
+      ) -> data_assigned_block_rand
+
+    return(data_assigned_block_rand)
+
+  } else if (assignment == "correlated_altitude") {
 
     df |>
       dplyr::select(description, altitude) |>
@@ -68,7 +90,7 @@ assign_treatment <- function(df, assignment, proportion_not_treated = 0.5) {
     return(data_assigned_corr)
 
   } else {
-    print0("assignment should be either 'random', 'blocked' or 'correlated'")
+    print("assignment should be either 'random', 'blocked_ordered', 'blocked_random' or 'correlated_altitude'")
   }
 }
 
