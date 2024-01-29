@@ -10,7 +10,7 @@
 #' @importFrom tidyselect all_of
 #' @export
 
-fit_metalearner <- function(df, learner, n_train, var_omit) {
+fit_metalearner <- function(df, learner, n_train, var_omit, rf_mtry = 6, rf_min_n = 2) {
 
   features <- df |>
     dplyr::filter(period == 0) |>
@@ -90,7 +90,7 @@ fit_metalearner <- function(df, learner, n_train, var_omit) {
       tr = train_data$tr,
       yobs = train_data$soil_carbon_obs,
       nthread = 2,
-      mu.forestry = list(mtry = 6, nodesizeSpl = 2,
+      mu.forestry = list(mtry = rf_mtry, nodesizeSpl = rf_min_n,
                          relevant.Variable = 1:ncol(dplyr::select(train_data,
                                                                   tidyselect::all_of(feat_list))),
                          ntree = 1000, replace = TRUE,
@@ -121,7 +121,7 @@ fit_metalearner <- function(df, learner, n_train, var_omit) {
       tr = train_data$tr,
       yobs = train_data$soil_carbon_obs,
       nthread = 2,
-      mu0.forestry = list(mtry = 6, nodesizeSpl = 2,
+      mu0.forestry = list(mtry = rf_mtry, nodesizeSpl = rf_min_n,
                           relevant.Variable = 1:ncol(dplyr::select(train_data,
                                                                    tidyselect::all_of(feat_list))),
                           ntree = 1000, replace = TRUE,
@@ -129,7 +129,7 @@ fit_metalearner <- function(df, learner, n_train, var_omit) {
                           nodesizeStrictSpl = 1, nodesizeStrictAvg = 1,
                           splitratio = 1, middleSplit = FALSE,
                           OOBhonest = TRUE),
-      mu1.forestry = list(mtry = 6, nodesizeSpl = 2,
+      mu1.forestry = list(mtry = rf_mtry, nodesizeSpl = rf_min_n,
                           relevant.Variable = 1:ncol(dplyr::select(train_data,
                                                                    tidyselect::all_of(feat_list))),
                           ntree = 1000, replace = TRUE,
@@ -162,14 +162,14 @@ fit_metalearner <- function(df, learner, n_train, var_omit) {
       tr = train_data$tr,
       yobs = train_data$soil_carbon_obs,
       nthread = 2,
-      mu.forestry = list(mtry = 6, nodesizeSpl = 2,
+      mu.forestry = list(mtry = rf_mtry, nodesizeSpl = rf_min_n,
                          relevant.Variable = 1:ncol(dplyr::select(train_data,
                                                                   tidyselect::all_of(feat_list))),
                          ntree = 1000, replace = TRUE,
                          sample.fraction = 0.8, nodesizeAvg = 1,
                          nodesizeStrictSpl = 2, nodesizeStrictAvg = 1,
                          splitratio = 1, middleSplit = TRUE, OOBhonest = TRUE),
-      tau.forestry = list(mtry = 6, nodesizeSpl = 2,
+      tau.forestry = list(mtry = rf_mtry, nodesizeSpl = rf_min_n,
                           relevant.Variable = 1:ncol(dplyr::select(train_data,
                                                                    tidyselect::all_of(feat_list))),
                           ntree = 1000, replace = TRUE,
