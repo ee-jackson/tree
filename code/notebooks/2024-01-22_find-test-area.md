@@ -1,7 +1,7 @@
 Find a region of covariate overlap
 ================
 eleanorjackson
-24 January, 2024
+30 January, 2024
 
 Find a geographical area of covariate overlap to use as testing data.
 Currently using random 215 plots but ideally in the real world people
@@ -17,6 +17,7 @@ library("ggmap")
 library("maps")
 library("sf")
 library("patchwork")
+library("GGally")
 
 clean_data <-
   readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time_clim.rds")) %>% 
@@ -282,3 +283,47 @@ fviz_mca_ind(data_pca,
 ![](figures/2024-01-22_find-test-area/unnamed-chunk-12-1.png)<!-- -->
 
 ![](figures/2024-01-22_find-test-area/unnamed-chunk-13-1.png)<!-- -->
+
+`net_10` looks like it has the best overlap. When we remove these points
+what effect do they have on the distribution of our covariates?
+
+``` r
+data_nets %>% 
+  select(total_soil_carbon, altitude,
+         mat_5yr, map_5yr, ditch, no_of_stems, volume_pine,
+         volume_spruce, volume_birch, volume_aspen,
+         volume_oak, volume_beech, soil_moist_code,
+         volume_southern_broadleaf, volume_larch) %>% 
+  mutate(ditch = as.ordered(ditch), 
+         ditch = as.ordered(soil_moist_code)) %>% 
+  ggpairs(progress = FALSE,
+          mapping = aes(alpha = 0.5)) +
+  theme_classic(base_size = 7) 
+```
+
+![](figures/2024-01-22_find-test-area/unnamed-chunk-14-1.png)<!-- -->
+
+``` r
+data_nets %>% 
+  mutate(net_col = case_when(net_id == 10 ~ "net_10",
+                              .default = "other")) %>% 
+  select(net_col, total_soil_carbon, altitude,
+         mat_5yr, map_5yr, ditch, no_of_stems, volume_pine,
+         volume_spruce, volume_birch, volume_aspen,
+         volume_oak, volume_beech, soil_moist_code,
+         volume_southern_broadleaf, volume_larch) %>% 
+  mutate(ditch = as.ordered(ditch), 
+         ditch = as.ordered(soil_moist_code)) %>% 
+  ggpairs(progress = FALSE,
+          mapping = aes(colour = as.factor(net_col), alpha = 0.5)) +
+  theme_classic(base_size = 7)  
+```
+
+![](figures/2024-01-22_find-test-area/unnamed-chunk-15-1.png)<!-- -->
+
+In the above, pink is `net_10`. `net_10` misses a chunk in the middle
+for `altitude` and `mat_5yr` but I think this is ok because we just want
+overlap?
+
+The overall distributions don’t seem to change when `net_10` plots are
+removed.
