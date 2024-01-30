@@ -1,7 +1,7 @@
 Testing hyperparameters
 ================
 eleanorjackson
-29 January, 2024
+30 January, 2024
 
 I’m currently using the same hyperparameters for all the RFs in the
 meta-learners. There isn’t a way to tune them programmatically using the
@@ -12,7 +12,6 @@ run with different hyperparameters and see what happens.
 library("tidyverse")
 library("here")
 library("patchwork")
-library("ggbeeswarm")
 ```
 
 ``` r
@@ -104,38 +103,41 @@ median_errors <- keys %>%
   summarise(median_error = median(diff),
             .groups = "drop")
 
-full_errors <- keys %>% 
-  mutate(df_out = model_out) %>% 
-  unite(col = "test_id", remove = FALSE,
-        learner, rf_mtry, rf_min_n) %>%
-  unnest(df_out)
-
-full_errors %>% 
-  ggplot(aes(x = as.ordered(rf_mtry), y = diff, colour = learner)) +
-  geom_beeswarm(corral = "gutter", alpha = 0.6) +
-  stat_summary(fun = "median", colour = "black", 
-               size = 2, geom = "bar", width = 0.2) +
+median_errors %>% 
+  ggplot(aes(x = as.ordered(rf_mtry), y = abs(median_error),
+             colour = learner, shape = as.ordered(rf_min_n))) +
+  geom_hline(yintercept = 0, linetype = 2, colour = "grey") +
+  geom_jitter(alpha = 0.6, width = 0.1, height = 0) +
+  plot_layout(guides = "collect", ncol = 1) +
 median_errors %>% 
   ggplot(aes(x = as.ordered(rf_mtry), y = median_error,
              colour = learner, shape = as.ordered(rf_min_n))) +
+  geom_hline(yintercept = 0, linetype = 2, colour = "grey") +
   geom_jitter(alpha = 0.6, width = 0.1, height = 0) +
   plot_layout(guides = "collect", ncol = 1) +
-  plot_annotation(title = "mtry")
+  plot_annotation(
+    title = "mtry - The number of variables randomly selected at each split point",
+    subtitle = "default is one-third of the total number of features of the training data (5)")
 ```
 
 ![](figures/2024-01-29_test-hyperparameters/unnamed-chunk-5-1.png)<!-- -->
 
 ``` r
-full_errors %>% 
-  ggplot(aes(x = as.ordered(rf_min_n), y = diff, colour = learner)) +
-  geom_beeswarm(corral = "gutter", alpha = 0.6) +
-  stat_summary(fun = "median", colour = "black", size = 2, geom = "bar", width = 0.2) +
+median_errors %>% 
+  ggplot(aes(x = as.ordered(rf_min_n), y = abs(median_error), 
+             colour = learner, shape = as.ordered(rf_mtry))) +
+  geom_hline(yintercept = 0, linetype = 2, colour = "grey") +
+  geom_jitter(alpha = 0.6, width = 0.1, height = 0) +
+  plot_layout(guides = "collect", ncol = 1) +
 median_errors %>% 
   ggplot(aes(x = as.ordered(rf_min_n), y = median_error, 
              colour = learner, shape = as.ordered(rf_mtry))) +
+  geom_hline(yintercept = 0, linetype = 2, colour = "grey") +
   geom_jitter(alpha = 0.6, width = 0.1, height = 0) +
   plot_layout(guides = "collect", ncol = 1) +
-  plot_annotation(title = "min nodes")
+  plot_annotation(
+    title = "nodesizeSpl - Minimum observations contained in terminal nodes",
+    subtitle = "default is 5")
 ```
 
 ![](figures/2024-01-29_test-hyperparameters/unnamed-chunk-6-1.png)<!-- -->
