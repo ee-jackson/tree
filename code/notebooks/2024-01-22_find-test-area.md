@@ -1,12 +1,13 @@
 Find a region of covariate overlap
 ================
 eleanorjackson
-30 January, 2024
+01 February, 2024
 
-Find a geographical area of covariate overlap to use as testing data.
-Currently using random 215 plots but ideally in the real world people
-don’t predict outside of parameter space. Always remove these points
-from the training data.
+Find a geographical area of covariate overlap to use as testing data -
+we want the area to be geographically distinct but environmentally
+nested / nested in covariate space. Currently using random 200 plots but
+ideally in the real world people wouldn’t predict outside of parameter
+space.
 
 ``` r
 library("tidyverse")
@@ -107,6 +108,9 @@ fviz_mca_ind(data_pca,
 
 ![](figures/2024-01-22_find-test-area/unnamed-chunk-5-1.png)<!-- -->
 
+Looks like somewhere in the middle of Sweden would be the most
+homogeneous with the rest of the country.
+
 ### Region
 
 ``` r
@@ -125,8 +129,6 @@ fviz_mca_ind(data_pca,
 
 ## Create grid
 
-Going for something long and thin..
-
 ``` r
 # make data a sf object
 data_sf <- st_as_sf(clean_data, 
@@ -140,20 +142,20 @@ data_sf %>%
 # make grid
 fishnet <- st_make_grid(
   data_projected,
-  cellsize = c(40000, 1200000), # units are meters
+  cellsize = c(140000, 130000), # units are meters
   what = "polygons",
   square = TRUE,
   crs = st_crs(3152))
 
 # plot
 ggplot(data_projected) +
-  geom_sf(aes(col=as.factor(region)), alpha = 0.6, shape = 16) +
+  geom_sf(aes(col = as.factor(region)), alpha = 0.6, shape = 16) +
   geom_sf(data = fishnet, fill  = NA)
 ```
 
 ![](figures/2024-01-22_find-test-area/unnamed-chunk-7-1.png)<!-- -->
 
-How many plots in each rectangle? We can have up to 215.
+How many plots in each rectangle? We can have up to 200.
 
 ``` r
 # convert polygons to sf object and add id column
@@ -163,12 +165,7 @@ fishnet %>%
 
 # calculate which plots are in which squares
 joined <- st_intersection(data_projected, fishnet_sf)
-```
 
-    ## Warning: attribute variables are assumed to be spatially constant throughout
-    ## all geometries
-
-``` r
 joined %>% 
   group_by(net_id) %>% 
   summarise(n()) %>% 
@@ -178,100 +175,43 @@ joined %>%
     ## Simple feature collection with 10 features and 2 fields
     ## Geometry type: MULTIPOINT
     ## Dimension:     XY
-    ## Bounding box:  xmin: -166587.8 ymin: -311730.6 xmax: 232385.6 ymax: 870493.4
+    ## Bounding box:  xmin: -146816 ymin: -194639.3 xmax: 272068.4 ymax: 839540.4
     ## Projected CRS: ST74
     ## # A tibble: 10 × 3
     ##    net_id `n()`                                                         geometry
     ##     <int> <int>                                                 <MULTIPOINT [m]>
-    ##  1      6   278 ((-86915.86 251084.1), (-86906.36 470000.9), (-86899.16 507713.…
-    ##  2      7   269 ((-46786.73 233312.6), (-46773.6 -86204.4), (-46681.69 -71331.7…
-    ##  3      8   184 ((-6843.858 -43148.55), (-6823.834 383729.7), (-6583.053 257567…
-    ##  4      4   164 ((-166587.8 337514), (-166571.9 338854.3), (-166405.4 337044.4)…
-    ##  5      5   146 ((-124943.9 -9534.224), (-124491.8 295833.6), (-124428.4 297509…
-    ##  6      9   140 ((33181.9 200392.3), (33312.16 251268.8), (34925.66 173698.3), …
-    ##  7     11    93 ((113438.7 107826.4), (113714.8 587436.6), (113935.9 123407.6),…
-    ##  8     10    92 ((73745.81 442563.3), (74270.85 570011.6), (74310.33 595749.7),…
-    ##  9     12    74 ((153402.9 581711.6), (153492.5 -92646.56), (153638.9 817691), …
-    ## 10     13    68 ((193306.6 771943.6), (193525.1 567498), (194083.5 642854.5), (…
+    ##  1     22   196 ((-146816 226164.4), (-146660.5 227307.6), (-146102.4 292343.1)…
+    ##  2     17   161 ((-141863.8 142576.2), (-141561.8 131777.4), (-140227.6 151915.…
+    ##  3      7   137 ((-144172.9 -132349.9), (-144066.7 -118666.1), (-142237.9 -1876…
+    ##  4     27   119 ((-144901 327131.6), (-144166.1 327331.6), (-143442.2 327531.1)…
+    ##  5     12   105 ((-146269.5 -38270.61), (-146165.2 -4965.939), (-145621.6 -3737…
+    ##  6     39    94 ((134619.2 652854.4), (134660.1 621730.4), (134722 622954.8), (…
+    ##  7     23    92 ((-6583.053 257567.2), (-6307.006 257430.2), (-5993.551 266802.…
+    ##  8     18    86 ((-867.0408 125748.2), (-293.2138 112322.4), (1558.892 191834.8…
+    ##  9     33    80 ((-1970.85 453374.6), (-891.3707 481705), (-366.5535 453052), (…
+    ## 10     44    77 ((134959.8 825963.5), (145620.5 728442.9), (152286.2 806214.5),…
 
-Which plots cover the greatest range of latitudes?
-
-``` r
-joined %>%  
-  group_by(net_id) %>% 
-  summarise(range = max(nord_stord) - min(nord_stord)) %>% 
-  slice_max(order_by = range, n = 10)
-```
-
-    ## Simple feature collection with 10 features and 2 fields
-    ## Geometry type: MULTIPOINT
-    ## Dimension:     XY
-    ## Bounding box:  xmin: -206521.1 ymin: -327142.1 xmax: 193035 ymax: 833274.5
-    ## Projected CRS: ST74
-    ## # A tibble: 10 × 3
-    ##    net_id   range                                                       geometry
-    ##     <int>   <dbl>                                               <MULTIPOINT [m]>
-    ##  1      8 1004902 ((-6843.858 -43148.55), (-6823.834 383729.7), (-6583.053 2575…
-    ##  2     11  990608 ((113438.7 107826.4), (113714.8 587436.6), (113935.9 123407.6…
-    ##  3     10  963678 ((73745.81 442563.3), (74270.85 570011.6), (74310.33 595749.7…
-    ##  4     12  916807 ((153402.9 581711.6), (153492.5 -92646.56), (153638.9 817691)…
-    ##  5      7  899674 ((-46786.73 233312.6), (-46773.6 -86204.4), (-46681.69 -71331…
-    ##  6      4  843676 ((-166587.8 337514), (-166571.9 338854.3), (-166405.4 337044.…
-    ##  7      5  823944 ((-124943.9 -9534.224), (-124491.8 295833.6), (-124428.4 2975…
-    ##  8      6  788043 ((-86915.86 251084.1), (-86906.36 470000.9), (-86899.16 50771…
-    ##  9      9  769575 ((33181.9 200392.3), (33312.16 251268.8), (34925.66 173698.3)…
-    ## 10      3  699393 ((-206521.1 245249.2), (-205860.2 -189877.9), (-205581.8 2735…
-
-Which plots cover the most regions?
-
-``` r
-joined %>%  
-  group_by(net_id) %>% 
-  summarise(n_distinct(region)) %>% 
-  slice_max(order_by = `n_distinct(region)`, n = 10)
-```
-
-    ## Simple feature collection with 11 features and 2 fields
-    ## Geometry type: MULTIPOINT
-    ## Dimension:     XY
-    ## Bounding box:  xmin: -244040.4 ymin: -327142.1 xmax: 193035 ymax: 833274.5
-    ## Projected CRS: ST74
-    ## # A tibble: 11 × 3
-    ##    net_id `n_distinct(region)`                                          geometry
-    ##     <int>                <int>                                  <MULTIPOINT [m]>
-    ##  1      4                    5 ((-166587.8 337514), (-166571.9 338854.3), (-166…
-    ##  2      5                    5 ((-124943.9 -9534.224), (-124491.8 295833.6), (-…
-    ##  3     11                    5 ((113438.7 107826.4), (113714.8 587436.6), (1139…
-    ##  4      3                    4 ((-206521.1 245249.2), (-205860.2 -189877.9), (-…
-    ##  5      6                    4 ((-86915.86 251084.1), (-86906.36 470000.9), (-8…
-    ##  6      8                    4 ((-6843.858 -43148.55), (-6823.834 383729.7), (-…
-    ##  7      9                    4 ((33181.9 200392.3), (33312.16 251268.8), (34925…
-    ##  8     10                    4 ((73745.81 442563.3), (74270.85 570011.6), (7431…
-    ##  9     12                    4 ((153402.9 581711.6), (153492.5 -92646.56), (153…
-    ## 10      2                    3 ((-244040.4 35242.7), (-243327.1 50186.1), (-242…
-    ## 11      7                    3 ((-46786.73 233312.6), (-46773.6 -86204.4), (-46…
-
-Let’s compare a few that look promising.
+Let’s compare the top 4.
 
 ``` r
 joined %>% 
-  filter(net_id == 8 | net_id == 11 | net_id == 10 | net_id == 4) %>%  
+  filter(net_id == 22 | net_id == 17 | net_id == 7 | net_id == 27) %>%  
   ggplot() +
   geom_sf(aes(col = as.factor(region)), alpha = 0.6, shape = 16) +
   facet_wrap(~net_id, nrow = 1)
 ```
 
-![](figures/2024-01-22_find-test-area/unnamed-chunk-11-1.png)<!-- -->
+![](figures/2024-01-22_find-test-area/unnamed-chunk-9-1.png)<!-- -->
 
 ``` r
 clean_data %>% 
   left_join(joined) -> data_nets
 
 data_nets %>% 
-  mutate(net_col = case_when(net_id == 8 ~ "net_8",
-                            net_id == 4 ~ "net_4",
-                             net_id == 10 ~ "net_10",
-                             net_id == 11 ~ "net_11",
+  mutate(net_col = case_when(net_id == 22 ~ "net_22",
+                            net_id == 17 ~ "net_17",
+                             net_id == 7 ~ "net_7",
+                             net_id == 27 ~ "net_27",
                               .default = "other")) -> nets_test
 
 fviz_mca_ind(data_pca, 
@@ -280,12 +220,13 @@ fviz_mca_ind(data_pca,
              palette = c("red", "blue", "forestgreen", "orange", "lightgrey")) 
 ```
 
-![](figures/2024-01-22_find-test-area/unnamed-chunk-12-1.png)<!-- -->
+![](figures/2024-01-22_find-test-area/unnamed-chunk-10-1.png)<!-- -->
 
-![](figures/2024-01-22_find-test-area/unnamed-chunk-13-1.png)<!-- -->
+![](figures/2024-01-22_find-test-area/unnamed-chunk-11-1.png)<!-- -->
 
-`net_10` looks like it has the best overlap. When we remove these points
-what effect do they have on the distribution of our covariates?
+It looks like `net_22` is the most nested within the covariate space.
+When we remove these points what effect do they have on the distribution
+of our covariates?
 
 ``` r
 data_nets %>% 
@@ -301,11 +242,11 @@ data_nets %>%
   theme_classic(base_size = 7) 
 ```
 
-![](figures/2024-01-22_find-test-area/unnamed-chunk-14-1.png)<!-- -->
+![](figures/2024-01-22_find-test-area/unnamed-chunk-12-1.png)<!-- -->
 
 ``` r
 data_nets %>% 
-  mutate(net_col = case_when(net_id == 10 ~ "net_10",
+  mutate(net_col = case_when(net_id == 22 ~ "net_22",
                               .default = "other")) %>% 
   select(net_col, total_soil_carbon, altitude,
          mat_5yr, map_5yr, ditch, no_of_stems, volume_pine,
@@ -319,11 +260,26 @@ data_nets %>%
   theme_classic(base_size = 7)  
 ```
 
-![](figures/2024-01-22_find-test-area/unnamed-chunk-15-1.png)<!-- -->
+![](figures/2024-01-22_find-test-area/unnamed-chunk-13-1.png)<!-- -->
 
-In the above, pink is `net_10`. `net_10` misses a chunk in the middle
-for `altitude` and `mat_5yr` but I think this is ok because we just want
-overlap?
+In the above, pink is `net_22`. It looks good - pink is always within
+the range of blue, although shifted a bit for altitude..
 
-The overall distributions don’t seem to change when `net_10` plots are
-removed.
+``` r
+# make data a sf object
+data_sf_net <- data_nets %>% 
+  mutate(net_col = case_when(net_id == 22 ~ "net_22",
+                              .default = "other")) %>% 
+  st_as_sf(coords = c("ost_wgs84", "nord_wgs84"),
+           crs = "WGS84")
+
+# project the points
+data_sf_net %>% 
+  st_transform(crs = st_crs(3152)) -> data_projected_net
+
+# plot
+ggplot(data_projected_net) +
+  geom_sf(aes(col = as.factor(net_col)), alpha = 0.6, shape = 16) 
+```
+
+![](figures/2024-01-22_find-test-area/unnamed-chunk-14-1.png)<!-- -->

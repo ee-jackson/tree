@@ -19,10 +19,11 @@ knitr::opts_chunk$set(
 ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
 ```
 
-Find a geographical area of covariate overlap to use as testing data. 
-Currently using random 215 plots but ideally in the real world people don’t 
+Find a geographical area of covariate overlap to use as testing data -
+we want the area to be geographically distinct but environmentally nested /
+nested in covariate space.
+Currently using random 200 plots but ideally in the real world people wouldn’t 
 predict outside of parameter space. 
-Always remove these points from the training data.
 
 ```{r packages, message=FALSE, warning=FALSE}
 library("tidyverse")
@@ -103,6 +104,9 @@ fviz_mca_ind(data_pca,
   theme(legend.position = "none")
 ```
 
+Looks like somewhere in the middle of Sweden would be the most homogeneous 
+with the rest of the country.
+
 ### Region
 
 ```{r fig.width = 10, fig.height = 5}
@@ -119,8 +123,6 @@ fviz_mca_ind(data_pca,
 
 ## Create grid
 
-Going for something long and thin..
-
 ```{r}
 # make data a sf object
 data_sf <- st_as_sf(clean_data, 
@@ -134,20 +136,20 @@ data_sf %>%
 # make grid
 fishnet <- st_make_grid(
   data_projected,
-  cellsize = c(40000, 1200000), # units are meters
+  cellsize = c(140000, 130000), # units are meters
   what = "polygons",
   square = TRUE,
   crs = st_crs(3152))
 
 # plot
 ggplot(data_projected) +
-  geom_sf(aes(col=as.factor(region)), alpha = 0.6, shape = 16) +
+  geom_sf(aes(col = as.factor(region)), alpha = 0.6, shape = 16) +
   geom_sf(data = fishnet, fill  = NA)
 ```
 
-How many plots in each rectangle? We can have up to 215.
+How many plots in each rectangle? We can have up to 200.
 
-```{r}
+```{r warning=FALSE}
 # convert polygons to sf object and add id column
 fishnet %>%
 	st_sf(crs = st_crs(3152)) %>%
@@ -162,29 +164,11 @@ joined %>%
   slice_max(order_by = `n()`, n = 10)
 ```
 
-Which plots cover the greatest range of latitudes?
-
-```{r}
-joined %>%  
-  group_by(net_id) %>% 
-  summarise(range = max(nord_stord) - min(nord_stord)) %>% 
-  slice_max(order_by = range, n = 10)
-```
-
-Which plots cover the most regions?
-
-```{r}
-joined %>%  
-  group_by(net_id) %>% 
-  summarise(n_distinct(region)) %>% 
-  slice_max(order_by = `n_distinct(region)`, n = 10)
-```
-
-Let's compare a few that look promising.
+Let's compare the top 4.
 
 ```{r}
 joined %>% 
-  filter(net_id == 8 | net_id == 11 | net_id == 10 | net_id == 4) %>%  
+  filter(net_id == 22 | net_id == 17 | net_id == 7 | net_id == 27) %>%  
   ggplot() +
   geom_sf(aes(col = as.factor(region)), alpha = 0.6, shape = 16) +
   facet_wrap(~net_id, nrow = 1)
@@ -195,10 +179,10 @@ clean_data %>%
   left_join(joined) -> data_nets
 
 data_nets %>% 
-  mutate(net_col = case_when(net_id == 8 ~ "net_8",
-                            net_id == 4 ~ "net_4",
-                             net_id == 10 ~ "net_10",
-                             net_id == 11 ~ "net_11",
+  mutate(net_col = case_when(net_id == 22 ~ "net_22",
+                            net_id == 17 ~ "net_17",
+                             net_id == 7 ~ "net_7",
+                             net_id == 27 ~ "net_27",
                               .default = "other")) -> nets_test
 
 fviz_mca_ind(data_pca, 
@@ -209,47 +193,46 @@ fviz_mca_ind(data_pca,
 
 ```{r echo=FALSE}
 data_nets %>% 
-  mutate(net_col = case_when(net_id == 10 ~ "net_10",
-                              .default = "other")) -> nets_test_10
+  mutate(net_col = case_when(net_id == 17 ~ "net_17",
+                              .default = "other")) -> nets_test_17
 
 fviz_mca_ind(data_pca, 
              geom = "point", alpha = 0.5, shape = 16,
-             col.ind = as.factor(nets_test_10$net_col), addEllipses = TRUE,
+             col.ind = as.factor(nets_test_17$net_col), addEllipses = TRUE,
              palette = c("red", "lightgrey")) -> p1
 
 data_nets %>% 
-  mutate(net_col = case_when(net_id == 11 ~ "net_11",
-                              .default = "other")) -> nets_test_11
+  mutate(net_col = case_when(net_id == 22 ~ "net_22",
+                              .default = "other")) -> nets_test_22
 
 fviz_mca_ind(data_pca, 
              geom = "point", alpha = 0.5, shape = 16,
-             col.ind = as.factor(nets_test_11$net_col), addEllipses = TRUE,
+             col.ind = as.factor(nets_test_22$net_col), addEllipses = TRUE,
              palette = c("blue", "lightgrey")) -> p2
 
 data_nets %>% 
-  mutate(net_col = case_when(net_id == 4 ~ "net_4",
-                              .default = "other")) -> nets_test_4
+  mutate(net_col = case_when(net_id == 27 ~ "net_27",
+                              .default = "other")) -> nets_test_27
 
 fviz_mca_ind(data_pca, 
              geom = "point", alpha = 0.5, shape = 16,
-             col.ind = as.factor(nets_test_4$net_col), addEllipses = TRUE,
+             col.ind = as.factor(nets_test_27$net_col), addEllipses = TRUE,
              palette = c("forestgreen", "lightgrey")) -> p3
 
 data_nets %>% 
-  mutate(net_col = case_when(net_id == 8 ~ "net_8",
-                              .default = "other")) -> nets_test_8
+  mutate(net_col = case_when(net_id == 7 ~ "net_7",
+                              .default = "other")) -> nets_test_7
 
 fviz_mca_ind(data_pca, 
              geom = "point", alpha = 0.5, shape = 16,
-             col.ind = as.factor(nets_test_8$net_col), addEllipses = TRUE,
+             col.ind = as.factor(nets_test_7$net_col), addEllipses = TRUE,
              palette = c("orange", "lightgrey")) -> p4
 
 (p1 + p2) /
   (p3 + p4)
 ```
 
-
-`net_10` looks like it has the best overlap. 
+It looks like `net_22` is the most nested within the covariate space. 
 When we remove these points 
 what effect do they have on the distribution of our covariates?
 
@@ -269,7 +252,7 @@ data_nets %>%
 
 ```{r fig.height=10, fig.width=10, message=FALSE, warning=FALSE}
 data_nets %>% 
-  mutate(net_col = case_when(net_id == 10 ~ "net_10",
+  mutate(net_col = case_when(net_id == 22 ~ "net_22",
                               .default = "other")) %>% 
   select(net_col, total_soil_carbon, altitude,
          mat_5yr, map_5yr, ditch, no_of_stems, volume_pine,
@@ -283,8 +266,23 @@ data_nets %>%
   theme_classic(base_size = 7)  
 ```
 
-In the above, pink is `net_10`. 
-`net_10` misses a chunk in the middle for `altitude` and `mat_5yr`
-but I think this is ok because we just want overlap?
+In the above, pink is `net_22`. 
+It looks good - pink is always within the range of blue,
+although shifted a bit for altitude..
 
-The overall distributions don't seem to change when `net_10` plots are removed.
+```{r}
+# make data a sf object
+data_sf_net <- data_nets %>% 
+  mutate(net_col = case_when(net_id == 22 ~ "net_22",
+                              .default = "other")) %>% 
+  st_as_sf(coords = c("ost_wgs84", "nord_wgs84"),
+           crs = "WGS84")
+
+# project the points
+data_sf_net %>% 
+  st_transform(crs = st_crs(3152)) -> data_projected_net
+
+# plot
+ggplot(data_projected_net) +
+  geom_sf(aes(col = as.factor(net_col)), alpha = 0.6, shape = 16) 
+```
