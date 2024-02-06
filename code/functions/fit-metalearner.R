@@ -10,7 +10,7 @@
 #' @importFrom tidyselect all_of
 #' @export
 
-fit_metalearner <- function(df, learner, n_train, var_omit, rf_mtry = 6, rf_min_n = 2) {
+fit_metalearner <- function(df, learner, n_train, var_omit) {
 
   features <- df |>
     dplyr::filter(period == 0) |>
@@ -90,13 +90,14 @@ fit_metalearner <- function(df, learner, n_train, var_omit, rf_mtry = 6, rf_min_
       tr = train_data$tr,
       yobs = train_data$soil_carbon_obs,
       nthread = 2,
-      mu.forestry = list(mtry = rf_mtry, nodesizeSpl = rf_min_n,
-                         relevant.Variable = 1:ncol(dplyr::select(train_data,
+      mu.forestry = list(relevant.Variable = 1:ncol(dplyr::select(train_data,
                                                                   tidyselect::all_of(feat_list))),
-                         ntree = 1000, replace = TRUE,
-                         sample.fraction = 0.9, nodesizeAvg = 3,
-                         nodesizeStrictSpl = 3, nodesizeStrictAvg = 1,
-                         splitratio = 1, middleSplit = FALSE, OOBhonest = TRUE)
+                         ntree = 1000, replace = TRUE, sample.fraction = 0.9,
+                         mtry = ncol(dplyr::select(train_data,
+                                                   tidyselect::all_of(feat_list))),
+                         nodesizeSpl = 1, nodesizeAvg = 3, nodesizeStrictSpl = 3,
+                         nodesizeStrictAvg = 1, splitratio = 1, middleSplit = FALSE,
+                         OOBhonest = TRUE)
     )
 
     # estimate the CATE
@@ -121,21 +122,21 @@ fit_metalearner <- function(df, learner, n_train, var_omit, rf_mtry = 6, rf_min_
       tr = train_data$tr,
       yobs = train_data$soil_carbon_obs,
       nthread = 2,
-      mu0.forestry = list(mtry = rf_mtry, nodesizeSpl = rf_min_n,
-                          relevant.Variable = 1:ncol(dplyr::select(train_data,
+      mu0.forestry = list(relevant.Variable = 1:ncol(dplyr::select(train_data,
                                                                    tidyselect::all_of(feat_list))),
-                          ntree = 1000, replace = TRUE,
-                          sample.fraction = 0.9, nodesizeAvg = 3,
-                          nodesizeStrictSpl = 1, nodesizeStrictAvg = 1,
-                          splitratio = 1, middleSplit = FALSE,
+                          ntree = 1000, replace = TRUE, sample.fraction = 0.9,
+                          mtry = ncol(dplyr::select(train_data,
+                                                    tidyselect::all_of(feat_list))),
+                          nodesizeSpl = 1, nodesizeAvg = 3, nodesizeStrictSpl = 1,
+                          nodesizeStrictAvg = 1, splitratio = 1, middleSplit = FALSE,
                           OOBhonest = TRUE),
-      mu1.forestry = list(mtry = rf_mtry, nodesizeSpl = rf_min_n,
-                          relevant.Variable = 1:ncol(dplyr::select(train_data,
+      mu1.forestry = list(relevant.Variable = 1:ncol(dplyr::select(train_data,
                                                                    tidyselect::all_of(feat_list))),
-                          ntree = 1000, replace = TRUE,
-                          sample.fraction = 0.9, nodesizeAvg = 3,
-                          nodesizeStrictSpl = 1, nodesizeStrictAvg = 1,
-                          splitratio = 1, middleSplit = FALSE,
+                          ntree = 1000, replace = TRUE, sample.fraction = 0.9,
+                          mtry = ncol(dplyr::select(train_data,
+                                                    tidyselect::all_of(feat_list))),
+                          nodesizeSpl = 1, nodesizeAvg = 3, nodesizeStrictSpl = 1,
+                          nodesizeStrictAvg = 1, splitratio = 1, middleSplit = FALSE,
                           OOBhonest = TRUE)
     )
 
@@ -162,20 +163,22 @@ fit_metalearner <- function(df, learner, n_train, var_omit, rf_mtry = 6, rf_min_
       tr = train_data$tr,
       yobs = train_data$soil_carbon_obs,
       nthread = 2,
-      mu.forestry = list(mtry = rf_mtry, nodesizeSpl = rf_min_n,
-                         relevant.Variable = 1:ncol(dplyr::select(train_data,
+      mu.forestry = list(relevant.Variable = 1:ncol(dplyr::select(train_data,
                                                                   tidyselect::all_of(feat_list))),
-                         ntree = 1000, replace = TRUE,
-                         sample.fraction = 0.8, nodesizeAvg = 1,
-                         nodesizeStrictSpl = 2, nodesizeStrictAvg = 1,
-                         splitratio = 1, middleSplit = TRUE, OOBhonest = TRUE),
-      tau.forestry = list(mtry = rf_mtry, nodesizeSpl = rf_min_n,
-                          relevant.Variable = 1:ncol(dplyr::select(train_data,
+                         ntree = 1000, replace = TRUE, sample.fraction = 0.8,
+                         mtry = round(ncol(dplyr::select(train_data,
+                                                         tidyselect::all_of(feat_list))) * 13/20),
+                         nodesizeSpl = 2, nodesizeAvg = 1,
+                         nodesizeStrictSpl = 2, nodesizeStrictAvg = 1, splitratio = 1,
+                         middleSplit = TRUE, OOBhonest = TRUE),
+      tau.forestry = list(relevant.Variable = 1:ncol(dplyr::select(train_data,
                                                                    tidyselect::all_of(feat_list))),
-                          ntree = 1000, replace = TRUE,
-                          sample.fraction = 0.7, nodesizeAvg = 6,
-                          nodesizeStrictSpl = 3, nodesizeStrictAvg = 1,
-                          splitratio = 1, middleSplit = TRUE, OOBhonest = TRUE)
+                          ntree = 1000, replace = TRUE, sample.fraction = 0.7,
+                          mtry = round(ncol(dplyr::select(train_data,
+                                                          tidyselect::all_of(feat_list))) * 17/20),
+                          nodesizeSpl = 5, nodesizeAvg = 6,
+                          nodesizeStrictSpl = 3, nodesizeStrictAvg = 1, splitratio = 1,
+                          middleSplit = TRUE, OOBhonest = TRUE)
     )
 
     cate_x_learn <- causalToolbox::EstimateCate(x_learn,
