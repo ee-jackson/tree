@@ -109,13 +109,11 @@ train_data <- dplyr::bind_rows(train_data_0, train_data_1)
 # sample test
 test_data_0 <- data_obs |>
   dplyr::filter(! description %in% train_data$description) |>
-  dplyr::filter(tr == 0) |>
-  dplyr::slice_sample(n = 107)
+  dplyr::filter(tr == 0) 
 
 test_data_1 <- data_obs |>
   dplyr::filter(! description %in% train_data$description) |>
-  dplyr::filter(tr == 1) |>
-  dplyr::slice_sample(n = 107)
+  dplyr::filter(tr == 1) 
 
 test_data <- dplyr::bind_rows(test_data_0, test_data_1)
 
@@ -151,29 +149,30 @@ cause_tool_out <- test_data |>
 
 ## `Rforestry` defaults
 
-```{r}
+```{r message=FALSE}
 rforest <- Rforestry::forestry(
   x = dplyr::select(train_data, tidyselect::all_of(feat_list), tr),
   y = train_data$soil_carbon_obs,
 )
 
 # estimate the CATE
-rforest_pred_0 <- predict(rforest,
-                        dplyr::select(test_data_0,
-                                      tidyselect::all_of(feat_list), tr)) %>% 
-  cbind(test_data) %>% 
-  rename(pred_0 = '.')
+rforest_pred_0 <- test_data %>% 
+  select(all_of(feat_list), tr) %>% 
+  mutate(tr = 0) %>% 
+  mutate(pred_0 = predict(rforest, .)) %>% 
+  select(-tr)
 
-rforest_pred_1 <- predict(rforest,
-                        dplyr::select(test_data_1,
-                                      tidyselect::all_of(feat_list), tr)) %>% 
-  cbind(test_data) %>% 
-  rename(pred_1 = '.')
+rforest_pred_1 <- test_data %>% 
+  select(all_of(feat_list), tr) %>% 
+  mutate(tr = 1) %>% 
+  mutate(pred_1 = predict(rforest, .)) %>% 
+  select(-tr)
 
 rforest_out <- rforest_pred_0 %>% 
-  inner_join(rforest_pred_1) %>% 
+  left_join(rforest_pred_1) %>% 
+  left_join(test_data) %>% 
   mutate(cate_pred = pred_1 - pred_0) %>% 
-  dplyr::mutate(cate_real = soil_carbon_1 - soil_carbon_0,
+  mutate(cate_real = soil_carbon_1 - soil_carbon_0,
                 diff = cate_pred - cate_real)
 ```
 
@@ -254,7 +253,7 @@ best_hp <- tune_res %>%
 Best `mtry` is always 8 and `min_n` is 2 (the lowest values tested), `trees` doesn't seem to matter so much.
 For computational efficiency we could select the lower values.
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 # train with the tuned hyperparameters
 final_wf <- 
   rf_wf %>% 
@@ -267,22 +266,27 @@ final_fit <-
     ) 
 
 # estimate the CATE
-tune_pred_0 <- predict(final_fit,
-                        dplyr::select(test_data_0,
-                                      tidyselect::all_of(feat_list), tr)) %>% 
-  cbind(test_data) %>% 
-  rename(pred_0 = .pred)
+tune_pred_0 <- test_data %>% 
+  select(all_of(feat_list), tr) %>% 
+  mutate(tr = 0) %>% 
+  mutate(pred = predict(final_fit, .)) %>% 
+  unnest(pred) %>% 
+  rename(pred_0 = .pred) %>% 
+  select(-tr)
 
-tune_pred_1 <- predict(final_fit,
-                        dplyr::select(test_data_1,
-                                      tidyselect::all_of(feat_list), tr)) %>% 
-  cbind(test_data) %>% 
-  rename(pred_1 = .pred)
+tune_pred_1 <- test_data %>% 
+  select(all_of(feat_list), tr) %>% 
+  mutate(tr = 1) %>% 
+  mutate(pred = predict(final_fit, .)) %>% 
+  unnest(pred) %>% 
+  rename(pred_1 = .pred) %>%
+  select(-tr)
 
 tune_out <- tune_pred_0 %>% 
-  inner_join(tune_pred_1) %>% 
+  left_join(tune_pred_1) %>% 
+  left_join(test_data) %>% 
   mutate(cate_pred = pred_1 - pred_0) %>% 
-  dplyr::mutate(cate_real = soil_carbon_1 - soil_carbon_0,
+  mutate(cate_real = soil_carbon_1 - soil_carbon_0,
                 diff = cate_pred - cate_real)
 ```
 
@@ -292,6 +296,11 @@ tune_out <- tune_pred_0 %>%
 all_preds <- bind_rows(list(causalToolbox = cause_tool_out, 
                             Rforestry = rforest_out, 
                             tuned = tune_out), .id = "method") 
+
+all_preds %>% 
+  group_by(method) %>% 
+  summarise(median_abs_error = median(abs(diff))) %>% 
+  arrange(median_abs_error)
 
 all_preds %>% 
   ggplot() +
@@ -306,5 +315,12 @@ all_preds %>%
     facet_wrap(~ method, ncol = 1)
 ```
 
-Agh! What's going on with the `causalToolbox` one? 
-Why does it look so different?
+They look very similar! 
+In terms of median error, 
+the model with the `causalToolbox` package defaults has done worst,
+followed by `Rforestry` defaults
+and the model with the hyper-parameters that we tuned did best.
+
+This is what I was expecting would happen, 
+but there is only a small difference between them - which is good!
+I wonder if the `causalToolbox` defaults would do better with some of the more complex meta-learners.

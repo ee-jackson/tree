@@ -1,7 +1,7 @@
 More hyperparameter testing
 ================
 eleanorjackson
-06 February, 2024
+08 February, 2024
 
 ``` r
 library("tidyverse")
@@ -118,13 +118,11 @@ train_data <- dplyr::bind_rows(train_data_0, train_data_1)
 # sample test
 test_data_0 <- data_obs |>
   dplyr::filter(! description %in% train_data$description) |>
-  dplyr::filter(tr == 0) |>
-  dplyr::slice_sample(n = 107)
+  dplyr::filter(tr == 0) 
 
 test_data_1 <- data_obs |>
   dplyr::filter(! description %in% train_data$description) |>
-  dplyr::filter(tr == 1) |>
-  dplyr::slice_sample(n = 107)
+  dplyr::filter(tr == 1) 
 
 test_data <- dplyr::bind_rows(test_data_0, test_data_1)
 
@@ -166,29 +164,25 @@ rforest <- Rforestry::forestry(
 )
 
 # estimate the CATE
-rforest_pred_0 <- predict(rforest,
-                        dplyr::select(test_data_0,
-                                      tidyselect::all_of(feat_list), tr)) %>% 
-  cbind(test_data) %>% 
-  rename(pred_0 = '.')
+rforest_pred_0 <- test_data %>% 
+  select(all_of(feat_list), tr) %>% 
+  mutate(tr = 0) %>% 
+  mutate(pred_0 = predict(rforest, .)) %>% 
+  select(-tr)
 
-rforest_pred_1 <- predict(rforest,
-                        dplyr::select(test_data_1,
-                                      tidyselect::all_of(feat_list), tr)) %>% 
-  cbind(test_data) %>% 
-  rename(pred_1 = '.')
+rforest_pred_1 <- test_data %>% 
+  select(all_of(feat_list), tr) %>% 
+  mutate(tr = 1) %>% 
+  mutate(pred_1 = predict(rforest, .)) %>% 
+  select(-tr)
 
 rforest_out <- rforest_pred_0 %>% 
-  inner_join(rforest_pred_1) %>% 
+  left_join(rforest_pred_1) %>% 
+  left_join(test_data) %>% 
   mutate(cate_pred = pred_1 - pred_0) %>% 
-  dplyr::mutate(cate_real = soil_carbon_1 - soil_carbon_0,
+  mutate(cate_real = soil_carbon_1 - soil_carbon_0,
                 diff = cate_pred - cate_real)
 ```
-
-    ## Joining with `by = join_by(description, tr, soil_carbon_initial, soil_carbon_0,
-    ## soil_carbon_1, soil_carbon_obs, soil_moist_code, altitude, mat_5yr, map_5yr,
-    ## ditch, no_of_stems, volume_pine, volume_spruce, volume_birch, volume_aspen,
-    ## volume_oak, volume_beech, volume_southern_broadleaf, volume_larch)`
 
 ## tuned with `tidymodels`
 
@@ -246,7 +240,7 @@ tune_res <-
 
     ## → A | warning: A correlation computation is required, but `estimate` is constant and has 0 standard deviation, resulting in a divide by 0 error. `NA` will be returned.
 
-    ## There were issues with some computations   A: x1There were issues with some computations   A: x2There were issues with some computations   A: x3There were issues with some computations   A: x4There were issues with some computations   A: x5There were issues with some computations   A: x6There were issues with some computations   A: x7There were issues with some computations   A: x8There were issues with some computations   A: x8
+    ## There were issues with some computations   A: x1There were issues with some computations   A: x2There were issues with some computations   A: x3There were issues with some computations   A: x4There were issues with some computations   A: x5There were issues with some computations   A: x6There were issues with some computations   A: x7There were issues with some computations   A: x8There were issues with some computations   A: x9There were issues with some computations   A: x9
 
 ``` r
 tune_res %>%
@@ -296,11 +290,11 @@ tune_res %>%
     ## # A tibble: 5 × 9
     ##    mtry trees min_n .metric .estimator  mean     n std_err .config              
     ##   <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>                
-    ## 1     8   250     2 rmse    standard    5.61    10   0.437 Preprocessor1_Model0…
-    ## 2     8  1250     2 rmse    standard    5.63    10   0.404 Preprocessor1_Model2…
-    ## 3     8   500     2 rmse    standard    5.63    10   0.406 Preprocessor1_Model1…
-    ## 4     8  1500     2 rmse    standard    5.64    10   0.409 Preprocessor1_Model2…
-    ## 5     8  1000     2 rmse    standard    5.66    10   0.417 Preprocessor1_Model2…
+    ## 1     8   750     2 rmse    standard    5.52    10   0.496 Preprocessor1_Model1…
+    ## 2     8  1250     2 rmse    standard    5.54    10   0.494 Preprocessor1_Model2…
+    ## 3     8   500     2 rmse    standard    5.55    10   0.479 Preprocessor1_Model1…
+    ## 4     8  1500     2 rmse    standard    5.55    10   0.491 Preprocessor1_Model2…
+    ## 5     8  1000     2 rmse    standard    5.58    10   0.503 Preprocessor1_Model2…
 
 ``` r
 best_hp <- tune_res %>%
@@ -326,29 +320,29 @@ final_fit <-
     ) 
 
 # estimate the CATE
-tune_pred_0 <- predict(final_fit,
-                        dplyr::select(test_data_0,
-                                      tidyselect::all_of(feat_list), tr)) %>% 
-  cbind(test_data) %>% 
-  rename(pred_0 = .pred)
+tune_pred_0 <- test_data %>% 
+  select(all_of(feat_list), tr) %>% 
+  mutate(tr = 0) %>% 
+  mutate(pred = predict(final_fit, .)) %>% 
+  unnest(pred) %>% 
+  rename(pred_0 = .pred) %>% 
+  select(-tr)
 
-tune_pred_1 <- predict(final_fit,
-                        dplyr::select(test_data_1,
-                                      tidyselect::all_of(feat_list), tr)) %>% 
-  cbind(test_data) %>% 
-  rename(pred_1 = .pred)
+tune_pred_1 <- test_data %>% 
+  select(all_of(feat_list), tr) %>% 
+  mutate(tr = 1) %>% 
+  mutate(pred = predict(final_fit, .)) %>% 
+  unnest(pred) %>% 
+  rename(pred_1 = .pred) %>%
+  select(-tr)
 
 tune_out <- tune_pred_0 %>% 
-  inner_join(tune_pred_1) %>% 
+  left_join(tune_pred_1) %>% 
+  left_join(test_data) %>% 
   mutate(cate_pred = pred_1 - pred_0) %>% 
-  dplyr::mutate(cate_real = soil_carbon_1 - soil_carbon_0,
+  mutate(cate_real = soil_carbon_1 - soil_carbon_0,
                 diff = cate_pred - cate_real)
 ```
-
-    ## Joining with `by = join_by(description, tr, soil_carbon_initial, soil_carbon_0,
-    ## soil_carbon_1, soil_carbon_obs, soil_moist_code, altitude, mat_5yr, map_5yr,
-    ## ditch, no_of_stems, volume_pine, volume_spruce, volume_birch, volume_aspen,
-    ## volume_oak, volume_beech, volume_southern_broadleaf, volume_larch)`
 
 ## Compare
 
@@ -357,6 +351,20 @@ all_preds <- bind_rows(list(causalToolbox = cause_tool_out,
                             Rforestry = rforest_out, 
                             tuned = tune_out), .id = "method") 
 
+all_preds %>% 
+  group_by(method) %>% 
+  summarise(median_abs_error = median(abs(diff))) %>% 
+  arrange(median_abs_error)
+```
+
+    ## # A tibble: 3 × 2
+    ##   method        median_abs_error
+    ##   <chr>                    <dbl>
+    ## 1 tuned                     2.00
+    ## 2 Rforestry                 2.05
+    ## 3 causalToolbox             2.31
+
+``` r
 all_preds %>% 
   ggplot() +
     geom_hline(yintercept = 0, colour = "grey", linetype = 2) +
@@ -370,9 +378,12 @@ all_preds %>%
     facet_wrap(~ method, ncol = 1)
 ```
 
-    ## Warning: Removed 4 rows containing missing values (`geom_point()`).
-
 ![](figures/2024-02-06_test-hyperparameters-continued/unnamed-chunk-10-1.png)<!-- -->
 
-Agh! What’s going on with the `causalToolbox` one? Why does it look so
-different?
+They look very similar! In terms of median error, the model with the
+`causalToolbox` package defaults has done worst, followed by `Rforestry`
+defaults and the model with the hyper-parameters that we tuned did best.
+
+This is what I was expecting would happen, but there is only a small
+difference between them - which is good! I wonder if the `causalToolbox`
+defaults would do better with some of the more complex meta-learners.
