@@ -1,8 +1,9 @@
 #' Fit meta-learner
 #' @param df The clean data.
 #' @param learner Choice of meta-learner "s", "t" or "x".
-#' @param n_train The number of plots in the train dataset (sample size).
+#' @param n_train The number of plots in the train dataset (sample size). Maximum is 1,414.
 #' @param var_omit Logical indicating if `soil_carbon_initial` should be omitted from the predictor variables.
+#' @param random_test_plots Logical indicating if test plots should be randomly selected `TRUE` or selected from a geographically distinct area `FALSE`.
 #' @return The ITE
 #' @import dplyr causalToolbox
 #' @importFrom tidyr pivot_wider
@@ -10,7 +11,7 @@
 #' @importFrom tidyselect all_of
 #' @export
 
-fit_metalearner <- function(df, learner, n_train, var_omit) {
+fit_metalearner <- function(df, learner, n_train, var_omit = FALSE, random_test_plots = TRUE) {
 
   features <- df |>
     dplyr::filter(period == 0) |>
@@ -23,6 +24,7 @@ fit_metalearner <- function(df, learner, n_train, var_omit) {
     )
 
   data_obs <- df |>
+    dplyr::filter(in_square == FALSE) |>
     dplyr::select(description, tr, control_category_name, total_soil_carbon) |>
     tidyr::pivot_wider(id_cols = c(description, tr),
                 names_from = control_category_name,
@@ -52,18 +54,55 @@ fit_metalearner <- function(df, learner, n_train, var_omit) {
 
   train_data <- dplyr::bind_rows(train_data_0, train_data_1)
 
-  # sample test
+  # sample random test
   test_data_0 <- data_obs |>
     dplyr::filter(! description %in% train_data$description) |>
     dplyr::filter(tr == 0) |>
-    dplyr::slice_sample(n = 107)
+    dplyr::slice_sample(n = 98)
 
   test_data_1 <- data_obs |>
     dplyr::filter(! description %in% train_data$description) |>
     dplyr::filter(tr == 1) |>
-    dplyr::slice_sample(n = 107)
+    dplyr::slice_sample(n = 98)
 
-  test_data <- dplyr::bind_rows(test_data_0, test_data_1)
+  test_data_random <- dplyr::bind_rows(test_data_0, test_data_1)
+
+  # give "square" test data even treatment assignment
+  no_treat_ids_square <- df |>
+    dplyr::filter(in_square == TRUE) |>
+    dplyr::select(description) |>
+    dplyr::distinct() |>
+    dplyr::slice_sample(prop = 0.5)
+
+  data_assigned_square <- df |>
+    dplyr::filter(in_square == TRUE) |>
+    dplyr::mutate(tr =
+                    dplyr::case_when(
+                      description %in% no_treat_ids_square$description ~ 0,
+                      .default = 1)
+    )
+
+  test_data_square <- data_assigned_square |>
+    dplyr::select(description, tr, control_category_name, total_soil_carbon) |>
+    tidyr::pivot_wider(id_cols = c(description, tr),
+                       names_from = control_category_name,
+                       values_from = total_soil_carbon) |>
+    dplyr::mutate(soil_carbon_obs =
+                    dplyr::case_when(tr == 0 ~ `SetAside (Unmanaged)`,
+                                     tr == 1 ~ `BAU - NoThinning`)) |>
+    dplyr::rename(soil_carbon_initial = `Initial state`,
+                  soil_carbon_0 = `SetAside (Unmanaged)`,
+                  soil_carbon_1 = `BAU - NoThinning`) |>
+    dplyr::left_join(features,
+                     by = "description")
+
+  if (random_test_plots == FALSE) {
+    test_data <- test_data_square
+  } else if (random_test_plots == TRUE) {
+    test_data <- test_data_random
+  } else {
+    print0("`random_test_plots` should be either `TRUE` or `FALSE`")
+  }
 
   if (var_omit == FALSE) {
     feat_list <- c("soil_carbon_initial", "altitude",
