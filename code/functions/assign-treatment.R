@@ -14,6 +14,7 @@ assign_treatment <- function(df, assignment, proportion_not_treated = 0.5) {
   if (assignment == "random") {
 
     df |>
+      dplyr::filter(in_square == FALSE) |>
       dplyr::select(description) |>
       dplyr::distinct() |>
       dplyr::slice_sample(prop = proportion_not_treated) -> no_treat_ids_rand
@@ -22,6 +23,7 @@ assign_treatment <- function(df, assignment, proportion_not_treated = 0.5) {
       dplyr::mutate(tr =
                       dplyr::case_when(
                         description %in% no_treat_ids_rand$description ~ 0,
+                        in_square == TRUE ~ NA,
                          .default = 1)
                     ) -> data_assigned_rand
 
@@ -30,6 +32,7 @@ assign_treatment <- function(df, assignment, proportion_not_treated = 0.5) {
   } else if (assignment == "blocked_ordered") {
 
     df |>
+      dplyr::filter(in_square == FALSE) |>
       dplyr::select(description, region) |>
       dplyr::distinct() -> id_region
 
@@ -44,6 +47,7 @@ assign_treatment <- function(df, assignment, proportion_not_treated = 0.5) {
       dplyr::mutate(tr =
                       dplyr::case_when(
                         description %in% no_treat_ids_block_ord$description ~ 0,
+                        in_square == TRUE ~ NA,
                         .default = 1)
       ) -> data_assigned_block_ord
 
@@ -52,6 +56,7 @@ assign_treatment <- function(df, assignment, proportion_not_treated = 0.5) {
   } else if (assignment == "blocked_random") {
 
     df |>
+      dplyr::filter(in_square == FALSE) |>
       dplyr::select(description, region) |>
       dplyr::distinct() -> id_region
 
@@ -66,6 +71,7 @@ assign_treatment <- function(df, assignment, proportion_not_treated = 0.5) {
       dplyr::mutate(tr =
                       dplyr::case_when(
                         description %in% no_treat_ids_block_rand$description ~ 0,
+                        in_square == TRUE ~ NA,
                         .default = 1)
       ) -> data_assigned_block_rand
 
@@ -74,6 +80,7 @@ assign_treatment <- function(df, assignment, proportion_not_treated = 0.5) {
   } else if (assignment == "correlated_altitude") {
 
     df |>
+      dplyr::filter(in_square == FALSE) |>
       dplyr::select(description, altitude) |>
       dplyr::distinct() |>
       dplyr::slice_sample(prop = proportion_not_treated,
@@ -84,6 +91,7 @@ assign_treatment <- function(df, assignment, proportion_not_treated = 0.5) {
       dplyr::mutate(tr =
                       dplyr::case_when(
                         description %in% no_treat_ids_corr$description ~ 0,
+                        in_square == TRUE ~ NA,
                          .default = 1)
                     ) -> data_assigned_corr
 
