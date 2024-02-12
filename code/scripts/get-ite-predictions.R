@@ -21,22 +21,24 @@ sapply(function_dir, source)
 
 
 clean_data <-
-  readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time_clim.rds"))
+  readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time_clim_squ.rds"))
 
 
 # create keys -------------------------------------------------------------
 
 keys <- expand.grid(
-  assignment = c("random", "blocked", "correlated"),
+  assignment = c("random", "blocked_ordered", "blocked_random", "correlated"),
   proportion_not_treated = c(0.5, 0.25, 0.75),
   learner = c("s", "t", "x"),
-  n_train = c(100, 200, 400, 800, 1600),
-  var_omit = c(TRUE, FALSE)
+  n_train = c(200, 400, 800, 1400),
+  var_omit = c(TRUE, FALSE),
+  random_test_plots = c(TRUE, FALSE)
   ) %>%
   # proportion_not_treated is not applicable when assignment is blocked
   filter(
     case_when(
-      assignment == "blocked" & !proportion_not_treated == 0.5 ~ FALSE,
+      assignment == "blocked_random" & !proportion_not_treated == 0.5 ~ FALSE,
+      assignment == "blocked_ordered" & !proportion_not_treated == 0.5 ~ FALSE,
       .default = TRUE
     )
   ) %>%
