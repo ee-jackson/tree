@@ -1,0 +1,168 @@
+---
+title: "Propensity scores"
+author: '`r Sys.getenv("USER")`'
+date: '`r format(Sys.time(), "%d %B, %Y")`' 
+always_allow_html: true
+output: 
+  github_document:
+    keep_html: true
+---
+	
+```{r setup, include = FALSE}
+file_name <- rstudioapi::getSourceEditorContext()$path
+
+knitr::opts_chunk$set(
+  fig.path =
+    paste0("figures/", sub("\\.Rmd$", "", basename(file_name)), "/", sep = "")
+)
+
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
+```
+
+```{r packages, message=FALSE, warning=FALSE}
+library("tidyverse")
+library("here")
+```
+
+Unbalanced assignment of treatments can cause bias 
+because a difference in the treatment outcome (such as the average treatment effect) 
+between treated and untreated groups may be caused by a factor that predicts treatment rather than the treatment itself.
+
+In our study we have imposed unbalanced treatment assignment 
+
+
+```{r}
+models_out <- readRDS(here("data", "derived", "models_out.rds"))
+```
+
+We can estimate the propensity score by running a logit model 
+where the outcome variable is a binary variable indicating treatment status.
+For the matching to give you a causal estimate in the end, 
+you need to include any covariate that is related to both the treatment assignment and potential outcomes.
+
+```{r}
+
+test_ps <- glm(tr ~ 
+              soil_carbon_initial + 
+              soil_moist_code +
+              altitude + 
+              mat_5yr + 
+              map_5yr + 
+              ditch + 
+              no_of_stems + 
+              volume_pine + 
+              volume_spruce +
+              volume_birch + 
+              volume_aspen + 
+              volume_oak + 
+              volume_beech +
+              volume_southern_broadleaf + 
+              volume_larch,
+            family = binomial(), 
+            data = models_out$df_out[[157]])
+
+summary(test_ps)
+
+models_out$df_out[[157]] %>% 
+  mutate(propensity_score = predict(test_ps, type = "response")) %>% 
+  filter(tr == 1) %>% 
+  summarise(mean_ps = mean(propensity_score),
+              median_ps = median(propensity_score))
+```
+
+Build a function to loop over every simulation run
+
+```{r}
+get_ps <- function(df) {
+  mod <- glm(as.factor(tr) ~ 
+              soil_carbon_initial + 
+              as.ordered(soil_moist_code) +
+              altitude + 
+              mat_5yr + 
+              map_5yr + 
+              as.factor(ditch) + 
+              no_of_stems + 
+              volume_pine + 
+              volume_spruce +
+              volume_birch + 
+              volume_aspen + 
+              volume_oak + 
+              volume_beech +
+              volume_southern_broadleaf + 
+              volume_larch,
+            family = binomial(), 
+            data = df)
+  
+   ps_out <- df %>% 
+    mutate(propensity_score = predict(mod, type = "response")) %>% 
+    filter(tr == 1) %>%
+    summarise(mean_ps = mean(propensity_score),
+              median_ps = median(propensity_score))
+  
+  error_out <- df %>% 
+    summarise(median_error = median(diff), 
+              median_abs_error = median(abs(diff)))
+  
+  df_out <- df %>% 
+    mutate(propensity_score = predict(mod, type = "response"))
+  
+  cbind(ps_out, error_out, df_out) %>% 
+    nest(.by = c(mean_ps, median_ps, median_error, median_abs_error),
+         .key = "ps_df")
+}
+```
+
+```{r warning=FALSE}
+ps_df <- map(
+  pull(models_out, df_out), 
+  get_ps
+  ) %>% 
+  bind_rows()
+
+models_out_ps <- bind_cols(models_out, ps_df)
+```
+
+```{r}
+models_out_ps %>% 
+  ggplot(aes(x = median_ps, y = median_abs_error,
+             colour = assignment)) +
+  geom_point(alpha = 0.7, shape = 16)
+```
+
+What's the cluster at 0.5?
+
+```{r}
+models_out_ps %>% 
+  ggplot(aes(x = median_ps, y = median_abs_error,
+             colour = random_test_plots)) +
+  geom_point(alpha = 0.7, shape = 16)
+```
+
+That makes sense - 
+I set the geographically constrained test data to have balanced treatment assignment.
+
+```{r}
+models_out_ps %>% 
+  filter(random_test_plots == TRUE) %>% 
+  ggplot(aes(x = median_ps, y = median_abs_error,
+             colour = assignment)) +
+  geom_point(alpha = 0.7, shape = 16)
+```
+
+```{r}
+models_out_ps %>% 
+  filter(random_test_plots == TRUE) %>% 
+  unnest(ps_df) %>% 
+  ggplot(aes(x = propensity_score, y = altitude,
+             colour = assignment)) +
+  geom_point(alpha = 0.7, shape = 16) +
+  facet_wrap(~ assignment) 
+```
+
+```{r}
+models_out_ps %>% 
+  filter(random_test_plots == TRUE) %>% 
+  ggplot(aes(x = median_ps, y = median_abs_error,
+             colour = as.ordered(prop_not_treated))) +
+  geom_point(alpha = 0.7, shape = 16)
+```
