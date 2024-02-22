@@ -1,5 +1,6 @@
 #' Fit meta-learner
 #' @param df The clean data.
+#' @param prop_not_treated Sample imbalance - the proportion of the data that will be assigned 0.
 #' @param learner Choice of meta-learner "s", "t" or "x".
 #' @param n_train The number of plots in the train dataset (sample size). Maximum is 1,414.
 #' @param var_omit Logical indicating if `soil_carbon_initial` should be omitted from the predictor variables.
@@ -11,7 +12,8 @@
 #' @importFrom tidyselect all_of
 #' @export
 
-fit_metalearner <- function(df, learner, n_train, var_omit = FALSE, random_test_plots = TRUE) {
+fit_metalearner <- function(df, prop_not_treated, n_train, learner,
+                            var_omit = FALSE, random_test_plots = TRUE) {
 
   features <- df |>
     dplyr::filter(period == 0) |>
@@ -46,11 +48,11 @@ fit_metalearner <- function(df, learner, n_train, var_omit = FALSE, random_test_
   # sample train
   train_data_0 <- data_obs |>
     dplyr::filter(tr == 0) |>
-    dplyr::slice_sample(n = n_train/2)
+    dplyr::slice_sample(n = as.integer(n_train*prop_not_treated))
 
   train_data_1 <- data_obs |>
     dplyr::filter(tr == 1) |>
-    dplyr::slice_sample(n = n_train/2)
+    dplyr::slice_sample(n = n_train - as.integer(n_train*prop_not_treated))
 
   train_data <- dplyr::bind_rows(train_data_0, train_data_1)
 

@@ -27,31 +27,23 @@ clean_data <-
 # create keys -------------------------------------------------------------
 
 keys <- expand.grid(
-  assignment = c("random", "blocked_ordered", "blocked_random", "correlated"),
-  proportion_not_treated = c(0.5, 0.25, 0.75),
+  assignment = c("random", "blocked_ordered",
+                 "blocked_random", "correlated_altitude"),
+  prop_not_treated = c(0.3, 0.5, 0.7),
   learner = c("s", "t", "x"),
-  n_train = c(200, 400, 800, 1400),
+  n_train = c(250, 500, 750, 1000),
   var_omit = c(TRUE, FALSE),
   random_test_plots = c(TRUE, FALSE)
   ) %>%
-  # proportion_not_treated is not applicable when assignment is blocked
-  filter(
-    case_when(
-      assignment == "blocked_random" & !proportion_not_treated == 0.5 ~ FALSE,
-      assignment == "blocked_ordered" & !proportion_not_treated == 0.5 ~ FALSE,
-      .default = TRUE
-    )
-  ) %>%
   # add replicates
-  slice(rep(1:n(), each = 3))
+  slice(rep(1:n(), each = 5))
 
 
 # assign treatments -------------------------------------------------------
 
-purrr::map2(
+purrr::map(
   .f = assign_treatment,
   .x = as.vector(keys$assignment),
-  .y = as.vector(keys$proportion_not_treated),
   df = clean_data) -> assigned_data
 
 keys %>%
@@ -61,9 +53,11 @@ keys %>%
 # fit metalearners --------------------------------------------------------
 
 purrr::pmap(list(df = keys_assigned$df_assigned,
+          prop_not_treated = keys_assigned$prop_not_treated,
           learner = keys_assigned$learner,
           n_train = keys_assigned$n_train,
-          var_omit = keys_assigned$var_omit
+          var_omit = keys_assigned$var_omit,
+          random_test_plots = keys_assigned$random_test_plots
 ), fit_metalearner) -> model_out
 
 keys %>%
@@ -71,15 +65,16 @@ keys %>%
 
 saveRDS(keys_out, here::here("data", "derived", "models_out.rds"))
 
+
 # get median error --------------------------------------------------------
 
 keys_out %>%
   unite(col = "test_id", remove = FALSE,
-        assignment, proportion_not_treated, n_train, learner, var_omit) %>%
+        assignment, prop_not_treated, n_train, learner, var_omit) %>%
   unnest(df_out) %>%
   group_by(test_id,
-           assignment, proportion_not_treated, n_train, learner, var_omit) %>%
-  summarise(median_error = median(diff),
+           assignment, prop_not_treated, n_train, learner, var_omit) %>%
+  summarise(median_error = median(diff), median_abs_error = median(abs(diff)),
             .groups = "drop") -> results
 
-saveRDS(results, here::here("data", "derived", "results.rds"))
+saveRDS(results, here::here("data", "derived", "median_errors.rds"))
