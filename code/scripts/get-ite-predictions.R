@@ -27,13 +27,13 @@ clean_data <-
 # create keys -------------------------------------------------------------
 
 keys <- expand.grid(
-  assignment = c("random", "blocked_ordered",
-                 "blocked_random", "correlated_altitude"),
+  assignment = c("random", "correlated_region",
+                 "correlated_altitude"),
   prop_not_treated = c(0.3, 0.5, 0.7),
   learner = c("s", "t", "x"),
   n_train = c(250, 500, 750, 1000),
   var_omit = c(TRUE, FALSE),
-  random_test_plots = c(TRUE, FALSE)
+  test_plot_location = c("random", "edge", "centre")
   ) %>%
   # add replicates
   slice(rep(1:n(), each = 5))
@@ -44,37 +44,35 @@ keys <- expand.grid(
 purrr::map(
   .f = assign_treatment,
   .x = as.vector(keys$assignment),
-  df = clean_data) -> assigned_data
+  df_clean = clean_data) -> assigned_data
 
 keys %>%
-  mutate(df_assigned = assigned_data) -> keys_assigned
+  mutate(df_assigned = assigned_data) -> keys
 
+
+# sample training data ----------------------------------------------------
+
+purrr::pmap(list(df_assigned = keys$df_assigned,
+                 prop_not_treated = keys$prop_not_treated,
+                 n_train = keys$n_train
+                 ),
+            sample_data) -> sample_out
+
+keys %>%
+  mutate(df_train = sample_out) -> keys
 
 # fit metalearners --------------------------------------------------------
 
-purrr::pmap(list(df = keys_assigned$df_assigned,
-          prop_not_treated = keys_assigned$prop_not_treated,
-          learner = keys_assigned$learner,
-          n_train = keys_assigned$n_train,
-          var_omit = keys_assigned$var_omit,
-          random_test_plots = keys_assigned$random_test_plots
-), fit_metalearner) -> model_out
+purrr::pmap(list(df_train = keys$df_train,
+                 df_assigned = keys$df_assigned,
+                 learner = keys$learner,
+                 var_omit = keys$var_omit,
+                 test_plot_location = keys$test_plot_location
+                 ),
+            fit_metalearner) -> model_out
 
 keys %>%
-  mutate(df_out = model_out) -> keys_out
+  mutate(df_out = model_out) %>%
+  mutate(run_id = row_number()) -> keys
 
-saveRDS(keys_out, here::here("data", "derived", "models_out.rds"))
-
-
-# get median error --------------------------------------------------------
-
-keys_out %>%
-  unite(col = "test_id", remove = FALSE,
-        assignment, prop_not_treated, n_train, learner, var_omit) %>%
-  unnest(df_out) %>%
-  group_by(test_id,
-           assignment, prop_not_treated, n_train, learner, var_omit) %>%
-  summarise(median_error = median(diff), median_abs_error = median(abs(diff)),
-            .groups = "drop") -> results
-
-saveRDS(results, here::here("data", "derived", "median_errors.rds"))
+saveRDS(keys, here::here("data", "derived", "all_runs.rds"))
