@@ -54,15 +54,25 @@ fishnet %>%
 joined <- st_intersection(data_projected, fishnet_sf)
 
 # get plots in net_22
-plot_list <- joined %>%
+centre_plots <- joined %>%
   filter(net_id == 22) %>%
   st_drop_geometry() %>%
   select(description) %>%
   distinct()
 
+edge_plots <- joined %>%
+  filter(net_id == 7 | net_id == 2) %>%
+  st_drop_geometry() %>%
+  select(description) %>%
+  distinct()
+
 readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time_clim.rds")) %>%
-  mutate(in_square = ifelse(
-    description %in% plot_list$description, TRUE, FALSE
-  )) %>% saveRDS(
+  mutate(sampling_location = case_when(
+    description %in% centre_plots$description ~ "centre",
+    description %in% edge_plots$description ~ "edge",
+    .default = "other"
+  )) %>%
+  mutate(sampling_location = as.factor(sampling_location)) %>%
+  saveRDS(
     here::here("data", "derived", "ForManSims_RCP0_same_time_clim_squ.rds")
     )
