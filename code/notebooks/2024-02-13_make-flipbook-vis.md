@@ -1,7 +1,7 @@
 New layered vis
 ================
 eleanorjackson
-14 February, 2024
+01 March, 2024
 
 ``` r
 library("tidyverse")
@@ -13,7 +13,8 @@ set.seed(123)
 ```
 
 ``` r
-models_out <- readRDS(here("data", "derived", "models_out.rds"))
+models_out <- readRDS(here("data", "derived", "all_runs.rds")) %>% 
+  filter(n_train != 31)
 ```
 
 ## Function to colour by error
@@ -24,22 +25,16 @@ plot_real_pred <- function(out, study_condition_val, study_condition) {
   out %>%  
     filter((!!as.name(study_condition)) == study_condition_val) -> out_subset
   
-  lookup <- c(cate_pred = "cate_s_learn", 
-              cate_pred = "cate_t_learn", 
-              cate_pred = "cate_x_learn")
-  
-  out_subset[["df_out"]] <- 
-    map(out_subset[["df_out"]], ~ rename(.x, any_of(lookup)))
-  
   out_subset %>% 
     unnest(df_out) %>% 
-    ggplot(aes(x = cate_real, y = cate_pred, colour = abs(diff))) +
+    mutate(error = abs(cate_pred - cate_real)) %>% 
+    ggplot(aes(x = cate_real, y = cate_pred, colour = error)) +
     geom_hline(yintercept = 0, colour = "grey", linetype = 2) +
     geom_vline(xintercept = 0, colour = "grey", linetype = 2) +
     geom_point() +
     geom_abline(intercept = 0, slope = 1, colour = "blue") +
     scale_color_gradient(low = "lightblue", high = "red3",
-                         limits = c(0, 35)) +
+                         limits = c(0, 60)) +
     xlim(-35, 35) +
     ylim(-35, 35) +
     theme_classic(base_size = 15) +
@@ -49,7 +44,7 @@ plot_real_pred <- function(out, study_condition_val, study_condition) {
 ```
 
 ``` r
-map(.x = c(200, 400, 800, 1400), 
+map(.x = c(62, 125, 250, 500, 1000), 
     .f = plot_real_pred, 
     study_condition = "n_train", 
     out = models_out)
@@ -74,6 +69,11 @@ map(.x = c(200, 400, 800, 1400),
 
 ![](figures/2024-02-13_make-flipbook-vis/unnamed-chunk-3-4.png)<!-- -->
 
+    ## 
+    ## [[5]]
+
+![](figures/2024-02-13_make-flipbook-vis/unnamed-chunk-3-5.png)<!-- -->
+
 ## Function to layer and colour by the same “study condition”
 
 ``` r
@@ -82,16 +82,10 @@ plot_real_pred_layer <- function(out, study_condition_val, study_condition, pal)
   out %>%  
     filter((!!as.name(study_condition)) %in% study_condition_val) -> out_subset
   
-  lookup <- c(cate_pred = "cate_s_learn", 
-              cate_pred = "cate_t_learn", 
-              cate_pred = "cate_x_learn")
-  
-  out_subset[["df_out"]] <- 
-    map(out_subset[["df_out"]], ~ rename(.x, any_of(lookup)))
-  
   out_subset %>% 
     unnest(df_out) %>% 
-    ggplot(aes(x = cate_real, y = cate_pred, colour = as.factor(!!as.name(study_condition)))) +
+    ggplot(aes(x = cate_real, y = cate_pred, 
+               colour = as.factor(!!as.name(study_condition)))) +
     geom_hline(yintercept = 0, colour = "grey", linetype = 2) +
     geom_vline(xintercept = 0, colour = "grey", linetype = 2) +
     geom_point(shape = 16, alpha = 0.7) +
@@ -108,13 +102,15 @@ plot_real_pred_layer <- function(out, study_condition_val, study_condition, pal)
 
 ``` r
 map(
-  .x = list(c(200), c(200, 400), c(200, 400, 800), c(200, 400, 800, 1400)),
+  .x = list(c(62), c(62, 125), c(62, 125, 250), 
+            c(62, 125, 250, 500), c(62, 125, 250, 500, 1000)),
   .f = plot_real_pred_layer,
   pal = c(
-    "1400" = viridis(4)[[1]],
-    "800" = viridis(4)[[2]],
-    "400" = viridis(4)[[3]],
-    "200" = viridis(4)[[4]]
+    "1000" = viridis(5)[[1]],
+    "500" = viridis(5)[[2]],
+    "250" = viridis(5)[[3]],
+    "125" = viridis(5)[[4]],
+    "62" = viridis(5)[[5]]
   ),
   study_condition = "n_train",
   out = models_out
@@ -140,6 +136,11 @@ map(
 
 ![](figures/2024-02-13_make-flipbook-vis/unnamed-chunk-5-4.png)<!-- -->
 
+    ## 
+    ## [[5]]
+
+![](figures/2024-02-13_make-flipbook-vis/unnamed-chunk-5-5.png)<!-- -->
+
 ## Funciton to keep n_train coloured, with shape and layer by a different study condition
 
 ``` r
@@ -147,13 +148,6 @@ plot_real_pred_layer_shape <- function(out, study_condition_val, study_condition
   
   out %>%  
     filter((!!as.name(study_condition)) %in% study_condition_val) -> out_subset
-  
-  lookup <- c(cate_pred = "cate_s_learn", 
-              cate_pred = "cate_t_learn", 
-              cate_pred = "cate_x_learn")
-  
-  out_subset[["df_out"]] <- 
-    map(out_subset[["df_out"]], ~ rename(.x, any_of(lookup)))
   
   out_subset %>% 
     unnest(df_out) %>% 
@@ -176,9 +170,8 @@ plot_real_pred_layer_shape <- function(out, study_condition_val, study_condition
 ``` r
 map(
   .x = list(c("random"), 
-            c("random", "blocked_ordered"), 
-            c("random", "blocked_ordered", "blocked_random"), 
-            c("random", "blocked_ordered", "blocked_random", "correlated_altitude")),
+            c("random", "correlated_region"), 
+            c("random", "correlated_region", "correlated_altitude")), 
   .f = plot_real_pred_layer_shape,
   study_condition = "assignment",
   out = models_out
@@ -199,19 +192,15 @@ map(
 
 ![](figures/2024-02-13_make-flipbook-vis/unnamed-chunk-7-3.png)<!-- -->
 
-    ## 
-    ## [[4]]
-
-![](figures/2024-02-13_make-flipbook-vis/unnamed-chunk-7-4.png)<!-- -->
-
 ### Test data, in or out?
 
 ``` r
 map(
-  .x = list(c(TRUE), 
-            c(TRUE, FALSE)),
-  .f = plot_real_pred_layer_shape,
-  study_condition = "random_test_plots",
+  .x = list(c("centre"), 
+            c("edge"),
+            c("random")),
+  .f = plot_real_pred,
+  study_condition = "test_plot_location",
   out = models_out
 )
 ```
@@ -224,3 +213,8 @@ map(
     ## [[2]]
 
 ![](figures/2024-02-13_make-flipbook-vis/unnamed-chunk-8-2.png)<!-- -->
+
+    ## 
+    ## [[3]]
+
+![](figures/2024-02-13_make-flipbook-vis/unnamed-chunk-8-3.png)<!-- -->
