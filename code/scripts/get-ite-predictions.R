@@ -31,7 +31,7 @@ keys <- expand.grid(
                  "correlated_altitude"),
   prop_not_treated = c(0.3, 0.5, 0.7),
   learner = c("s", "t", "x"),
-  n_train = c(250, 500, 750, 1000),
+  n_train = c(62, 125, 250, 500, 1000),
   var_omit = c(TRUE, FALSE),
   test_plot_location = c("random", "edge", "centre")
   ) %>%
