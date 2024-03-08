@@ -18,7 +18,10 @@ all_runs <-
 
 get_ps <- function(df_train, var_omit) {
 
-  if (var_omit == FALSE) {
+  ditch_lvls <- df_train %>%
+    summarise(n = n_distinct(ditch))
+
+  if (var_omit == FALSE & ditch_lvls$n > 1) {
 
     mod <- glm(as.factor(tr) ~
                  soil_carbon_initial +
@@ -39,7 +42,7 @@ get_ps <- function(df_train, var_omit) {
                family = binomial(),
                data = df_train)
 
-  } else if (var_omit == TRUE) {
+  } else if (var_omit == TRUE & ditch_lvls$n > 1) {
 
     mod <- glm(as.factor(tr) ~
                  as.ordered(soil_moist_code) +
@@ -47,6 +50,45 @@ get_ps <- function(df_train, var_omit) {
                  mat_5yr +
                  map_5yr +
                  as.factor(ditch) +
+                 no_of_stems +
+                 volume_pine +
+                 volume_spruce +
+                 volume_birch +
+                 volume_aspen +
+                 volume_oak +
+                 volume_beech +
+                 volume_southern_broadleaf +
+                 volume_larch,
+               family = binomial(),
+               data = df_train)
+
+  } else if (var_omit == FALSE & ditch_lvls$n == 1) {
+
+    mod <- glm(as.factor(tr) ~
+                 soil_carbon_initial +
+                 as.ordered(soil_moist_code) +
+                 altitude +
+                 mat_5yr +
+                 map_5yr +
+                 no_of_stems +
+                 volume_pine +
+                 volume_spruce +
+                 volume_birch +
+                 volume_aspen +
+                 volume_oak +
+                 volume_beech +
+                 volume_southern_broadleaf +
+                 volume_larch,
+               family = binomial(),
+               data = df_train)
+
+  } else if (var_omit == TRUE & ditch_lvls$n == 1) {
+
+    mod <- glm(as.factor(tr) ~
+                 as.ordered(soil_moist_code) +
+                 altitude +
+                 mat_5yr +
+                 map_5yr +
                  no_of_stems +
                  volume_pine +
                  volume_spruce +
