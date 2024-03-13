@@ -14,6 +14,7 @@ library("here")
 library("patchwork")
 library("ggmap")
 library("janitor")
+library("factoextra")
 
 
 # Load data ---------------------------------------------------------------
@@ -25,6 +26,7 @@ clean_data <- readRDS(
 all_years <-
   readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time.rds")
           ) %>%
+  mutate(description = str_replace_all(description, " ", "")) %>%
   filter(description %in% clean_data$description)
 
 nfi_coords <- readxl::read_excel(
@@ -36,7 +38,6 @@ nfi_coords <- readxl::read_excel(
   clean_names()
 
 all_years_xy <- all_years %>%
-  mutate(description = str_replace_all(description, " ", "")) %>%
   left_join(nfi_coords)
 
 # choose plots
@@ -104,3 +105,114 @@ plots[[1]] + map + plots[[2]] + plots[[3]] + plots[[4]] + plots[[5]] + plots[[6]
 
 ggsave(here::here("output","figures","soil-carbon-year.png"),
        width = 1476, height = 1600, units = "px")
+
+
+
+# Envriomental variables plot ---------------------------------------------
+
+all_years_xy %>%
+  filter(period == 0) %>%
+  ggplot(aes(ost_wgs84, nord_wgs84,
+             colour = altitude)) +
+  borders("world", regions = "sweden") +
+  geom_point(shape = 16, alpha = 0.7, size = 0.5) +
+  scale_colour_viridis_c() +
+  coord_quickmap() +
+  theme_void(base_size = 6) +
+  labs(colour = "Altitude (m)") -> ep1
+
+all_years_xy %>%
+  filter(period == 0) %>%
+  ggplot(aes(ost_wgs84, nord_wgs84,
+             colour = total_soil_carbon)) +
+  borders("world", regions = "sweden") +
+  geom_point(shape = 16, alpha = 0.7, size = 0.5) +
+  scale_colour_viridis_c() +
+  coord_quickmap() +
+  theme_void(base_size = 6) +
+  labs(colour = "Initial soil\ncarbon (ton C/ha)") -> ep2
+
+all_years_xy %>%
+  filter(period == 0) %>%
+  ggplot(aes(ost_wgs84, nord_wgs84,
+             colour = as.ordered(soil_moist_code))) +
+  borders("world", regions = "sweden") +
+  geom_point(shape = 16, alpha = 0.7, size = 0.5) +
+  scale_colour_viridis_d() +
+  coord_quickmap() +
+  theme_void(base_size = 6) +
+  labs(colour = "Soil moisture") -> ep3
+
+clean_data %>%
+  select(description, mat_5yr, map_5yr) %>%
+  left_join(all_years_xy) %>%
+  filter(period == 0) %>%
+  ggplot(aes(ost_wgs84, nord_wgs84,
+             colour = mat_5yr)) +
+  borders("world", regions = "sweden") +
+  geom_point(shape = 16, alpha = 0.7, size = 0.5) +
+  scale_colour_viridis_c() +
+  coord_quickmap() +
+  theme_void(base_size = 6) +
+  labs(colour = "Mean annual\ntemperature (°C)") -> ep4
+
+clean_data %>%
+  select(description, mat_5yr, map_5yr) %>%
+  left_join(all_years_xy) %>%
+  filter(period == 0) %>%
+  ggplot(aes(ost_wgs84, nord_wgs84,
+             colour = map_5yr)) +
+  borders("world", regions = "sweden") +
+  geom_point(shape = 16, alpha = 0.7, size = 0.5) +
+  scale_colour_viridis_c() +
+  coord_quickmap() +
+  theme_void(base_size = 6) +
+  labs(colour = "Mean annual\nprecipitation (mm)") -> ep5
+
+ep1 + ep2 + ep3 + ep4 + ep5 +
+  plot_layout(ncol = 2) &
+  theme(legend.key.width = unit(0.3, "lines"))
+
+ggsave(here::here("output","figures","env-var-map.png"),
+       width = 1000, height = 1500, units = "px")
+
+
+# test plot location fig --------------------------------------------------
+
+feat_list <- c("total_soil_carbon", "altitude",
+               "mat_5yr", "map_5yr", "ditch", "no_of_stems", "volume_pine",
+               "volume_spruce", "volume_birch", "volume_aspen",
+               "volume_oak", "volume_beech", "soil_moist_code",
+               "volume_southern_broadleaf", "volume_larch")
+
+clean_data %>%
+  filter(period == 0) -> clean_data_0
+
+corr_matrix <- clean_data_0 %>%
+  column_to_rownames(var = "description") %>%
+  select(all_of(feat_list)) %>%
+  scale()
+
+data_pca <- princomp(corr_matrix)
+
+fviz_mca_ind(data_pca,
+             geom = "point", alpha = 0.5, shape = 16, pointsize = 0.7,
+             col.ind = as.factor(clean_data_0$sampling_location), addEllipses = FALSE,
+             palette = c("orange", "purple",  "lightgrey"),
+             title = "") -> pca
+
+clean_data %>%
+  filter(period == 0) %>%
+  left_join(nfi_coords) %>%
+  ggplot(aes(ost_wgs84, nord_wgs84, colour = sampling_location)) +
+  geom_point(alpha = 0.5, shape = 16, size = 0.7) +
+  scale_colour_manual(values = c("orange", "purple",  "lightgrey")) +
+  borders("world", regions = "sweden") +
+  coord_quickmap() +
+  theme_void() +
+  theme(legend.position = "none") -> pca_map
+
+pca_map + pca
+
+ggsave(here::here("output","figures","pca-map.png"),
+       width = 1500, height = 1000, units = "px")
