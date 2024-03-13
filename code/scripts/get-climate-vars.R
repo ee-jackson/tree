@@ -182,7 +182,7 @@ readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time.rds")) %>%
   select(description) -> small_jump_plots
 
 
-# only spruce dominated plots ---------------------------------------------
+# only pine dominated plots ---------------------------------------------
 
 readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time.rds")) %>%
   filter(period == 0) %>%
