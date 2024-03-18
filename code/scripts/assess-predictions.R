@@ -110,8 +110,8 @@ get_ps <- function(df_train, var_omit) {
   ps_out <- df_train %>%
     mutate(propensity_score = predict(mod, type = "response")) %>%
     filter(tr == 1) %>%
-    summarise(mean_ps = mean(propensity_score),
-              median_ps = median(propensity_score))
+    summarise(mean_ps = mean(propensity_score, na.rm = TRUE),
+              median_ps = median(propensity_score, na.rm = TRUE))
 
   return(ps_out)
 }
@@ -135,6 +135,17 @@ all_runs <- all_runs %>%
                                estimate = .x$cate_pred)
   )) %>%
   unnest(rmse)
+
+
+#  R2 ---------------------------------------------------------------------
+
+all_runs <- all_runs %>%
+  mutate(rsq = purrr::map(
+    .x = df_out,
+    .f = ~ yardstick::rsq_vec(truth = .x$cate_real,
+                               estimate = .x$cate_pred)
+  )) %>%
+  unnest(rsq)
 
 
 # median error ------------------------------------------------------------
@@ -168,5 +179,6 @@ all_runs %>%
          median_ps,
          median_error,
          mean_error,
-         rmse) %>%
+         rmse,
+         rsq) %>%
   saveRDS(here::here("data", "derived", "results.rds"))
