@@ -1,9 +1,9 @@
 Exploring initial soil carbon…
 ================
 eleanorjackson
-13 March, 2024
+18 March, 2024
 
-We noticed that the distribution of intial soil carbon didn’t seem to
+We noticed that the distribution of initial soil carbon didn’t seem to
 change between treated and untreated groups when we were biasing
 treatment assignment.
 
@@ -77,10 +77,11 @@ one_run_alt$df_assigned[[1]] %>%
   mutate(ditch = as.factor(ditch),
          soil_moist_code = as.ordered(soil_moist_code)) %>% 
   select(tr, soil_carbon_initial, altitude,
-                      mat_5yr, map_5yr, ditch, no_of_stems, volume_pine,
+                      mat_5yr, map_5yr, no_of_stems, volume_pine,
                       volume_spruce, soil_moist_code) %>% 
-  ggpairs(columns = 2:10, progress = FALSE,
-          mapping = aes(colour = as.factor(tr), alpha = 0.5))
+  ggpairs(columns = 2:9, progress = FALSE,
+          mapping = aes(colour = as.factor(tr), alpha = 0.5)) +
+  ggtitle("Correlated with altitude")
 ```
 
 ![](figures/2024-03-13_explore-initial-soil-c/unnamed-chunk-2-1.png)<!-- -->
@@ -107,10 +108,11 @@ one_run_reg$df_assigned[[1]] %>%
   mutate(ditch = as.factor(ditch),
          soil_moist_code = as.ordered(soil_moist_code)) %>% 
   select(tr, soil_carbon_initial, altitude,
-                      mat_5yr, map_5yr, ditch, no_of_stems, volume_pine,
+                      mat_5yr, map_5yr, no_of_stems, volume_pine,
                       volume_spruce, soil_moist_code) %>% 
-  ggpairs(columns = 2:10, progress = FALSE,
-          mapping = aes(colour = as.factor(tr), alpha = 0.5))
+  ggpairs(columns = 2:9, progress = FALSE,
+          mapping = aes(colour = as.factor(tr), alpha = 0.5)) +
+  ggtitle("Correlated with region/latitude")
 ```
 
 ![](figures/2024-03-13_explore-initial-soil-c/unnamed-chunk-4-1.png)<!-- -->
@@ -137,10 +139,45 @@ one_run_rand$df_assigned[[1]] %>%
   mutate(ditch = as.factor(ditch),
          soil_moist_code = as.ordered(soil_moist_code)) %>% 
   select(tr, soil_carbon_initial, altitude,
-                      mat_5yr, map_5yr, ditch, no_of_stems, volume_pine,
+                      mat_5yr, map_5yr, no_of_stems, volume_pine,
                       volume_spruce, soil_moist_code) %>% 
-  ggpairs(columns = 2:10, progress = FALSE,
-          mapping = aes(colour = as.factor(tr), alpha = 0.5))
+  ggpairs(columns = 2:9, progress = FALSE,
+          mapping = aes(colour = as.factor(tr), alpha = 0.5)) +
+  ggtitle("Random treatment assignment")
 ```
 
 ![](figures/2024-03-13_explore-initial-soil-c/unnamed-chunk-6-1.png)<!-- -->
+
+``` r
+ggplot(clean_data) + 
+  geom_point(aes(y = total_soil_carbon, x = nord_wgs84, colour = soil_moist_code)) +
+  scale_colour_viridis_c()
+```
+
+![](figures/2024-03-13_explore-initial-soil-c/unnamed-chunk-7-1.png)<!-- -->
+
+``` r
+ggplot(clean_data) + 
+  geom_point(aes(y = total_soil_carbon, x = nord_wgs84, colour = forest_domain_name)) 
+```
+
+![](figures/2024-03-13_explore-initial-soil-c/unnamed-chunk-8-1.png)<!-- -->
+
+``` r
+one_run_alt$df_assigned[[1]] %>% 
+  ggplot() + 
+  geom_point(aes(y = soil_carbon_initial, x = altitude,
+                 colour = as.factor(tr))) 
+```
+
+![](figures/2024-03-13_explore-initial-soil-c/unnamed-chunk-9-1.png)<!-- -->
+
+``` r
+one_run_alt$df_assigned[[1]] %>% 
+  ggplot() + 
+  geom_point(aes(y = soil_carbon_initial, x = altitude, colour = volume_pine,
+                 shape = as.factor(tr))) +
+  scale_colour_viridis_c()
+```
+
+![](figures/2024-03-13_explore-initial-soil-c/unnamed-chunk-9-2.png)<!-- -->
