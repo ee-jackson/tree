@@ -28,7 +28,8 @@ clean_data <-
 # make data a sf object
 data_sf <- st_as_sf(clean_data,
                     coords = c("ost_wgs84", "nord_wgs84"),
-                    crs = "WGS84")
+                    crs = "WGS84",
+                    remove = FALSE)
 
 # project the points
 data_sf %>%
@@ -61,7 +62,8 @@ centre_plots <- joined %>%
   distinct()
 
 edge_plots <- joined %>%
-  filter(net_id == 7 | net_id == 2) %>%
+  filter(net_id == 49 | net_id == 50 | net_id == 54 | net_id == 55 |
+           net_id == 45 | net_id == 44 & nord_wgs84 > 65.71) %>%
   st_drop_geometry() %>%
   select(description) %>%
   distinct()

@@ -203,7 +203,6 @@ fviz_mca_ind(data_pca,
 
 clean_data %>%
   filter(period == 0) %>%
-  left_join(nfi_coords) %>%
   ggplot(aes(ost_wgs84, nord_wgs84, colour = sampling_location)) +
   geom_point(alpha = 0.5, shape = 16, size = 0.7) +
   scale_colour_manual(values = c("orange", "purple",  "lightgrey")) +
