@@ -96,12 +96,12 @@ assign_treatment <- function(df_clean, assignment) {
       dplyr::filter(sampling_location == "other") |>
       dplyr::select(description, region) |>
       dplyr::distinct() |>
-      dplyr::mutate(sample_weight = case_when(region == 1 ~ 0.10,
-                                       region == 21 ~ 0.10,
-                                       region == 22 ~ 0.20,
-                                       region == 3 ~ 0.30,
-                                       region == 4 ~ 0.40,
-                                       region == 5 ~ 0.40 ))
+      dplyr::mutate(sample_weight = case_when(region == 1 ~ 0.40,
+                                       region == 21 ~ 0.40,
+                                       region == 22 ~ 0.30,
+                                       region == 3 ~ 0.20,
+                                       region == 4 ~ 0.10,
+                                       region == 5 ~ 0.10 ))
 
     no_treat_ids_region <- dplyr::slice_sample(id_region_ord,
                  prop = 0.5,
