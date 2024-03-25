@@ -33,8 +33,12 @@ keys <- expand.grid(
   n_train = c(62, 125, 250, 500, 1000),
   learner = c("s", "t", "x"),
   var_omit = c(TRUE, FALSE),
-  test_plot_location = c("random", "edge", "centre")
+  test_plot_location = c("random", "edge", "centre"),
+  restrict_confounder = c(TRUE, FALSE)
   ) %>%
+  filter((learner == "s" & restrict_confounder == FALSE) |
+           (learner == "t" & restrict_confounder == FALSE) |
+           (learner == "x")) %>%
   # add replicates
   slice(rep(1:n(), each = 5))
 
@@ -67,7 +71,8 @@ purrr::pmap(list(df_train = keys$df_train,
                  df_assigned = keys$df_assigned,
                  learner = keys$learner,
                  var_omit = keys$var_omit,
-                 test_plot_location = keys$test_plot_location
+                 test_plot_location = keys$test_plot_location,
+                 restrict_confounder = keys$restrict_confounder
                  ),
             fit_metalearner) -> model_out
 
