@@ -174,6 +174,7 @@ all_runs %>%
          n_train,
          var_omit,
          test_plot_location,
+         restrict_confounder,
          learner,
          mean_ps,
          median_ps,
