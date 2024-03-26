@@ -38,15 +38,16 @@ make_labels <- function(dat) {
 
 # plotting function
 plot_real_pred <- function(treat_as, sample_imbalance,
-                           sample_size, variable_omit, plot_location, id,
-                           out, max_col) {
+                           sample_size, variable_omit, plot_location,
+                           id, out, max_col) {
   out %>%
     filter(
       assignment == treat_as,
       prop_not_treated == sample_imbalance,
       n_train == sample_size,
       var_omit == variable_omit,
-      test_plot_location == plot_location
+      test_plot_location == plot_location,
+      restrict_confounder == FALSE
     ) -> out_subset
 
   out_subset %>%
@@ -130,6 +131,108 @@ pdf(
   width = 12,
   height = 8,
   file = here::here("output", "figures", "all-true-v-pred.pdf")
+)
+plots_wrapped
+dev.off()
+
+
+# X-learner only plots ----------------------------------------------------
+
+# plotting function
+plot_real_pred_x <- function(treat_as, sample_imbalance,
+                           sample_size, variable_omit, plot_location,
+                           id, out, max_col) {
+  out %>%
+    filter(
+      assignment == treat_as,
+      prop_not_treated == sample_imbalance,
+      n_train == sample_size,
+      var_omit == variable_omit,
+      test_plot_location == plot_location,
+      learner == "x"
+    ) -> out_subset
+
+  out_subset %>%
+    unnest(df_out) %>%
+    mutate(error = abs(cate_pred - cate_real)) -> plot_dat
+
+  plot_dat %>%
+    group_by(restrict_confounder) %>%
+    do(make_labels(.)) -> labels
+
+  plot_dat %>%
+    ggplot(aes(x = cate_real, y = cate_pred, colour = error)) +
+    geom_hline(yintercept = 0, colour = "grey", linetype = 2) +
+    geom_vline(xintercept = 0, colour = "grey", linetype = 2) +
+    geom_point(size = 0.25) +
+    geom_abline(intercept = 0, slope = 1, colour = "blue", linewidth = 0.25) +
+    scale_color_gradient(low = "lightblue", high = "red3",
+                         limits = c(0, max_col)) +
+    xlim(-40, 40) +
+    ylim(-40, 40) +
+    theme_classic(base_size = 7) +
+    labs(subtitle = paste("assignment = ", treat_as, ", ",
+                          "sampling imbalance = ", sample_imbalance, ", ",
+                          "n = ", sample_size, ", ",
+                          "variable omission = ", variable_omit, ", ",
+                          "test data location = ", plot_location,
+                          sep = "")) +
+    facet_wrap(~ restrict_confounder) +
+    geom_text(data = labels, aes(label = rmse),
+              x = -40, y = 40, hjust = 0, colour = "blue", size = 2) +
+    geom_text(data = labels, aes(label = r2),
+              x = -40, y = 36, hjust = 0, colour = "blue", size = 2)
+}
+
+# test one plot
+plot_real_pred_x(
+  out = all_runs,
+  treat_as = "random",
+  sample_imbalance = 0.3,
+  sample_size = 62,
+  variable_omit = TRUE,
+  plot_location = "random",
+  max_col = 55
+)
+
+# create many plots
+plot_list <- purrr::pmap(
+  list(
+    treat_as = keys$assignment,
+    sample_imbalance = keys$prop_not_treated,
+    sample_size = keys$n_train,
+    variable_omit = keys$var_omit,
+    plot_location = keys$test_plot_location,
+    id = keys$id
+  ),
+  plot_real_pred_x,
+  out = all_runs,
+  max_col = 55,
+  .progress = TRUE
+)
+
+# split into groups of 6 plots
+plot_list_split <-
+  split(plot_list, rep(
+    seq_along(plot_list),
+    each = 6,
+    length.out = length(plot_list)
+  ))
+
+# wrap 6 plots in each group for 1 pdf page
+plots_wrapped <-
+  purrr::map(
+    .x = plot_list_split,
+    .f = wrap_plots,
+    nrow = 3,
+    ncol = 2
+  )
+
+# make pdf
+pdf(
+  width = 12,
+  height = 8,
+  file = here::here("output", "figures", "all-true-v-pred-xlearns.pdf")
 )
 plots_wrapped
 dev.off()
