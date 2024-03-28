@@ -59,6 +59,26 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     do(make_labels(.)) -> labels
 
   plot_dat %>%
+    select(cate_pred, cate_real, learner) %>%
+    pivot_longer(c(cate_pred, cate_real)) %>%
+    mutate(name = factor(name, levels = c("cate_real", "cate_pred"))) %>%
+    ggplot(aes(x = value, colour = name )) +
+    geom_density() +
+    scale_colour_manual(values =
+                          c("cate_pred" = "orange", "cate_real" = "green3")) +
+    theme_void(base_size = 7) +
+    facet_wrap(~ learner, scales = "free_y") +
+    xlim(-40, 40) +
+    theme(legend.title = element_blank(),
+          strip.text.x = element_blank()) +
+    labs(subtitle = paste("assignment = ", treat_as, ", ",
+                          "sampling imbalance = ", sample_imbalance, ", ",
+                          "n = ", sample_size, ", ",
+                          "variable omission = ", variable_omit, ", ",
+                          "test data location = ", plot_location,
+                          sep = "")) -> p1
+
+  plot_dat %>%
     ggplot(aes(x = cate_real, y = cate_pred, colour = error)) +
     geom_hline(yintercept = 0, colour = "grey", linetype = 2) +
     geom_vline(xintercept = 0, colour = "grey", linetype = 2) +
@@ -69,17 +89,14 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     xlim(-40, 40) +
     ylim(-40, 40) +
     theme_classic(base_size = 7) +
-    labs(subtitle = paste("assignment = ", treat_as, ", ",
-                          "sampling imbalance = ", sample_imbalance, ", ",
-                          "n = ", sample_size, ", ",
-                          "variable omission = ", variable_omit, ", ",
-                          "test data location = ", plot_location,
-                          sep = "")) +
     facet_wrap(~ learner) +
     geom_text(data = labels, aes(label = rmse),
               x = -40, y = 40, hjust = 0, colour = "blue", size = 2) +
     geom_text(data = labels, aes(label = r2),
-              x = -40, y = 36, hjust = 0, colour = "blue", size = 2)
+              x = -40, y = 36, hjust = 0, colour = "blue", size = 2) -> p2
+
+  p1 / p2 +
+    plot_layout(heights = c(1, 2))
 }
 
 # test one plot
