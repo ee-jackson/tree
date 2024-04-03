@@ -52,40 +52,29 @@ plot_real_pred <- function(treat_as, sample_imbalance,
 
   out_subset %>%
     unnest(df_out) %>%
-    mutate(error = abs(cate_pred - cate_real)) -> plot_dat
+    mutate(Error = cate_pred - cate_real) %>%
+    mutate(learner = str_to_upper(learner))-> plot_dat
 
   plot_dat %>%
     group_by(learner) %>%
     do(make_labels(.)) -> labels
 
   plot_dat %>%
-    select(cate_pred, cate_real, learner) %>%
-    pivot_longer(c(cate_pred, cate_real)) %>%
-    mutate(name = factor(name, levels = c("cate_real", "cate_pred"))) %>%
-    ggplot(aes(x = value, colour = name )) +
-    geom_density() +
-    scale_colour_manual(values =
-                          c("cate_pred" = "orange", "cate_real" = "green3")) +
-    theme_void(base_size = 7) +
-    facet_wrap(~ learner, scales = "free_y") +
-    xlim(-40, 40) +
-    theme(legend.title = element_blank(),
-          strip.text.x = element_blank()) +
-    labs(subtitle = paste("assignment = ", treat_as, ", ",
-                          "sampling imbalance = ", sample_imbalance, ", ",
-                          "n = ", sample_size, ", ",
-                          "variable omission = ", variable_omit, ", ",
-                          "test data location = ", plot_location,
-                          sep = "")) -> p1
+    select(description, cate_pred, cate_real, learner, Error) %>%
+    rename(`true CATE` = cate_real, `predicted CATE` = cate_pred) %>%
+    rowid_to_column() %>%
+    pivot_longer(cols = c(`predicted CATE`, `true CATE`)) %>%
+    mutate(name = factor(name, levels = c("true CATE", "predicted CATE"))) %>%
+    arrange(rowid, name)  -> pivot_dat
 
   plot_dat %>%
-    ggplot(aes(x = cate_real, y = cate_pred, colour = error)) +
+    ggplot(aes(x = cate_real, y = cate_pred, colour = Error)) +
     geom_hline(yintercept = 0, colour = "grey", linetype = 2) +
     geom_vline(xintercept = 0, colour = "grey", linetype = 2) +
     geom_point(size = 0.25) +
     geom_abline(intercept = 0, slope = 1, colour = "blue", linewidth = 0.25) +
-    scale_color_gradient(low = "lightblue", high = "red3",
-                         limits = c(0, max_col)) +
+    scale_colour_gradientn(colours = colorspace::divergingx_hcl(n = 10,palette = "RdYlBu"),
+                           limits = c(-50, 50)) +
     xlim(-40, 40) +
     ylim(-40, 40) +
     theme_classic(base_size = 7) +
@@ -93,10 +82,34 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     geom_text(data = labels, aes(label = rmse),
               x = -40, y = 40, hjust = 0, colour = "blue", size = 2) +
     geom_text(data = labels, aes(label = r2),
-              x = -40, y = 35, hjust = 0, colour = "blue", size = 2) -> p2
+              x = -40, y = 35, hjust = 0, colour = "blue", size = 2) +
+    labs(y = "predicted CATE", x = "true CATE",
+         subtitle = paste("assignment = ", treat_as, ", ",
+                          "sampling imbalance = ", sample_imbalance, ", ",
+                          "n = ", sample_size, ", ",
+                          "variable omission = ", variable_omit, ", ",
+                          "test data location = ", plot_location,
+                          sep = ""))-> p1
+
+
+  pivot_dat %>%
+    ggplot(aes(x = name, y = value, colour = Error)) +
+    ggdist::stat_slab(orientation = "x", side = "both", normalize = "groups") +
+    geom_point(size = 0.25) +
+    geom_line(aes(group = interaction(Error, rowid)),
+              linewidth = 0.25,
+              alpha = 0.4) +
+    scale_colour_gradientn(colours = colorspace::divergingx_hcl(n = 10, palette = "RdYlBu"),
+                           limits = c(-50, 50)) +
+    ylim(-40, 40) +
+    labs(x = "", y = "") +
+    theme_classic(base_size = 7) +
+    geom_hline(yintercept = 0, colour = "grey", linetype = 2) +
+    facet_wrap(~ learner) -> p2
+
 
   p1 / p2 +
-    plot_layout(heights = c(1, 2))
+    plot_layout(heights = c(2, 2), guides = "collect")
 }
 
 # test one plot
@@ -126,11 +139,11 @@ plot_list <- purrr::pmap(
   .progress = TRUE
 )
 
-# split into groups of 6 plots
+# split into groups of 4 plots
 plot_list_split <-
   split(plot_list, rep(
     seq_along(plot_list),
-    each = 6,
+    each = 4,
     length.out = length(plot_list)
   ))
 
@@ -139,11 +152,11 @@ plots_wrapped <-
   purrr::map(
     .x = plot_list_split,
     .f = wrap_plots,
-    nrow = 3,
+    nrow = 2,
     ncol = 2
   )
 
-# make pdf
+# make pdf - slow to run!
 pdf(
   width = 12,
   height = 8,
@@ -171,52 +184,64 @@ plot_real_pred_x <- function(treat_as, sample_imbalance,
 
   out_subset %>%
     unnest(df_out) %>%
-    mutate(error = abs(cate_pred - cate_real)) -> plot_dat
+    mutate(Error = abs(cate_pred - cate_real)) %>%
+    mutate(restrict_confounder = ifelse(restrict_confounder == TRUE,
+                                        "Only confounders used to predict propensity score",
+                                        "All features used to predict propensity score") ) -> plot_dat
 
   plot_dat %>%
     group_by(restrict_confounder) %>%
     do(make_labels(.)) -> labels
 
   plot_dat %>%
-    select(cate_pred, cate_real, restrict_confounder) %>%
-    pivot_longer(c(cate_pred, cate_real)) %>%
-    mutate(name = factor(name, levels = c("cate_real", "cate_pred"))) %>%
-    ggplot(aes(x = value, colour = name )) +
-    geom_density() +
-    scale_colour_manual(values =
-                          c("cate_pred" = "orange", "cate_real" = "green3")) +
-    theme_void(base_size = 7) +
-    facet_wrap(~ restrict_confounder) +
-    xlim(-40, 40) +
-    theme(legend.title = element_blank(),
-          strip.text.x = element_blank()) +
-    labs(subtitle = paste("assignment = ", treat_as, ", ",
-                          "sampling imbalance = ", sample_imbalance, ", ",
-                          "n = ", sample_size, ", ",
-                          "variable omission = ", variable_omit, ", ",
-                          "test data location = ", plot_location,
-                          sep = "")) -> p1
+    select(description, cate_pred, cate_real, restrict_confounder, Error) %>%
+    rename(`true CATE` = cate_real, `predicted CATE` = cate_pred) %>%
+    rowid_to_column() %>%
+    pivot_longer(cols = c(`predicted CATE`, `true CATE`)) %>%
+    mutate(name = factor(name, levels = c("true CATE", "predicted CATE"))) %>%
+    arrange(rowid, name)  -> pivot_dat
 
   plot_dat %>%
-    ggplot(aes(x = cate_real, y = cate_pred, colour = error)) +
+    ggplot(aes(x = cate_real, y = cate_pred, colour = Error)) +
     geom_hline(yintercept = 0, colour = "grey", linetype = 2) +
     geom_vline(xintercept = 0, colour = "grey", linetype = 2) +
     geom_point(size = 0.25) +
     geom_abline(intercept = 0, slope = 1, colour = "blue", linewidth = 0.25) +
-    scale_color_gradient(low = "lightblue", high = "red3",
-                         limits = c(0, max_col)) +
+    scale_colour_gradientn(colours = colorspace::divergingx_hcl(n = 10,palette = "RdYlBu"),
+                           limits = c(-45, 45)) +
     xlim(-40, 40) +
     ylim(-40, 40) +
     theme_classic(base_size = 7) +
-
     facet_wrap(~ restrict_confounder) +
     geom_text(data = labels, aes(label = rmse),
               x = -40, y = 40, hjust = 0, colour = "blue", size = 2) +
     geom_text(data = labels, aes(label = r2),
-              x = -40, y = 35, hjust = 0, colour = "blue", size = 2)-> p2
+              x = -40, y = 35, hjust = 0, colour = "blue", size = 2) +
+    labs(y = "predicted CATE", x = "true CATE",
+         subtitle = paste("assignment = ", treat_as, ", ",
+                          "sampling imbalance = ", sample_imbalance, ", ",
+                          "n = ", sample_size, ", ",
+                          "variable omission = ", variable_omit, ", ",
+                          "test data location = ", plot_location,
+                          sep = ""))-> p1
+
+  pivot_dat %>%
+    ggplot(aes(x = name, y = value, colour = Error)) +
+    ggdist::stat_slab(orientation = "x", side = "both", normalize = "groups") +
+    geom_point(size = 0.25) +
+    geom_line(aes(group = interaction(Error, rowid)),
+              linewidth = 0.25,
+              alpha = 0.4) +
+    scale_colour_gradientn(colours = colorspace::divergingx_hcl(n = 10, palette = "RdYlBu"),
+                           limits = c(-45, 45)) +
+    ylim(-40, 40) +
+    labs(x = "", y = "") +
+    theme_classic(base_size = 7) +
+    geom_hline(yintercept = 0, colour = "grey", linetype = 2) +
+    facet_wrap(~ restrict_confounder) -> p2
 
   p1 / p2 +
-    plot_layout(heights = c(1, 2))
+    plot_layout(heights = c(2, 2), guides = "collect")
 }
 
 # test one plot
@@ -250,7 +275,7 @@ plot_list <- purrr::pmap(
 plot_list_split <-
   split(plot_list, rep(
     seq_along(plot_list),
-    each = 6,
+    each = 4,
     length.out = length(plot_list)
   ))
 
@@ -259,7 +284,7 @@ plots_wrapped <-
   purrr::map(
     .x = plot_list_split,
     .f = wrap_plots,
-    nrow = 3,
+    nrow = 2,
     ncol = 2
   )
 
