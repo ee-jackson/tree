@@ -12,7 +12,9 @@
 #' @export
 
 fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
-                            test_plot_location, restrict_confounder = FALSE) {
+                            test_plot_location, restrict_confounder = FALSE,
+                            seed = NULL) {
+  set.seed(seed = seed)
 
   train_plot_list <- pull(df_train, description)
 
