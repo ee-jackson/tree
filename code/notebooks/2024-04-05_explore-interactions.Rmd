@@ -1,0 +1,67 @@
+---
+title: "Explore interaction effects"
+author: '`r Sys.getenv("USER")`'
+date: '`r format(Sys.time(), "%d %B, %Y")`' 
+always_allow_html: true
+output: 
+  github_document:
+    keep_html: true
+---
+	
+```{r setup, include = FALSE}
+file_name <- rstudioapi::getSourceEditorContext()$path
+
+knitr::opts_chunk$set(
+  fig.path =
+    paste0("figures/", sub("\\.Rmd$", "", basename(file_name)), "/", sep = "")
+)
+
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
+```
+
+```{r packages, message=FALSE, warning=FALSE}
+library("tidyverse")
+library("here")
+library("patchwork")
+```
+
+```{r}
+results <- readRDS(here("data", "derived", "results.rds")) %>% 
+  filter(restrict_confounder == FALSE)
+
+```
+
+```{r message=FALSE}
+results %>% 
+  group_by(n_train, test_plot_location, learner) %>% 
+  summarise(RMSE = mean(rmse)) %>% 
+  ggplot(aes(as.ordered(n_train), test_plot_location, fill = RMSE)) +
+  geom_tile() +
+  facet_grid(~ learner, scales = "free_x", space = "free_x") +
+  scale_fill_viridis_c()
+
+results %>% 
+  group_by(n_train, assignment, learner) %>% 
+  summarise(RMSE = mean(rmse)) %>% 
+  ggplot(aes(as.ordered(n_train), assignment, fill = RMSE)) +
+  geom_tile() +
+  facet_grid(~ learner, scales = "free_x", space = "free_x") +
+  scale_fill_viridis_c()
+
+results %>% 
+  group_by(n_train, var_omit, learner) %>% 
+  summarise(RMSE = mean(rmse)) %>% 
+  ggplot(aes(as.ordered(n_train), var_omit, fill = RMSE)) +
+  geom_tile() +
+  facet_grid(~ learner, scales = "free_x", space = "free_x") +
+  scale_fill_viridis_c()
+
+results %>% 
+  group_by(n_train, prop_not_treated, learner) %>% 
+  summarise(RMSE = mean(rmse)) %>% 
+  ggplot(aes(as.ordered(n_train), as.ordered(prop_not_treated), fill = RMSE)) +
+  geom_tile() +
+  facet_grid(~ learner, scales = "free_x", space = "free_x") +
+  scale_fill_viridis_c()
+```
+
