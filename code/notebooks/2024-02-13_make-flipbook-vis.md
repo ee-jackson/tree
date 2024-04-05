@@ -1,7 +1,7 @@
 New layered vis
 ================
 eleanorjackson
-01 March, 2024
+04 April, 2024
 
 ``` r
 library("tidyverse")
@@ -14,7 +14,7 @@ set.seed(123)
 
 ``` r
 models_out <- readRDS(here("data", "derived", "all_runs.rds")) %>% 
-  filter(n_train != 31)
+  filter(restrict_confounder == FALSE)
 ```
 
 ## Function to colour by error
@@ -84,16 +84,18 @@ plot_real_pred_layer <- function(out, study_condition_val, study_condition, pal)
   
   out_subset %>% 
     unnest(df_out) %>% 
+    mutate(learner = str_to_upper(learner)) %>% 
     ggplot(aes(x = cate_real, y = cate_pred, 
                colour = as.factor(!!as.name(study_condition)))) +
     geom_hline(yintercept = 0, colour = "grey", linetype = 2) +
     geom_vline(xintercept = 0, colour = "grey", linetype = 2) +
     geom_point(shape = 16, alpha = 0.7) +
     geom_abline(intercept = 0, slope = 1, colour = "red") +
-    scale_colour_manual(values = pal, name = paste(study_condition)) +
+    scale_colour_manual(values = pal, name = "Sample size") +
     xlim(-40, 40) +
     ylim(-40, 40) +
-    theme_classic(base_size = 15) +
+    theme_classic(base_size = 20) +
+    labs(y = "predicted ITE", x = "true ITE") +
     theme(legend.position = "top", legend.justification = "left") +
     facet_wrap(~ learner) 
   
