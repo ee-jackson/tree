@@ -40,15 +40,6 @@ nfi_coords <- readxl::read_excel(
 all_years_xy <- all_years %>%
   left_join(nfi_coords)
 
-# choose plots
-ids <- c("201956012030",
-         "201935332050",
-         "201735932051",
-         "202047602081",
-         "201726721121",
-         "202025262061")
-
-
 # Make map ----------------------------------------------------------------
 
 map <- all_years_xy %>%
@@ -86,6 +77,14 @@ plot_soilc <- function(plot_id, data) {
     theme_classic(base_size = 7)
 }
 
+# choose plots
+ids <- c("201956012030",
+         "201935332050",
+         "201735932051",
+         "202047602081",
+         "201726721121",
+         "202025262061")
+
 plots <- lapply(ids, plot_soilc, data = all_years_xy)
 
 
@@ -108,7 +107,7 @@ ggsave(here::here("output","figures","soil-carbon-year.png"),
 
 
 
-# Envriomental variables plot ---------------------------------------------
+# Environmental variables plot ---------------------------------------------
 
 all_years_xy %>%
   filter(period == 0) %>%
@@ -169,7 +168,21 @@ clean_data %>%
   theme_void(base_size = 6) +
   labs(colour = "Mean annual\nprecipitation (mm)") -> ep5
 
-ep1 + ep2 + ep3 + ep4 + ep5 +
+all_years_xy %>%
+  filter(period == 0) %>%
+  mutate(region = case_when(region == 22 ~ 2,
+                            region == 21 ~ 2,
+                            .default = region)) %>%
+  ggplot(aes(ost_wgs84, nord_wgs84,
+             colour = as.ordered(region))) +
+  borders("world", regions = "sweden") +
+  geom_point(shape = 16, alpha = 0.7, size = 0.5) +
+  scale_colour_viridis_d() +
+  coord_quickmap() +
+  theme_void(base_size = 6) +
+  labs(colour = "Region") -> ep6
+
+ep1 + ep2 + ep3 + ep4 + ep5 + ep6 +
   plot_layout(ncol = 2) &
   theme(legend.key.width = unit(0.3, "lines"))
 
