@@ -1,8 +1,8 @@
 #!/usr/bin/env Rscript
 
 ## Author: E E Jackson, eleanor.elizabeth.j@gmail.com
-## Script:
-## Desc:
+## Script: plot-all-true-vs-predictions.R
+## Desc: Make large PDF with plots for every combination of study conditions
 ## Date: March 2024
 
 # module load R/4.3.0
@@ -13,6 +13,7 @@ library("tidyverse")
 library("here")
 library("patchwork")
 library("yardstick")
+library("ggtext")
 
 all_runs <-
   readRDS(here::here("data", "derived", "all_runs.rds"))
@@ -31,8 +32,8 @@ keys <- expand.grid(
 make_labels <- function(dat) {
   rmse <- paste("RMSE = ", round(yardstick::rmse_vec(truth = dat$cate_real,
                                                  estimate = dat$cate_pred), 3))
-  r2 <- paste("R^2 =", round(yardstick::rsq_vec(truth = dat$cate_real,
-                                                           estimate = dat$cate_pred), 3))
+  r2 <- paste("R<sup>2</sup> =", round(yardstick::rsq_vec(truth = dat$cate_real,
+                                                          estimate = dat$cate_pred), 3))
   data.frame(rmse = rmse, r2 = r2, stringsAsFactors = FALSE)
 }
 
@@ -52,8 +53,7 @@ plot_real_pred <- function(treat_as, sample_imbalance,
 
   out_subset %>%
     unnest(df_out) %>%
-    mutate(Error = cate_pred - cate_real) %>%
-    mutate(learner = str_to_upper(learner))-> plot_dat
+    mutate(Error = cate_pred - cate_real) -> plot_dat
 
   plot_dat %>%
     group_by(learner) %>%
@@ -79,10 +79,12 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     ylim(-40, 40) +
     theme_classic(base_size = 7) +
     facet_wrap(~ learner) +
-    geom_text(data = labels, aes(label = rmse),
-              x = -40, y = 40, hjust = 0, colour = "blue", size = 2) +
-    geom_text(data = labels, aes(label = r2),
-              x = -40, y = 35, hjust = 0, colour = "blue", size = 2) +
+    geom_richtext(data = labels, aes(label = rmse),
+                  x = -44, y = 40, hjust = 0, colour = "blue",
+                  label.colour = NA, size = 2, label.size = 0, fill = NA) +
+    geom_richtext(data = labels, aes(label = r2),
+                  x = -44, y = 34, hjust = 0, colour = "blue",
+                  label.colour = NA, size = 2, label.size = 0, fill = NA) +
     labs(y = "predicted CATE", x = "true CATE",
          subtitle = paste("assignment = ", treat_as, ", ",
                           "sampling imbalance = ", sample_imbalance, ", ",
@@ -112,9 +114,21 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     plot_layout(heights = c(2, 2), guides = "collect")
 }
 
+all_runs %>%
+  mutate(learner = case_when(
+    learner == "s" ~ "Single model (S-learner)",
+    learner == "t" ~ "Two models (T-learner)",
+    learner == "x" ~ "Crossed models (X-learner)")) %>%
+  mutate(learner = fct_relevel(learner,
+                               c("Single model (S-learner)",
+                               "Two models (T-learner)",
+                               "Crossed models (X-learner)")
+                             )
+         ) -> all_runs_rlvl
+
 # test one plot
 plot_real_pred(
-  out = all_runs,
+  out = all_runs_rlvl,
   treat_as = "random",
   sample_imbalance = 0.3,
   sample_size = 62,
@@ -134,7 +148,7 @@ plot_list <- purrr::pmap(
     id = keys$id
   ),
   plot_real_pred,
-  out = all_runs,
+  out = all_runs_rlvl,
   max_col = 55,
   .progress = TRUE
 )
@@ -161,138 +175,6 @@ pdf(
   width = 12,
   height = 8,
   file = here::here("output", "figures", "all-true-v-pred.pdf")
-)
-plots_wrapped
-dev.off()
-
-
-# X-learner only plots ----------------------------------------------------
-
-# plotting function
-plot_real_pred_x <- function(treat_as, sample_imbalance,
-                           sample_size, variable_omit, plot_location,
-                           id, out, max_col) {
-  out %>%
-    filter(
-      assignment == treat_as,
-      prop_not_treated == sample_imbalance,
-      n_train == sample_size,
-      var_omit == variable_omit,
-      test_plot_location == plot_location,
-      learner == "x"
-    ) -> out_subset
-
-  out_subset %>%
-    unnest(df_out) %>%
-    mutate(Error = abs(cate_pred - cate_real)) %>%
-    mutate(restrict_confounder = ifelse(restrict_confounder == TRUE,
-                                        "Only confounders used to predict propensity score",
-                                        "All features used to predict propensity score") ) -> plot_dat
-
-  plot_dat %>%
-    group_by(restrict_confounder) %>%
-    do(make_labels(.)) -> labels
-
-  plot_dat %>%
-    select(description, cate_pred, cate_real, restrict_confounder, Error) %>%
-    rename(`true CATE` = cate_real, `predicted CATE` = cate_pred) %>%
-    rowid_to_column() %>%
-    pivot_longer(cols = c(`predicted CATE`, `true CATE`)) %>%
-    mutate(name = factor(name, levels = c("true CATE", "predicted CATE"))) %>%
-    arrange(rowid, name)  -> pivot_dat
-
-  plot_dat %>%
-    ggplot(aes(x = cate_real, y = cate_pred, colour = Error)) +
-    geom_hline(yintercept = 0, colour = "grey", linetype = 2) +
-    geom_vline(xintercept = 0, colour = "grey", linetype = 2) +
-    geom_point(size = 0.25) +
-    geom_abline(intercept = 0, slope = 1, colour = "blue", linewidth = 0.25) +
-    scale_colour_gradientn(colours = colorspace::divergingx_hcl(n = 10,palette = "RdYlBu"),
-                           limits = c(-45, 45)) +
-    xlim(-40, 40) +
-    ylim(-40, 40) +
-    theme_classic(base_size = 7) +
-    facet_wrap(~ restrict_confounder) +
-    geom_text(data = labels, aes(label = rmse),
-              x = -40, y = 40, hjust = 0, colour = "blue", size = 2) +
-    geom_text(data = labels, aes(label = r2),
-              x = -40, y = 35, hjust = 0, colour = "blue", size = 2) +
-    labs(y = "predicted CATE", x = "true CATE",
-         subtitle = paste("assignment = ", treat_as, ", ",
-                          "sampling imbalance = ", sample_imbalance, ", ",
-                          "n = ", sample_size, ", ",
-                          "variable omission = ", variable_omit, ", ",
-                          "test data location = ", plot_location,
-                          sep = ""))-> p1
-
-  pivot_dat %>%
-    ggplot(aes(x = name, y = value, colour = Error)) +
-    ggdist::stat_slab(orientation = "x", side = "both", normalize = "groups") +
-    geom_point(size = 0.25) +
-    geom_line(aes(group = interaction(Error, rowid)),
-              linewidth = 0.25,
-              alpha = 0.4) +
-    scale_colour_gradientn(colours = colorspace::divergingx_hcl(n = 10, palette = "RdYlBu"),
-                           limits = c(-45, 45)) +
-    ylim(-40, 40) +
-    labs(x = "", y = "") +
-    theme_classic(base_size = 7) +
-    geom_hline(yintercept = 0, colour = "grey", linetype = 2) +
-    facet_wrap(~ restrict_confounder) -> p2
-
-  p1 / p2 +
-    plot_layout(heights = c(2, 2), guides = "collect")
-}
-
-# test one plot
-plot_real_pred_x(
-  out = all_runs,
-  treat_as = "random",
-  sample_imbalance = 0.3,
-  sample_size = 62,
-  variable_omit = TRUE,
-  plot_location = "random",
-  max_col = 55
-)
-
-# create many plots
-plot_list <- purrr::pmap(
-  list(
-    treat_as = keys$assignment,
-    sample_imbalance = keys$prop_not_treated,
-    sample_size = keys$n_train,
-    variable_omit = keys$var_omit,
-    plot_location = keys$test_plot_location,
-    id = keys$id
-  ),
-  plot_real_pred_x,
-  out = all_runs,
-  max_col = 55,
-  .progress = TRUE
-)
-
-# split into groups of 6 plots
-plot_list_split <-
-  split(plot_list, rep(
-    seq_along(plot_list),
-    each = 4,
-    length.out = length(plot_list)
-  ))
-
-# wrap 6 plots in each group for 1 pdf page
-plots_wrapped <-
-  purrr::map(
-    .x = plot_list_split,
-    .f = wrap_plots,
-    nrow = 2,
-    ncol = 2
-  )
-
-# make pdf
-pdf(
-  width = 12,
-  height = 8,
-  file = here::here("output", "figures", "all-true-v-pred-xlearns.pdf")
 )
 plots_wrapped
 dev.off()
