@@ -15,7 +15,7 @@ set.seed(123)
 
 results <- readRDS(here("data", "derived", "results.rds"))
 
-get_vip <- function(df, plot_title) {
+get_vip <- function(df, plot_title, show_y_var) {
   df <- df %>%
     filter(restrict_confounder == FALSE)
 
@@ -69,41 +69,95 @@ get_vip <- function(df, plot_title) {
     ) %>%
     vi()
 
-  vi_df %>%
-    mutate(Variable = case_when(
-      Variable == "n_train" ~ "Training sample size",
-      Variable == "var_omit" ~ "Omission of important variable",
-      Variable == "assignment" ~ "Treatment assignment",
-      Variable == "prop_not_treated" ~ "Treatment imbalance",
-      Variable == "test_plot_location" ~ "Location of test plots"
-    ) ) %>%
-    vip(geom = "point", aesthetics = list(size = 2),
-        mapping = aes(colour = .data[["Variable"]])) +
-    theme_classic(base_size = 5) +
-    theme(
-      axis.text.y = element_blank(),
-      legend.title = element_blank()
-    ) +
-    scale_colour_manual(values =
-                          c("Training sample size" = "#E69f00",
-                            "Omission of important variable" = "#56B4E9",
-                            "Treatment assignment" = "#0072B2",
-                            "Treatment imbalance" = "#F0E442",
-                            "Location of test plots" = "#009E73")) +
-    labs(title = plot_title) -> ps
+  if (show_y_var == FALSE){
+    vi_df %>%
+      mutate(Variable = case_when(
+        Variable == "n_train" ~ "Training sample size",
+        Variable == "var_omit" ~ "Omission of important variable",
+        Variable == "assignment" ~ "Treatment assignment",
+        Variable == "prop_not_treated" ~ "Treatment imbalance",
+        Variable == "test_plot_location" ~ "Location of test plots"
+      ) ) %>%
+      mutate(Variable = fct_relevel(Variable,
+                                    c("Treatment assignment",
+                                      "Treatment imbalance",
+                                      "Omission of important variable",
+                                      "Location of test plots",
+                                      "Training sample size"
+                                    ))
+      ) %>%
+      ggplot(aes(y = Variable, x = Importance)) +
+      geom_segment(aes(y = Variable, x = 0, xend = Importance),
+                   linetype = 2, linewidth = 0.25) +
+      geom_point(size = 2, aes(colour = Variable)) +
+      theme_classic(base_size = 5) +
+      theme(
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        legend.position = "none"
+      ) +
+      scale_x_continuous(expand = expansion(mult = c(0, .1))) +
+      scale_colour_manual(values =
+                            c("Training sample size" = "#E69f00",
+                              "Omission of important variable" = "#56B4E9",
+                              "Treatment assignment" = "#0072B2",
+                              "Treatment imbalance" = "#F0E442",
+                              "Location of test plots" = "#009E73")) +
+      labs(title = plot_title) -> ps
+
+    } else {
+      vi_df %>%
+        mutate(Variable = case_when(
+          Variable == "n_train" ~ "Training sample size",
+          Variable == "var_omit" ~ "Omission of important variable",
+          Variable == "assignment" ~ "Treatment assignment",
+          Variable == "prop_not_treated" ~ "Treatment imbalance",
+          Variable == "test_plot_location" ~ "Location of test plots"
+        ) ) %>%
+        mutate(Variable = fct_relevel(Variable,
+                                      c("Treatment assignment",
+                                        "Treatment imbalance",
+                                        "Omission of important variable",
+                                        "Location of test plots",
+                                        "Training sample size"
+                                      ))
+        ) %>%
+        ggplot(aes(y = Variable, x = Importance)) +
+        geom_segment(aes(y = Variable, x = 0, xend = Importance),
+                     linetype = 2, linewidth = 0.2) +
+        geom_point(size = 2, aes(colour = Variable)) +
+        theme_classic(base_size = 5) +
+        theme(
+          axis.title.y = element_blank(),
+          axis.text.y = element_text(colour = "black"),
+          legend.position = "none"
+        ) +
+        scale_x_continuous(expand = expansion(mult = c(0, .1))) +
+        scale_colour_manual(values =
+                              c("Training sample size" = "#E69f00",
+                                "Omission of important variable" = "#56B4E9",
+                                "Treatment assignment" = "#0072B2",
+                                "Treatment imbalance" = "#F0E442",
+                                "Location of test plots" = "#009E73")) +
+        labs(title = plot_title) -> ps
+
+    }
 
   return(ps)
 }
 
 
 vip_s <- get_vip(df = filter(results, learner == "s"),
-                 plot_title = "S-learner")
+                 plot_title = "Single model",
+                 show_y_var = TRUE)
 
 vip_t <- get_vip(df = filter(results, learner == "t"),
-                 plot_title = "T-learner")
+                 plot_title = "Two models",
+                 show_y_var = FALSE)
 
 vip_x <- get_vip(df = filter(results, learner == "x"),
-                 plot_title = "X-learner")
+                 plot_title = "Crossed models",
+                 show_y_var = FALSE)
 
 vip_s + vip_t + vip_x +
   patchwork::plot_layout(guides = "collect")
