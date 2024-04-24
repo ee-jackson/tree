@@ -162,5 +162,5 @@ vip_x <- get_vip(df = filter(results, learner == "x"),
 vip_s + vip_t + vip_x +
   patchwork::plot_layout(guides = "collect")
 
-ggsave(here::here("output","figures","meta-meta-vip-stx.png"),
+ggsave(here::here("output","figures","results-meta-meta-vip-stx.png"),
        width = 1476, height = 600, units = "px")

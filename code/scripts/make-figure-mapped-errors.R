@@ -1,11 +1,10 @@
 #!/usr/bin/env Rscript
 
 ## Author: E E Jackson, eleanor.elizabeth.j@gmail.com
-## Script:
-## Desc:
+## Script: make-figure-mapped-errors.R
+## Desc: Make a figure of S, T and X predictions from the same sample of plots
 ## Date: April 2024
 
-# module load R/4.3.0
 
 # Load packages -----------------------------------------------------------
 

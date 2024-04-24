@@ -1,11 +1,10 @@
 #!/usr/bin/env Rscript
 
 ## Author: E E Jackson, eleanor.elizabeth.j@gmail.com
-## Script:
-## Desc:
+## Script: make-si-figures.R
+## Desc: make all figures for the SI
 ## Date: March 2024
 
-# module load R/4.0.3
 
 # Load packages -----------------------------------------------------------
 
@@ -104,7 +103,7 @@ plots[[1]] + map + plots[[2]] + plots[[3]] + plots[[4]] + plots[[5]] + plots[[6]
   theme(legend.title = element_blank(),
         legend.position = "bottom")
 
-ggsave(here::here("output","figures","soil-carbon-year.png"),
+ggsave(here::here("output","figures","si-soil-carbon-year.png"),
        width = 1476, height = 1600, units = "px")
 
 
@@ -187,7 +186,7 @@ ep1 + ep2 + ep3 + ep4 + ep5 + ep6 +
   plot_layout(ncol = 2) &
   theme(legend.key.width = unit(0.3, "lines"))
 
-ggsave(here::here("output","figures","env-var-map.png"),
+ggsave(here::here("output","figures","si-env-var-map.png"),
        width = 1000, height = 1500, units = "px")
 
 
@@ -236,7 +235,7 @@ clean_data %>%
 
 pca_map + pca
 
-ggsave(here::here("output","figures","pca-map.png"),
+ggsave(here::here("output","figures","si-pca-map.png"),
        width = 1500, height = 1000, units = "px")
 
 
@@ -336,7 +335,7 @@ get_vip_t <- function(df) {
 
 vip_a <- get_vip_t(df = results)
 
-ggsave(here::here("output","figures","meta-meta-vip-all.png"),
+ggsave(here::here("output","figures","si-meta-meta-vip-all.png"),
        width = 600, height = 600, units = "px")
 
 
@@ -443,5 +442,5 @@ get_vip_t <- function(df) {
 
 vip_s <- get_vip_t(df = one_run$df_assigned[[1]])
 
-ggsave(here::here("output","figures","vip-s.png"),
+ggsave(here::here("output","figures","si-vip-s.png"),
        width = 600, height = 600, units = "px")

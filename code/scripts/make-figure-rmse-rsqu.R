@@ -1,11 +1,10 @@
 #!/usr/bin/env Rscript
 
 ## Author: E E Jackson, eleanor.elizabeth.j@gmail.com
-## Script:
+## Script: make-figure-rmse-rsqu.R
 ## Desc: RMSE and Rsqu plots
 ## Date: April 2024
 
-# module load R/4.3.0
 
 # Load packages -----------------------------------------------------------
 
