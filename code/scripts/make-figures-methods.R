@@ -33,7 +33,7 @@ all_runs <-
   )
 
 nfi_coords <- readxl::read_excel(
-  here::here("data", "raw", "NFI plot coords NFI 2016-2020.xlsx"),
+  here::here("data", "raw", "NFI_plot_coords_NFI_2016-2020.xlsx"),
   col_types = c("numeric", "text", "text","numeric","numeric","numeric",
                 "numeric","numeric","numeric","numeric","numeric","numeric","numeric")
   ) %>%
@@ -42,14 +42,6 @@ nfi_coords <- readxl::read_excel(
 
 
 # treatment assignment ----------------------------------------------------
-
-layout <- "
-A#
-A#
-A#
-AB
-AC
-"
 
 all_runs %>%
   filter(prop_not_treated == 0.5,
@@ -71,55 +63,17 @@ all_runs %>%
         legend.key.size = unit(0.01, "cm")) +
   guides(color = guide_legend(override.aes = list(size = 2))) +
   scale_colour_manual(values = c("Treated" = "#E69F00", "Untreated" = "#0072B2")) +
-  facet_wrap(~ assignment, ncol = 1) +
-
-  all_runs %>%
-  sample_n(1) %>%
-  unnest(df_assigned) %>%
-  left_join(nfi_coords, by = "description") %>%
-  ggplot(aes(ost_wgs84, nord_wgs84, colour = altitude)) +
-  borders("world", regions = "sweden", linewidth = 0.25) +
-  geom_point(size = 0.25, alpha = 0.9, shape = 16) +
-  coord_quickmap() +
-  theme_void(base_size = 5) +
-  theme(legend.position = "right",
-        legend.key.width = unit(0.1, "lines"),
-        legend.key.height = unit(0.5, "lines"),
-        plot.margin = unit(c(0, 0, 0.5, 0), "cm")) +
-  scale_colour_viridis_c() +
-  labs(colour = "Altitude (m)") +
-
-  readRDS(
-    here::here("data", "derived", "ForManSims_RCP0_same_time_clim_squ.rds")
-  ) %>%
-  left_join(nfi_coords) %>%
-  filter(period == 0) %>%
-  mutate(region = case_when(region == 22 ~ 2,
-                            region == 21 ~ 2,
-                            .default = region)) %>%
-  ggplot(aes(ost_wgs84, nord_wgs84, colour = as.ordered(region))) +
-  borders("world", regions = "sweden", linewidth = 0.25) +
-  geom_point(size = 0.25, alpha = 0.9, shape = 16) +
-  coord_quickmap() +
-  theme_void(base_size = 5) +
-  theme(legend.position = "right",
-        legend.key.width = unit(0.1, "lines"),
-        legend.key.height = unit(0.5, "lines")) +
-  scale_colour_viridis_d(direction = -1) +
-  labs(colour = "Region") +
-
-  plot_layout(design = layout)
-
+  facet_wrap(~ assignment, nrow = 1)
 
 
 ggsave(here::here("output","figures","methods-assignment.png"),
-       width = 500, height = 1000, units = "px")
+       width = 1000, height = 500, units = "px")
 
 
 # sampling imbalance ------------------------------------------------------
 
 all_runs %>%
-  filter(assignment == "random",
+  filter(assignment == "Random",
          n_train == 250) %>%
   group_by(prop_not_treated) %>%
   sample_n(1) %>%
@@ -137,10 +91,10 @@ all_runs %>%
         plot.margin = unit(c(0, 0, 0, 0), "cm")) +
   guides(color = guide_legend(override.aes = list(size = 2))) +
   scale_colour_manual(values = c("Treated" = "#E69F00", "Untreated" = "#0072B2")) +
-  facet_wrap(~ prop_not_treated, ncol = 1)
+  facet_wrap(~ prop_not_treated, nrow = 1)
 
 ggsave(here::here("output","figures","methods-prop_not_treated.png"),
-       width = 500, height = 1000, units = "px")
+       width = 1000, height = 500, units = "px")
 
 
 # sample size -------------------------------------------------------------
@@ -165,10 +119,10 @@ all_runs %>%
         plot.margin = unit(c(0, 0, 0, 0), "cm")) +
   guides(color = guide_legend(override.aes = list(size = 2))) +
   scale_colour_manual(values = c("Treated" = "#E69F00", "Untreated" = "#0072B2")) +
-  facet_wrap(~ n_train, ncol = 2)
+  facet_wrap(~ n_train, nrow = 1)
 
 ggsave(here::here("output","figures","methods-n_train.png"),
-       width = 500, height = 1000, units = "px")
+       width = 1000, height = 500, units = "px")
 
 
 # test data location ------------------------------------------------------
@@ -182,9 +136,9 @@ all_runs %>%
   slice_sample(n = 162) %>%
   mutate(sampling_location = recode_factor(
     sampling_location,
-    edge = "Edge",
-    centre = "Core",
     other = "Random",
+    centre = "Core",
+    edge = "Edge",
     .ordered = TRUE
   )) %>%
   left_join(nfi_coords, by = "description") %>%
@@ -200,7 +154,7 @@ all_runs %>%
         plot.margin = unit(c(0, 0, 0, 0), "cm")) +
   guides(color = guide_legend(override.aes = list(size = 2))) +
   scale_colour_manual(values = c("Treated" = "#E69F00", "Untreated" = "#0072B2")) +
-  facet_wrap(~ sampling_location, ncol = 1)
+  facet_wrap(~ sampling_location, nrow = 1)
 
 ggsave(here::here("output","figures","methods-test_plot_location.png"),
-       width = 500, height = 1000, units = "px")
+       width = 1000, height = 500, units = "px")
