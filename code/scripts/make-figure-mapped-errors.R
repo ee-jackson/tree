@@ -72,7 +72,7 @@ keys %>%
          run_id = row_number()) -> all_runs
 
 nfi_coords <- readxl::read_excel(
-  here::here("data", "raw", "NFI plot coords NFI 2016-2020.xlsx"),
+  here::here("data", "raw", "NFI_plot_coords_NFI_2016-2020.xlsx"),
   col_types = c("numeric", "text", "text","numeric","numeric","numeric",
                 "numeric","numeric","numeric","numeric","numeric","numeric","numeric")
 ) %>%
