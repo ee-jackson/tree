@@ -17,7 +17,6 @@ library("ggtext")
 set.seed(123)
 
 
-
 # get data ----------------------------------------------------------------
 
 results <- readRDS(here("data", "derived", "results.rds")) %>%
@@ -171,7 +170,8 @@ plot_rmse(data = results,
             x_var = results$test_plot_location,
             x_lab = "Location of test plots") +
 
-  plot_layout(guides = "collect", ncol = 2) &
+  plot_layout(guides = "collect", ncol = 2) +
+  plot_annotation(tag_levels = "a") &
   theme(legend.position = "bottom")
 
 

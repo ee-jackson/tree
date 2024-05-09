@@ -157,7 +157,8 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     #           x = -28, y = 21, hjust = 0, colour = "blue",
     #           size = 1.5, label.size = 0, fill = NA) +
     labs(y = "predicted CATE", x = "true CATE") +
-    labs(title = plot_title) -> p1
+    labs(title = plot_title) +
+    theme(plot.title = element_text(hjust = -0.4)) -> p1
 
 
   pivot_dat %>%
@@ -191,7 +192,7 @@ plot_real_pred <- function(treat_as, sample_imbalance,
   variable_omit = FALSE,
   plot_location = "random",
   meta_learner = "s",
-  plot_title = "Single model",
+  plot_title = "a  Single model",
   coord_df = nfi_coords
 ) ) /
   (plot_real_pred(
@@ -202,7 +203,7 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     variable_omit = FALSE,
     plot_location = "random",
     meta_learner = "t",
-    plot_title = "Two models",
+    plot_title = "b  Two models",
     coord_df = nfi_coords
   ) ) /
   (plot_real_pred(
@@ -213,9 +214,9 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     variable_omit = FALSE,
     plot_location = "random",
     meta_learner = "x",
-    plot_title = "Crossed models",
+    plot_title = "c  Crossed models",
     coord_df = nfi_coords
   ))
 
-ggsave(here::here("output","figures","results-mapped-errors.png"),
+ggsave(here::here("output","figures","results-mapped-errors2.png"),
        width = 1000, height = 1500, units = "px")

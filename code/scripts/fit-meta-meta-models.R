@@ -94,7 +94,8 @@ get_vip <- function(df, plot_title, show_y_var) {
       theme(
         axis.title.y = element_blank(),
         axis.text.y = element_blank(),
-        legend.position = "none"
+        legend.position = "none",
+        plot.title = element_text(hjust = -0.1)
       ) +
       scale_x_continuous(expand = expansion(mult = c(0, .1))) +
       scale_colour_manual(values =
@@ -130,7 +131,8 @@ get_vip <- function(df, plot_title, show_y_var) {
         theme(
           axis.title.y = element_blank(),
           axis.text.y = element_text(colour = "black"),
-          legend.position = "none"
+          legend.position = "none",
+          plot.title = element_text(hjust = -0.1)
         ) +
         scale_x_continuous(expand = expansion(mult = c(0, .1))) +
         scale_colour_manual(values =
@@ -148,15 +150,15 @@ get_vip <- function(df, plot_title, show_y_var) {
 
 
 vip_s <- get_vip(df = filter(results, learner == "s"),
-                 plot_title = "Single model",
+                 plot_title = "a  Single model",
                  show_y_var = TRUE)
 
 vip_t <- get_vip(df = filter(results, learner == "t"),
-                 plot_title = "Two models",
+                 plot_title = "b  Two models",
                  show_y_var = FALSE)
 
 vip_x <- get_vip(df = filter(results, learner == "x"),
-                 plot_title = "Crossed models",
+                 plot_title = "c  Crossed models",
                  show_y_var = FALSE)
 
 vip_s + vip_t + vip_x +
