@@ -15,6 +15,7 @@ library("ggmap")
 library("janitor")
 library("factoextra")
 library("vip")
+library("ggtext")
 
 # Load data ---------------------------------------------------------------
 
@@ -69,17 +70,17 @@ map <- all_years %>%
 plot_soilc <- function(plot_id, data) {
   data %>%
     filter(description == plot_id) %>%
-    mutate(Year = period + taxar) %>%
     mutate(control_category_name =
-             case_when(control_category_name == "BAU - NoThinning" ~ "Business as usual",
-                       control_category_name == "SetAside (Unmanaged)" ~ "Set aside",
+             case_when(control_category_name == "BAU - NoThinning" ~ "Business as usual (treated)",
+                       control_category_name == "SetAside (Unmanaged)" ~ "Set aside (control)",
                        .default = control_category_name)) %>%
-    ggplot(aes(x = Year, y = total_soil_carbon,
+    ggplot(aes(x = period, y = total_soil_carbon,
                colour = as.factor(control_category_name),
                shape = as.factor(control_category_name))) +
     geom_point(size = 1) +
     geom_line(linewidth = 0.3) +
-    labs(y = "Soil carbon\n(ton C/ha)") +
+    labs(y = "Soil carbon\n(ton C/ha)",
+         x = "Time period") +
     scale_color_manual(values = c( "#E69F00", "#009E73", "#0072B2")) +
     scale_shape_manual(values = c(16, 17, 4)) +
     theme_classic(base_size = 8) +
@@ -109,7 +110,7 @@ ggsave(here::here("output","figures","si-soil-carbon-year.png"),
 
 # Environmental variables plot ---------------------------------------------
 
-all_years %>%
+clean_data %>%
   filter(period == 0) %>%
   ggplot(aes(ost_wgs84, nord_wgs84,
              colour = altitude)) +
@@ -120,7 +121,7 @@ all_years %>%
   theme_void(base_size = 6) +
   labs(colour = "Altitude (m)") -> ep1
 
-all_years %>%
+clean_data %>%
   filter(period == 0) %>%
   ggplot(aes(ost_wgs84, nord_wgs84,
              colour = total_soil_carbon)) +
@@ -131,7 +132,7 @@ all_years %>%
   theme_void(base_size = 6) +
   labs(colour = "Initial soil\ncarbon (ton C/ha)") -> ep2
 
-all_years %>%
+clean_data %>%
   filter(period == 0) %>%
   ggplot(aes(ost_wgs84, nord_wgs84,
              colour = as.ordered(soil_moist_code))) +
@@ -143,8 +144,6 @@ all_years %>%
   labs(colour = "Soil moisture") -> ep3
 
 clean_data %>%
-  select(description, mat_5yr, map_5yr) %>%
-  left_join(all_years_xy) %>%
   filter(period == 0) %>%
   ggplot(aes(ost_wgs84, nord_wgs84,
              colour = mat_5yr)) +
@@ -156,8 +155,6 @@ clean_data %>%
   labs(colour = "Mean annual\ntemperature (°C)") -> ep4
 
 clean_data %>%
-  select(description, mat_5yr, map_5yr) %>%
-  left_join(all_years_xy) %>%
   filter(period == 0) %>%
   ggplot(aes(ost_wgs84, nord_wgs84,
              colour = map_5yr)) +
@@ -168,7 +165,7 @@ clean_data %>%
   theme_void(base_size = 6) +
   labs(colour = "Mean annual\nprecipitation (mm)") -> ep5
 
-all_years %>%
+clean_data %>%
   filter(period == 0) %>%
   mutate(region = case_when(region == 22 ~ 2,
                             region == 21 ~ 2,
@@ -189,6 +186,63 @@ ep1 + ep2 + ep3 + ep4 + ep5 + ep6 +
 ggsave(here::here("output","figures","si-env-var-map.png"),
        width = 1000, height = 1500, units = "px")
 
+# logged
+clean_data %>%
+  filter(period == 0) %>%
+  select(ost_wgs84, nord_wgs84, starts_with("volume_")) %>%
+  select(- volume_excl_overstory, - volume_beech) %>%
+  pivot_longer(cols = starts_with("volume_")) %>%
+  mutate(name = str_remove(name, "volume_")) %>%
+  mutate(name = str_replace(name, "_", "\n")) %>%
+  mutate(name = str_to_title(name)) %>%
+  ggplot(aes(value,
+             colour = name,
+             fill = name)) +
+  geom_density(
+    alpha = 0.5) +
+  scale_colour_viridis_d() +
+  scale_fill_viridis_d() +
+  scale_y_continuous(n.breaks = 3) +
+  scale_x_log10() +
+  theme_classic(base_size = 4) +
+  theme(legend.position = "none",
+        axis.title.x = element_markdown()) +
+  facet_wrap(~name, ncol = 2) +
+  labs(x = " log<sub>10</sub> Volume m<sup>3</sup>/ha" )
+
+# not logged
+clean_data %>%
+  filter(period == 0) %>%
+  select(ost_wgs84, nord_wgs84, starts_with("volume_")) %>%
+  select(- volume_excl_overstory, - volume_beech) %>%
+  pivot_longer(cols = starts_with("volume_")) %>%
+  mutate(name = str_remove(name, "volume_")) %>%
+  mutate(name = str_replace(name, "_", "\n")) %>%
+  mutate(name = str_to_title(name)) %>%
+  ggplot(aes(value,
+             colour = name,
+             fill = name)) +
+  geom_density(
+    alpha = 0.5) +
+  scale_colour_viridis_d() +
+  scale_fill_viridis_d() +
+  scale_y_continuous(n.breaks = 3) +
+  theme_classic(base_size = 4) +
+  theme(legend.position = "none",
+        axis.title.x = element_markdown()) +
+  facet_wrap(~name, ncol = 2, scales = "free") +
+  labs(x = "Volume m<sup>3</sup>/ha" )
+
+clean_data %>%
+  filter(period == 0) %>%
+  ggplot(aes(ost_wgs84, nord_wgs84,
+             colour = no_of_stems)) +
+  borders("world", regions = "sweden") +
+  geom_point(shape = 16, alpha = 0.7, size = 0.5) +
+  scale_colour_viridis_c(transform = "log10", breaks = c(100,400,1600,6400)) +
+  coord_quickmap() +
+  theme_void(base_size = 6) + labs(colour = "No. of stems") +
+  theme(legend.key.width = unit(0.3, "lines"))
 
 # test plot location fig --------------------------------------------------
 
