@@ -188,14 +188,14 @@ readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time.rds")) %>%
   filter(period == 0) %>%
   mutate(prop_pine = volume_pine/ standing_volume) %>%
   filter(prop_pine >= 0.5) %>%
-  select(description) -> spruce_dom_plots
+  select(description) -> pine_dom_plots
 
 
 # filter + save -----------------------------------------------------------
 
 readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time.rds")) %>%
   filter(description %in% small_jump_plots$description) %>%
-  filter(description %in% spruce_dom_plots$description) %>%
+  filter(description %in% pine_dom_plots$description) %>%
   mutate(description = str_replace_all(description, " ", "")) %>%
   filter(period == 0 | period == 20) %>%
   filter(soil_moist_code != 4) %>%
