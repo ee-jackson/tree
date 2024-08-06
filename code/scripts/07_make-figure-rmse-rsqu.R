@@ -38,9 +38,9 @@ results <- readRDS(here("data", "derived", "results.rds")) %>%
     ),
     learner = recode_factor(
       learner,
-      s = "Single model",
-      t = "Two models",
-      x = "Crossed models",
+      s = "S-learner",
+      t = "T-learner",
+      x = "X-leaner",
       .ordered = TRUE
     ))
 
@@ -104,8 +104,21 @@ plot_rmse <- function(data,
 plot_rmse(data = results,
           y_var = results$rmse,
           y_lab = "RMSE",
+          x_var = results$assignment,
+          x_lab = "Selection bias") +
+
+
+  plot_rmse(data = results,
+            y_var = results$rsq,
+            y_lab = "R<sup>2</sup>",
+            x_var = results$assignment,
+            x_lab = "Selection bias") +
+
+plot_rmse(data = results,
+          y_var = results$rmse,
+          y_lab = "RMSE",
           x_var = results$n_train,
-          x_lab = "Sample size",
+          x_lab = "Training sample size",
           x_breaks = c(0, 62, 125, 250, 500, 1000),
           x_cont = TRUE) +
 
@@ -113,7 +126,7 @@ plot_rmse(data = results,
             y_var = results$rsq,
             y_lab = "R<sup>2</sup>",
             x_var = results$n_train,
-            x_lab = "Sample size",
+            x_lab = "Training sample size",
             x_breaks = c(0, 62, 125, 250, 500, 1000),
             x_cont = TRUE) +
 
@@ -121,7 +134,7 @@ plot_rmse(data = results,
             y_var = results$rmse,
             y_lab = "RMSE",
             x_var = results$prop_not_treated,
-            x_lab = "Proportion not treated\n(treatment imbalance)",
+            x_lab = "Sample imbalance",
             x_breaks = c(0.3, 0.5, 0.7),
             x_cont = TRUE) +
 
@@ -129,46 +142,33 @@ plot_rmse(data = results,
             y_var = results$rsq,
             y_lab = "R<sup>2</sup>",
             x_var = results$prop_not_treated,
-            x_lab = "Proportion not treated\n(treatment imbalance)",
+            x_lab = "Sample imbalance",
             x_breaks = c(0.3, 0.5, 0.7),
             x_cont = TRUE) +
 
   plot_rmse(data = results,
             y_var = results$rmse,
             y_lab = "RMSE",
-            x_var = results$assignment,
-            x_lab = "Treatment assignment") +
-
-
-  plot_rmse(data = results,
-            y_var = results$rsq,
-            y_lab = "R<sup>2</sup>",
-            x_var = results$assignment,
-            x_lab = "Treatment assignment") +
-
-  plot_rmse(data = results,
-            y_var = results$rmse,
-            y_lab = "RMSE",
-            x_var = results$var_omit,
-            x_lab = "Omission of important variable") +
-
-  plot_rmse(data = results,
-            y_var = results$rsq,
-            y_lab = "R<sup>2</sup>",
-            x_var = results$var_omit,
-            x_lab = "Omission of important variable") +
-
-  plot_rmse(data = results,
-            y_var = results$rmse,
-            y_lab = "RMSE",
             x_var = results$test_plot_location,
-            x_lab = "Location of test plots") +
+            x_lab = "Spatial overlap of test\nand training data") +
 
   plot_rmse(data = results,
             y_var = results$rsq,
             y_lab = "R<sup>2</sup>",
             x_var = results$test_plot_location,
-            x_lab = "Location of test plots") +
+            x_lab = "Spatial overlap of test\nand training data") +
+
+  plot_rmse(data = results,
+            y_var = results$rmse,
+            y_lab = "RMSE",
+            x_var = results$var_omit,
+            x_lab = "Covariate omission") +
+
+  plot_rmse(data = results,
+            y_var = results$rsq,
+            y_lab = "R<sup>2</sup>",
+            x_var = results$var_omit,
+            x_lab = "Covariate omission") +
 
   plot_layout(guides = "collect", ncol = 2) +
   plot_annotation(tag_levels = "a") &

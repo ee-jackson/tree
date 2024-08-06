@@ -13,6 +13,8 @@ library("here")
 library("patchwork")
 library("yardstick")
 library("ggtext")
+library("readxl")
+library("maps")
 
 set.seed(123)
 
@@ -118,10 +120,10 @@ plot_real_pred <- function(treat_as, sample_imbalance,
 
   plot_dat %>%
     select(description, cate_pred, cate_real, Error) %>%
-    rename(`true\nCATE` = cate_real, `predicted\nCATE` = cate_pred) %>%
+    rename(`true\nITE` = cate_real, `predicted\nITE` = cate_pred) %>%
     rowid_to_column() %>%
-    pivot_longer(cols = c(`predicted\nCATE`, `true\nCATE`)) %>%
-    mutate(name = factor(name, levels = c("true\nCATE", "predicted\nCATE"))) %>%
+    pivot_longer(cols = c(`predicted\nITE`, `true\nITE`)) %>%
+    mutate(name = factor(name, levels = c("true\nITE", "predicted\nITE"))) %>%
     arrange(rowid, name)  -> pivot_dat
 
   plot_dat %>%
@@ -156,7 +158,7 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     # geom_richtext(data = labels, aes(label = r2),
     #           x = -28, y = 21, hjust = 0, colour = "blue",
     #           size = 1.5, label.size = 0, fill = NA) +
-    labs(y = "predicted CATE", x = "true CATE") +
+    labs(y = "predicted ITE", x = "true ITE") +
     labs(title = plot_title) +
     theme(plot.title = element_text(hjust = -0.4)) -> p1
 
@@ -192,7 +194,7 @@ plot_real_pred <- function(treat_as, sample_imbalance,
   variable_omit = FALSE,
   plot_location = "random",
   meta_learner = "s",
-  plot_title = "a  Single model",
+  plot_title = "a  S-learner",
   coord_df = nfi_coords
 ) ) /
   (plot_real_pred(
@@ -203,7 +205,7 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     variable_omit = FALSE,
     plot_location = "random",
     meta_learner = "t",
-    plot_title = "b  Two models",
+    plot_title = "b  T-learner",
     coord_df = nfi_coords
   ) ) /
   (plot_real_pred(
@@ -214,9 +216,9 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     variable_omit = FALSE,
     plot_location = "random",
     meta_learner = "x",
-    plot_title = "c  Crossed models",
+    plot_title = "c  X-learner",
     coord_df = nfi_coords
   ))
 
-ggsave(here::here("output","figures","results-mapped-errors2.png"),
+ggsave(here::here("output","figures","results-mapped-errors.png"),
        width = 1000, height = 1500, units = "px")

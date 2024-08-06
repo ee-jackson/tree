@@ -60,7 +60,7 @@ fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
     feat_list <- c("soil_moist_code", "mat_5yr", "soil_carbon_initial",
                    "map_5yr", "altitude", "no_of_stems", "ditch",
                    "volume_pine", "volume_spruce", "volume_birch",
-                   "volume_aspen", "volume_oak", "volume_contorta",
+                   "volume_aspen", "volume_oak", "volume_beech",
                    "volume_southern_broadleaf", "volume_larch")
 
   } else if (var_omit == TRUE) {
@@ -68,7 +68,7 @@ fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
     feat_list <- c("soil_moist_code", "mat_5yr",
                    "map_5yr", "altitude", "no_of_stems", "ditch",
                    "volume_pine", "volume_spruce", "volume_birch",
-                   "volume_aspen", "volume_oak", "volume_contorta",
+                   "volume_aspen", "volume_oak", "volume_beech",
                    "volume_southern_broadleaf", "volume_larch")
 
   } else {

@@ -22,9 +22,9 @@ models_out <- readRDS(here("data", "derived", "all_runs.rds")) %>%
   mutate(
     learner = recode_factor(
     learner,
-    s = "Single model",
-    t = "Two models",
-    x = "Crossed models",
+    s = "S-learner",
+    t = "T-learner",
+    x = "X-learner",
     .ordered = TRUE
   ),
   test_plot_location = recode_factor(
@@ -61,7 +61,7 @@ plot_real_pred <- function(data, col_var, lab_var) {
           strip.text.x = element_text(hjust = 0, margin = margin(l=0.5)),
           strip.background = element_blank()
           ) +
-    labs(y = "predicted CATE", x = "true CATE",
+    labs(y = "predicted ITE", x = "true ITE",
          colour = lab_var) +
     facet_wrap(~learner, ncol = 1)
 }
@@ -101,17 +101,17 @@ models_out %>%
 plot_real_pred(
   data = df_n_train,
   col_var = df_n_train$n_train,
-  lab_var = "Sample size"
+  lab_var = "Training sample size"
   ) +
   plot_real_pred(
     data = df_test_loc,
     col_var = df_test_loc$test_plot_location,
-    lab_var = "Location of test data"
+    lab_var = "Spatial overlap of test\nand training data"
   ) +
   plot_real_pred(
     data = df_var_omit,
     col_var = df_var_omit$var_omit,
-    lab_var = "Omission of important variable"
+    lab_var = "Covariate omission"
   ) +
   plot_layout(ncol = 3)
 

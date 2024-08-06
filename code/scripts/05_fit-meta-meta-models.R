@@ -73,17 +73,17 @@ get_vip <- function(df, plot_title, show_y_var) {
     vi_df %>%
       mutate(Variable = case_when(
         Variable == "n_train" ~ "Training sample size",
-        Variable == "var_omit" ~ "Omission of important variable",
-        Variable == "assignment" ~ "Treatment assignment",
-        Variable == "prop_not_treated" ~ "Treatment imbalance",
-        Variable == "test_plot_location" ~ "Location of test plots"
+        Variable == "var_omit" ~ "Covariate omission",
+        Variable == "assignment" ~ "Selection bias",
+        Variable == "prop_not_treated" ~ "Sample imbalance",
+        Variable == "test_plot_location" ~ "Spatial overlap of test\nand training data"
       ) ) %>%
       mutate(Variable = fct_relevel(Variable,
-                                    c("Treatment assignment",
-                                      "Treatment imbalance",
-                                      "Omission of important variable",
-                                      "Location of test plots",
-                                      "Training sample size"
+                                    c("Covariate omission",
+                                      "Spatial overlap of test\nand training data",
+                                      "Sample imbalance",
+                                      "Training sample size",
+                                      "Selection bias"
                                     ))
       ) %>%
       ggplot(aes(y = Variable, x = Importance)) +
@@ -100,27 +100,27 @@ get_vip <- function(df, plot_title, show_y_var) {
       scale_x_continuous(expand = expansion(mult = c(0, .1))) +
       scale_colour_manual(values =
                             c("Training sample size" = "#E69f00",
-                              "Omission of important variable" = "#56B4E9",
-                              "Treatment assignment" = "#0072B2",
-                              "Treatment imbalance" = "#F0E442",
-                              "Location of test plots" = "#009E73")) +
+                              "Covariate omission" = "#56B4E9",
+                              "Selection bias" = "#0072B2",
+                              "Sample imbalance" = "#F0E442",
+                              "Spatial overlap of test\nand training data" = "#009E73")) +
       labs(title = plot_title) -> ps
 
     } else {
       vi_df %>%
         mutate(Variable = case_when(
           Variable == "n_train" ~ "Training sample size",
-          Variable == "var_omit" ~ "Omission of important variable",
-          Variable == "assignment" ~ "Treatment assignment",
-          Variable == "prop_not_treated" ~ "Treatment imbalance",
-          Variable == "test_plot_location" ~ "Location of test plots"
+          Variable == "var_omit" ~ "Covariate omission",
+          Variable == "assignment" ~ "Selection bias",
+          Variable == "prop_not_treated" ~ "Sample imbalance",
+          Variable == "test_plot_location" ~ "Spatial overlap of test\nand training data"
         ) ) %>%
         mutate(Variable = fct_relevel(Variable,
-                                      c("Treatment assignment",
-                                        "Treatment imbalance",
-                                        "Omission of important variable",
-                                        "Location of test plots",
-                                        "Training sample size"
+                                      c("Covariate omission",
+                                        "Spatial overlap of test\nand training data",
+                                        "Sample imbalance",
+                                        "Training sample size",
+                                        "Selection bias"
                                       ))
         ) %>%
         ggplot(aes(y = Variable, x = Importance)) +
@@ -137,10 +137,10 @@ get_vip <- function(df, plot_title, show_y_var) {
         scale_x_continuous(expand = expansion(mult = c(0, .1))) +
         scale_colour_manual(values =
                               c("Training sample size" = "#E69f00",
-                                "Omission of important variable" = "#56B4E9",
-                                "Treatment assignment" = "#0072B2",
-                                "Treatment imbalance" = "#F0E442",
-                                "Location of test plots" = "#009E73")) +
+                                "Covariate omission" = "#56B4E9",
+                                "Selection bias" = "#0072B2",
+                                "Sample imbalance" = "#F0E442",
+                                "Spatial overlap of test\nand training data" = "#009E73")) +
         labs(title = plot_title) -> ps
 
     }
@@ -150,15 +150,15 @@ get_vip <- function(df, plot_title, show_y_var) {
 
 
 vip_s <- get_vip(df = filter(results, learner == "s"),
-                 plot_title = "a  Single model",
+                 plot_title = "a  S-learner",
                  show_y_var = TRUE)
 
 vip_t <- get_vip(df = filter(results, learner == "t"),
-                 plot_title = "b  Two models",
+                 plot_title = "b  T-learner",
                  show_y_var = FALSE)
 
 vip_x <- get_vip(df = filter(results, learner == "x"),
-                 plot_title = "c  Crossed models",
+                 plot_title = "c  X-learner",
                  show_y_var = FALSE)
 
 vip_s + vip_t + vip_x +
