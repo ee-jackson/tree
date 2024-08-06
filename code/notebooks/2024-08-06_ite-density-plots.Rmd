@@ -1,0 +1,67 @@
+---
+title: "ITE density plots"
+author: '`r Sys.getenv("USER")`'
+date: '`r format(Sys.time(), "%d %B, %Y")`' 
+always_allow_html: true
+output: 
+  github_document:
+    keep_html: true
+---
+	
+```{r setup, include = FALSE}
+file_name <- rstudioapi::getSourceEditorContext()$path
+
+knitr::opts_chunk$set(
+  fig.path =
+    paste0("figures/", sub("\\.Rmd$", "", basename(file_name)), "/", sep = "")
+)
+
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
+```
+
+```{r packages, message=FALSE, warning=FALSE}
+library("tidyverse")
+library("here")
+library("patchwork")
+```
+
+```{r}
+models_out <- readRDS(here("data", "derived", "all_runs.rds")) %>%
+  filter(restrict_confounder == FALSE) %>%
+  mutate(
+    learner = recode_factor(
+    learner,
+    s = "S-learner",
+    t = "T-learner",
+    x = "X-learner",
+    .ordered = TRUE
+  ),
+  var_omit = factor(var_omit, levels = c("TRUE", "FALSE"))
+  )
+
+```
+
+```{r}
+plot_data <- models_out %>% 
+  filter(assignment == "random") %>% 
+  filter(n_train == 1000) %>% 
+  filter(var_omit == FALSE) %>% 
+  filter(test_plot_location == "random") %>% 
+  unnest(df_out)
+```
+
+```{r}
+
+plot_data %>% 
+  rename(predicted = cate_pred,
+         truth = cate_real) %>% 
+  pivot_longer(cols = c(predicted, truth),
+               names_to = "ITE") %>% 
+  ggplot(aes(x = value, fill = ITE, colour = ITE)) +
+  geom_density(alpha = 0.3) +
+  facet_grid(learner ~ prop_not_treated)
+  
+
+```
+
+
