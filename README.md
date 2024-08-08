@@ -1,7 +1,7 @@
 # tree
-A [TREE (TRansferablE Ecology for a changing world) lab](https://treelabecology.weebly.com) project.
 
-This repository contains the [research compendium](https://research-compendium.science) for our in-prep manuscript: __Precision ecology in action.__
+This repository contains the [research compendium](https://research-compendium.science) for our in-prep manuscript: __Towards causal predictions of site-level treatment effects in applied ecology.__ E. E. Jackson, T. Snäll, E. Gardner, J. M. Bullock & R. Spake
+
 
 ## Contents:
 
@@ -32,5 +32,5 @@ To reproduce results and figures from this project,
 first open the `.Rproj` file and call `renv::restore()` to restore the project's R package library. 
 Then, run the `.R` scripts in [`code/scripts/`](code/scripts/) in the order in which they are labelled, 
 starting from `02_identify-test-plots.R`. 
-Note that the first two scripts are for reference only, 
-since they need to be run on a high-performance computing cluster.
+Note that the first two scripts which clean and filter the data are for reference only, 
+since we will be providing the cleaned data in this repository.
