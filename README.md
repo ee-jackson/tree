@@ -1,5 +1,7 @@
 # tree
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13269918.svg)](https://doi.org/10.5281/zenodo.13269918)
+
 This repository contains the [research compendium](https://research-compendium.science) for our in-prep manuscript: __Towards causal predictions of site-level treatment effects in applied ecology.__ E. E. Jackson, T. Snäll, E. Gardner, J. M. Bullock & R. Spake
 
 
