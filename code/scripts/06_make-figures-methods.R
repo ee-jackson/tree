@@ -1,8 +1,8 @@
 #!/usr/bin/env Rscript
 
 ## Author: E E Jackson, eleanor.elizabeth.j@gmail.com
-## Script:
-## Desc:
+## Script: 06_make-figures-methods.R
+## Desc: Makes the small figures used in Table 1 of the methods section
 ## Date: April 2024
 
 # module load R/4.3.0

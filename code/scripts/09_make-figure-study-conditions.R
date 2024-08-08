@@ -2,7 +2,7 @@
 
 ## Author: E E Jackson, eleanor.elizabeth.j@gmail.com
 ## Script: make-figure-study-conditions.R
-## Desc:
+## Desc: makes figure 4
 ## Date: April 2024
 
 
