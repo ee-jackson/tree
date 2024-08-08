@@ -28,7 +28,7 @@ The [`output/`](output/) directory contains the subdirectory [`figures/`](output
 which contains the figures used in the paper.
 
 ## Usage
-To reproduce results and figures from this project, 
+To reproduce results and figures from this project in the [RStudio IDE](https://posit.co/download/rstudio-desktop/), 
 first open the `.Rproj` file and call `renv::restore()` to restore the project's R package library. 
 Then, run the `.R` scripts in [`code/scripts/`](code/scripts/) in the order in which they are labelled, 
 starting from `02_identify-test-plots.R`. 
