@@ -1,0 +1,74 @@
+---
+title: "Interaction importance"
+author: '`r Sys.getenv("USER")`'
+date: '`r format(Sys.time(), "%d %B, %Y")`' 
+always_allow_html: true
+output: 
+  github_document:
+    keep_html: true
+---
+	
+```{r setup, include = FALSE}
+file_name <- rstudioapi::getSourceEditorContext()$path
+
+knitr::opts_chunk$set(
+  fig.path =
+    paste0("figures/", sub("\\.Rmd$", "", basename(file_name)), "/", sep = "")
+)
+
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
+```
+
+We need a way to look at interactions 
+so that we can pull out the important ones and visualise them.
+
+- How to specify and visualise importance of interactions in a RF model?
+	- then, if we find Z1:Z2 is an important interaction
+	- then we can facet our plots in these ways?
+- https://recipes.tidymodels.org/reference/step_interact.html
+- https://www.nature.com/articles/s41598-023-30313-8
+	- _Interpretable statistical models, such as generalized additive models (GAMs), can offer utility in this regard. However, GAMs do not necessarily “find” interactions. They instead test the validity of explicitly modeled hypothetical interactions. This frequently requires exhaustive model selection to identify and verify critical interactions driving model behavior. This can be particularly challenging with a large numbers of smoothing parameters, with highly interactive input parameters, when statistical power is limited, or when smoothing in higher dimensions (however, see Discussion for more on the utility of GAMs)._
+- maybe just try doing a glm & dredge with MuMIn?
+
+```{r packages, message=FALSE, warning=FALSE}
+library("tidyverse")
+library("here")
+library("patchwork")
+library("MuMIn")
+```
+
+```{r}
+results <- 
+  readRDS(here("data", "derived", "results.rds")) %>% 
+  filter(restrict_confounder == FALSE)
+  
+```
+
+```{r}
+global_mod <- 
+  glm(rmse ~ (assignment + prop_not_treated + 
+      test_plot_location + n_train + var_omit + learner)^2,
+      data = results,
+      na.action = "na.fail")
+                        
+```
+
+```{r}
+dredge_out <- 
+  MuMIn::dredge(global_mod,
+              fixed = c("learner", "assignment", "prop_not_treated", 
+                        "test_plot_location", "n_train", "var_omit"))
+```
+
+```{r fig.height=15, fig.width=10}
+plot(dredge_out)
+```
+
+In this plot, rows are different models and columns are terms.
+
+```{r}
+dredge_out[1:10,]
+
+```
+
+
