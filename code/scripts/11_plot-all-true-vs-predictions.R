@@ -16,7 +16,8 @@ library("yardstick")
 library("ggtext")
 
 all_runs <-
-  readRDS(here::here("data", "derived", "all_runs.rds"))
+  readRDS(here::here("data", "derived", "all_runs.rds")) %>%
+  filter(restrict_confounder == FALSE)
 
 keys <- expand.grid(
   assignment = c("random", "correlated_region",
@@ -24,8 +25,7 @@ keys <- expand.grid(
   prop_not_treated = c(0.3, 0.5, 0.7),
   n_train = c(62, 125, 250, 500, 1000),
   var_omit = c(TRUE, FALSE),
-  test_plot_location = c("random", "edge", "centre")
-) %>%
+  test_plot_location = c("random", "edge", "centre")) %>%
   rowid_to_column(var = "id")
 
 # function to make rmse and r2 labels
@@ -61,10 +61,10 @@ plot_real_pred <- function(treat_as, sample_imbalance,
 
   plot_dat %>%
     select(description, cate_pred, cate_real, learner, Error) %>%
-    rename(`true CATE` = cate_real, `predicted CATE` = cate_pred) %>%
+    rename(`true ITE` = cate_real, `predicted ITE` = cate_pred) %>%
     rowid_to_column() %>%
-    pivot_longer(cols = c(`predicted CATE`, `true CATE`)) %>%
-    mutate(name = factor(name, levels = c("true CATE", "predicted CATE"))) %>%
+    pivot_longer(cols = c(`predicted ITE`, `true ITE`)) %>%
+    mutate(name = factor(name, levels = c("true ITE", "predicted ITE"))) %>%
     arrange(rowid, name)  -> pivot_dat
 
   plot_dat %>%
@@ -85,12 +85,12 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     geom_richtext(data = labels, aes(label = r2),
                   x = -44, y = 34, hjust = 0, colour = "blue",
                   label.colour = NA, size = 2, label.size = 0, fill = NA) +
-    labs(y = "predicted CATE", x = "true CATE",
-         subtitle = paste("assignment = ", treat_as, ", ",
-                          "sampling imbalance = ", sample_imbalance, ", ",
+    labs(y = "predicted ITE", x = "true ITE",
+         subtitle = paste("Selection bias = ", treat_as, ", ",
+                          "Sample imbalance = ", sample_imbalance, ", ",
                           "n = ", sample_size, ", ",
-                          "variable omission = ", variable_omit, ", ",
-                          "test data location = ", plot_location,
+                          "Covariate omission = ", variable_omit, ", ",
+                          "Test data location = ", plot_location,
                           sep = ""))-> p1
 
 
@@ -116,13 +116,13 @@ plot_real_pred <- function(treat_as, sample_imbalance,
 
 all_runs %>%
   mutate(learner = case_when(
-    learner == "s" ~ "Single model (S-learner)",
-    learner == "t" ~ "Two models (T-learner)",
-    learner == "x" ~ "Crossed models (X-learner)")) %>%
+    learner == "s" ~ "S-learner",
+    learner == "t" ~ "T-learner",
+    learner == "x" ~ "X-learner")) %>%
   mutate(learner = fct_relevel(learner,
-                               c("Single model (S-learner)",
-                               "Two models (T-learner)",
-                               "Crossed models (X-learner)")
+                               c("S-learner",
+                               "T-learner",
+                               "X-learner")
                              )
          ) -> all_runs_rlvl
 
