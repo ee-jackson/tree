@@ -35,30 +35,39 @@ library("tidyverse")
 library("here")
 library("patchwork")
 library("MuMIn")
+library("DHARMa")
+library("jtools")
+library("effects")
 ```
 
 ```{r}
 results <- 
   readRDS(here("data", "derived", "results.rds")) %>% 
-  filter(restrict_confounder == FALSE)
+  filter(restrict_confounder == FALSE) %>% 
+  mutate(n_train = as.ordered(n_train),
+         prop_not_treated = as.ordered(prop_not_treated))
   
 ```
 
 ```{r}
 global_mod <- 
-  glm(rmse ~ (assignment + prop_not_treated + 
-      test_plot_location + n_train + var_omit + learner)^2,
+  glm(rmse ~ n_train + (assignment + prop_not_treated + 
+      test_plot_location + var_omit + learner)^2,
       data = results,
       na.action = "na.fail")
                         
 ```
 
+Removed `n_train` interactions as they don't seem to be important.
+
 ```{r}
 dredge_out <- 
   MuMIn::dredge(global_mod,
-              fixed = c("learner", "assignment", "prop_not_treated", 
-                        "test_plot_location", "n_train", "var_omit"))
+              fixed = c("learner", "test_plot_location", "n_train", "var_omit"))
 ```
+
+Removed `prop_not_treated` and `assignment` from the list of fixed terms,
+as the RF thought they weren't very important - don't force them into the model.
 
 ```{r fig.height=15, fig.width=10}
 plot(dredge_out)
@@ -71,4 +80,52 @@ dredge_out[1:10,]
 
 ```
 
+Check fit of the best model:
 
+```{r}
+best_mod <- 
+  get.models(dredge_out, subset = 1)[[1]]
+
+simulateResiduals(best_mod, n = 200, plot = T, integerResponse = F)
+```
+The fit is bad.
+
+Get nice summary output:
+
+```{r}
+lm(best_mod$formula, data = results, 
+    na.action = "na.fail") -> best_mod_lm
+
+jtools::summ(best_mod_lm)
+```
+
+Look at interactions:
+
+```{r fig.height=15, fig.width=15}
+plot(effects::allEffects(best_mod_lm))
+```
+
+We are not sure rmse is useful on its own actually, because:
+
+- Using the rmse, we lose information about whether predictions are consistently over or underestimated. We just get a single value for the whole distribution of ITE predictions for each training dataset.
+- The error is not normally distributed, and can be skewed.
+ 
+So, we thought about comparing the distributions of the errors from each training dataset, 
+rather than the rmse to characterise them. 
+Our next question – how should we compare distributions? 
+Multiple parameters are required to characterise distributions, 
+and their spread, central tendency etc. 
+We are interested in the actual values along their range and how they are distributed.
+ 
+There seems to be 2 options for clustering:
+
+- Identifying multiple features to describe error distribution per test sample
+  - but what features should we cluster?
+  - mean, min, max? median, quartiles? https://www.westga.edu/academics/research/vrc/assets/docs/describing_distributions_with_numbers_notes.pdf
+  - What about [natural jenks optimal values](https://medium.com/analytics-vidhya/jenks-natural-breaks-best-range-finder-algorithm-8d1907192051) too? E.g., tell r to identify k jenks breaks, and return the values of those? Or another kind of interval?
+- Visual assessment of divergence
+  - Use Kullback-Leibler divergence as a pair-wise dissimilarity measure to characterise differences in error distributions.
+  - Then visualise to see clusters
+- Other ways?
+  - [Wasserstein K-means for clustering probability distributions](https://arxiv.org/abs/2209.06975)
+  - other measures e.g. https://www.lix.polytechnique.fr/~nielsen/entropy-16-03273.pdf
