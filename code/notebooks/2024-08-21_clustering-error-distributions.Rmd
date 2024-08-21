@@ -1,0 +1,206 @@
+---
+title: "Clustering models by their error distributions"
+author: '`r Sys.getenv("USER")`'
+date: '`r format(Sys.time(), "%d %B, %Y")`' 
+always_allow_html: true
+output: 
+  github_document:
+    keep_html: true
+---
+	
+```{r setup, include = FALSE}
+file_name <- rstudioapi::getSourceEditorContext()$path
+
+knitr::opts_chunk$set(
+  fig.path =
+    paste0("figures/", sub("\\.Rmd$", "", basename(file_name)), "/", sep = "")
+)
+
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
+```
+
+```{r packages, message=FALSE, warning=FALSE}
+library("tidyverse")
+library("here")
+library("patchwork")
+library("cluster")
+library("factoextra")
+
+set.seed(123)
+```
+
+We think that we are losing information by focusing on the RMSE.
+We just get a single value for the whole distribution of ITE predictions for each training dataset.
+The error is not normally distributed, and can be skewed.
+
+So, can we compare the distributions of the errors from each training dataset, 
+rather than using the RMSE to characterise them?
+
+Here, I'm going to try characterising the distributions using bins i.e.
+comparing the distributions based on how many values are within certain ranges (bins).
+Then, we can turn that into a matrix and use the counts per bin to cluster on.
+
+Following [this post](https://medium.com/@zullinira23/implementation-of-principal-component-analysis-pca-on-k-means-clustering-in-r-794f03ec15f)
+on implementing PCA on k-means clustering in R.
+
+```{r}
+all_runs <-
+  readRDS(here::here("data", "derived", "all_runs.rds")) %>% 
+  filter(restrict_confounder == FALSE) 
+```
+
+## Test with sample of 12 models
+
+```{r}
+sample <-
+  all_runs %>% 
+  sample_n(12) %>% 
+  unnest(df_out)
+```
+
+```{r}
+sample <-
+  sample %>% 
+  rowwise() %>% 
+  mutate(error = cate_pred - cate_real) 
+```
+
+```{r}
+test_bins <- 
+  sample %>% 
+  select(run_id, error) %>% 
+  mutate(bin = cut(error, 
+                   breaks = seq(
+                     min(sample$error), 
+                     max(sample$error), 
+                     length.out = 30), 
+                   labels = FALSE,
+                   include.lowest = TRUE)) %>% 
+  group_by(run_id, bin) %>% 
+  summarise(n = n()) 
+
+test_bins %>% 
+  ggplot(aes(x = bin, y = n)) +
+  geom_col() +
+  facet_wrap(~run_id)
+```
+
+```{r}
+matrix_test <- 
+  test_bins %>% 
+  pivot_wider(id_cols = run_id,
+              names_from = bin,
+              values_from = n) %>% 
+  column_to_rownames("run_id") %>% 
+  mutate(across(everything(), \(x) replace_na(x, 0)))
+
+glimpse(matrix_test)
+```
+
+```{r}
+pca_test <- prcomp(matrix_test, 
+                   center = TRUE,
+                   scale = TRUE)
+
+summary(pca_test)
+
+# take PCA1 and PCA2
+matrix_test_transform <- as.data.frame(-pca_test$x[,1:2])
+```
+
+```{r}
+fviz_nbclust(matrix_test_transform, kmeans, method = 'wss')
+```
+
+```{r}
+kmeans(matrix_test_transform, 4) -> kmeans_test
+
+fviz_cluster(kmeans_test, data = matrix_test_transform)
+```
+
+## More data
+
+Takes forever when I use the full dataset (4,050 runs), 
+so for now just doing 1,000.
+
+```{r}
+all_runs_errors <-
+  all_runs %>% 
+  sample_n(1000) %>% 
+  unnest(df_out) %>% 
+  rowwise() %>% 
+  mutate(error = cate_pred - cate_real) 
+```
+
+```{r}
+all_runs_errors %>% 
+  select(run_id, error) %>% 
+  mutate(bin = cut(error, 
+                   breaks = seq(min(all_runs_errors$error), 
+                                max(all_runs_errors$error), 
+                                length.out = 30), 
+                   labels = FALSE,
+                   include.lowest = TRUE)) %>% 
+  group_by(run_id, bin) %>% 
+  summarise(n = n()) -> all_runs_bins
+```
+
+```{r}
+matrix <- 
+  all_runs_bins %>% 
+  pivot_wider(id_cols = run_id,
+              names_from = bin,
+              values_from = n) %>% 
+  column_to_rownames("run_id") %>% 
+  mutate(across(everything(), \(x) replace_na(x, 0)))
+```
+
+```{r}
+pca <- prcomp(matrix, center = TRUE, scale = TRUE)
+summary(pca)
+
+matrix_transform <- as.data.frame(-pca$x[,1:2])
+```
+
+```{r}
+fviz_nbclust(matrix_transform, kmeans, method = 'wss')
+```
+
+```{r}
+kmeans(matrix_transform, 4) -> clusters
+
+fviz_cluster(clusters, 
+             data = matrix,
+             geom = "point")
+```
+
+```{r}
+clusters$cluster %>% 
+  as_tibble(rownames = "run_id") %>%  
+  mutate(run_id = as.integer(run_id)) %>% 
+  rename(cluster = value) %>% 
+  left_join(all_runs) -> all_runs_c
+
+all_runs_c %>% 
+  ggplot(aes(x = cluster)) +
+  geom_bar() +
+  facet_wrap(~learner)
+```
+
+```{r}
+clusters$cluster %>% 
+  as_tibble(rownames = "run_id") %>%  
+  mutate(run_id = as.integer(run_id)) %>% 
+  rename(cluster = value) %>% 
+  left_join(all_runs_bins)-> all_runs_b
+
+glimpse(all_runs_b)
+
+all_runs_b %>% 
+  mutate(run_id = as.factor(run_id)) %>% 
+  filter(run_id %in% sample(levels(run_id), 30)) %>% 
+  ggplot(aes(x = bin, y = n, fill = as.factor(cluster))) +
+  geom_col() +
+  facet_wrap(~run_id)
+```
+
