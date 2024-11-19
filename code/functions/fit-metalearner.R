@@ -2,8 +2,8 @@
 #' @param df_train The training data.
 #' @param df_assigned The full dataset to which treatment has been assigned.
 #' @param var_omit Logical indicating if `soil_carbon_initial` should be omitted from the feature list.
-#' @param test_plot_location Should test plots should be randomly selected `random` or selected from a geographically distinct area `edge` or `centre`.
-#' @param learner The choice of metalearner `s`, `t` or `x`
+#' @param test_plot_location Should test plots should be randomly selected `random` or selected from a geographically distinct area `edge` or `core`.
+#' @param learner The choice of metalearner `s`, `t`, `dr` or `x`
 #' @param restrict_confounder Logical indicating if the confounders for propensity score estimation should
 #' be restricted to `soil_carbon_initial`, `soil_moist_code`, `mat_5yr`? Only valid when `learner == x`.
 #' @return The ITE
@@ -19,27 +19,32 @@ fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
   train_plot_list <- pull(df_train, description)
 
   # sample random test
-  test_data_0 <- df_assigned |>
+  test_data_0 <-
+    df_assigned |>
     dplyr::filter(! description %in% train_plot_list) |>
     dplyr::filter(tr == 0) |>
     dplyr::slice_sample(n = 81)
 
-  test_data_1 <- df_assigned |>
+  test_data_1 <-
+    df_assigned |>
     dplyr::filter(! description %in% train_plot_list) |>
     dplyr::filter(tr == 1) |>
     dplyr::slice_sample(n = 81)
 
-  test_data_random <- dplyr::bind_rows(test_data_0, test_data_1)
+  test_data_random <-
+    dplyr::bind_rows(test_data_0, test_data_1)
 
-  test_data_centre <- df_assigned |>
-    dplyr::filter(sampling_location == "centre")
+  test_data_core <-
+    df_assigned |>
+    dplyr::filter(sampling_location == "core")
 
-  test_data_edge <- df_assigned |>
+  test_data_edge <-
+    df_assigned |>
     dplyr::filter(sampling_location == "edge")
 
-  if (test_plot_location == "centre") {
+  if (test_plot_location == "core") {
 
-    test_data <- test_data_centre
+    test_data <- test_data_core
 
   } else if (test_plot_location == "edge") {
 
@@ -51,7 +56,7 @@ fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
 
   } else {
 
-    print0("`test_plot_location` should be either `random`, `edge` or `centre`")
+    print0("`test_plot_location` should be either `random`, `edge` or `core`")
 
   }
 
@@ -60,16 +65,18 @@ fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
     feat_list <- c("soil_moist_code", "mat_5yr", "soil_carbon_initial",
                    "map_5yr", "altitude", "no_of_stems", "ditch",
                    "volume_pine", "volume_spruce", "volume_birch",
-                   "volume_aspen", "volume_oak", "volume_beech",
-                   "volume_southern_broadleaf", "volume_larch")
+                   "volume_aspen", "volume_oak", "volume_contorta",
+                   "volume_southern_broadleaf", "volume_larch",
+                   "volume_other_broadleaf", "volume_beech")
 
   } else if (var_omit == TRUE) {
 
     feat_list <- c("soil_moist_code", "mat_5yr",
                    "map_5yr", "altitude", "no_of_stems", "ditch",
                    "volume_pine", "volume_spruce", "volume_birch",
-                   "volume_aspen", "volume_oak", "volume_beech",
-                   "volume_southern_broadleaf", "volume_larch")
+                   "volume_aspen", "volume_oak", "volume_contorta",
+                   "volume_southern_broadleaf", "volume_larch",
+                   "volume_other_broadleaf", "volume_beech")
 
   } else {
 
@@ -81,18 +88,22 @@ fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
   if (learner == "s" & restrict_confounder == FALSE) {
 
     # create the hte object
-    s_learn <- causalToolbox::S_RF(
+    s_learn <-
+      causalToolbox::S_RF(
       feat = dplyr::select(df_train, tidyselect::all_of(feat_list)),
       tr = df_train$tr,
       yobs = df_train$soil_carbon_obs,
       nthread = 2)
 
     # estimate the CATE
-    cate_s_learn <- causalToolbox::EstimateCate(s_learn,
-                                 dplyr::select(test_data,
-                                               tidyselect::all_of(feat_list)))
+    cate_s_learn <-
+      causalToolbox::EstimateCate(
+        s_learn,
+        dplyr::select(test_data, tidyselect::all_of(feat_list))
+        )
 
-    s_learn_out <- test_data |>
+    s_learn_out <-
+      test_data |>
       dplyr::mutate(cate_pred = cate_s_learn,
              cate_real = soil_carbon_1 - soil_carbon_0)
 
@@ -101,22 +112,48 @@ fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
   } else if (learner == "t" & restrict_confounder == FALSE) {
 
     # create the hte object
-    t_learn <- causalToolbox::T_RF(
+    t_learn <-
+      causalToolbox::T_RF(
       feat = dplyr::select(df_train, tidyselect::all_of(feat_list)),
       tr = df_train$tr,
       yobs = df_train$soil_carbon_obs,
       nthread = 2)
 
     # estimate the CATE
-    cate_t_learn <- causalToolbox::EstimateCate(t_learn,
-                                 dplyr::select(test_data,
-                                               tidyselect::all_of(feat_list)))
+    cate_t_learn <-
+      causalToolbox::EstimateCate(
+        t_learn,
+        dplyr::select(test_data, tidyselect::all_of(feat_list))
+        )
 
-    t_learn_out <- test_data |>
+    t_learn_out <-
+      test_data |>
       dplyr::mutate(cate_pred = cate_t_learn,
              cate_real = soil_carbon_1 - soil_carbon_0)
 
     return(t_learn_out)
+
+  } else if (learner == "dr" & restrict_confounder == FALSE) {
+
+    # create the hte object
+    dr_learn <- causalToolbox::DR_RF(
+      feat = dplyr::select(df_train,
+                           tidyselect::all_of(feat_list)),
+      tr = df_train$tr,
+      yobs = df_train$soil_carbon_obs,
+      nthread = 2)
+
+    cate_dr_learn <-
+      causalToolbox::EstimateCate(
+        dr_learn,
+        dplyr::select(test_data, tidyselect::all_of(feat_list))
+        )
+
+    dr_learn_out <- test_data |>
+      dplyr::mutate(cate_pred = cate_dr_learn,
+                    cate_real = soil_carbon_1 - soil_carbon_0)
+
+    return(dr_learn_out)
 
   } else if (learner == "x" & restrict_confounder == FALSE) {
 
@@ -128,11 +165,14 @@ fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
       yobs = df_train$soil_carbon_obs,
       nthread = 2)
 
-    cate_x_learn <- causalToolbox::EstimateCate(x_learn,
-                                 dplyr::select(test_data,
-                                               tidyselect::all_of(feat_list)))
+    cate_x_learn <-
+      causalToolbox::EstimateCate(
+        x_learn,
+        dplyr::select(test_data, tidyselect::all_of(feat_list))
+        )
 
-    x_learn_out <- test_data |>
+    x_learn_out <-
+      test_data |>
       dplyr::mutate(cate_pred = cate_x_learn,
              cate_real = soil_carbon_1 - soil_carbon_0)
 
@@ -153,11 +193,14 @@ fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
                         nodesizeStrictSpl = 2, nodesizeStrictAvg = 1, splitratio = 1,
                         middleSplit = FALSE, OOBhonest = TRUE))
 
-    cate_x_learn <- causalToolbox::EstimateCate(x_learn,
-                                                dplyr::select(test_data,
-                                                              tidyselect::all_of(feat_list)))
+    cate_x_learn <-
+      causalToolbox::EstimateCate(
+        x_learn,
+        dplyr::select(test_data, tidyselect::all_of(feat_list))
+        )
 
-    x_learn_out <- test_data |>
+    x_learn_out <-
+      test_data |>
       dplyr::mutate(cate_pred = cate_x_learn,
                     cate_real = soil_carbon_1 - soil_carbon_0)
 
@@ -178,18 +221,20 @@ fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
                         nodesizeStrictSpl = 2, nodesizeStrictAvg = 1, splitratio = 1,
                         middleSplit = FALSE, OOBhonest = TRUE))
 
-    cate_x_learn <- causalToolbox::EstimateCate(x_learn,
-                                                dplyr::select(test_data,
-                                                              tidyselect::all_of(feat_list)))
+    cate_x_learn <-
+      causalToolbox::EstimateCate(
+        x_learn, dplyr::select(test_data, tidyselect::all_of(feat_list))
+        )
 
-    x_learn_out <- test_data |>
+    x_learn_out <-
+      test_data |>
       dplyr::mutate(cate_pred = cate_x_learn,
                     cate_real = soil_carbon_1 - soil_carbon_0)
 
     return(x_learn_out)
 
   } else {
-    print("learner should be either 's', 't' or 'x'.
+    print("learner should be either 's', 't', 'dr' or 'x'.
           restrict_confounder == TRUE is only valid when learner == 'x'")
   }
 }
