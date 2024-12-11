@@ -2,13 +2,14 @@
 #' @param df_train The training data.
 #' @param df_assigned The full dataset to which treatment has been assigned.
 #' @param var_omit Logical indicating if `soil_carbon_initial` should be omitted from the feature list.
-#' @param test_plot_location Should test plots should be randomly selected `random` or selected from a geographically distinct area `edge` or `core`.
+#' @param test_plot_location Should test plots should be randomly selected `random` or selected from a geographically distinct area `edge` or `centre`.
 #' @param learner The choice of metalearner `s`, `t`, `dr` or `x`
 #' @param restrict_confounder Logical indicating if the confounders for propensity score estimation should
 #' be restricted to `soil_carbon_initial`, `soil_moist_code`, `mat_5yr`? Only valid when `learner == x`.
 #' @return The ITE
 #' @import dplyr causalToolbox
 #' @importFrom tidyselect all_of
+#' @importFrom caret createFolds
 #' @export
 
 fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
@@ -34,17 +35,17 @@ fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
   test_data_random <-
     dplyr::bind_rows(test_data_0, test_data_1)
 
-  test_data_core <-
+  test_data_centre <-
     df_assigned |>
-    dplyr::filter(sampling_location == "core")
+    dplyr::filter(sampling_location == "centre")
 
   test_data_edge <-
     df_assigned |>
     dplyr::filter(sampling_location == "edge")
 
-  if (test_plot_location == "core") {
+  if (test_plot_location == "centre") {
 
-    test_data <- test_data_core
+    test_data <- test_data_centre
 
   } else if (test_plot_location == "edge") {
 
@@ -56,7 +57,7 @@ fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
 
   } else {
 
-    print0("`test_plot_location` should be either `random`, `edge` or `core`")
+    print0("`test_plot_location` should be either `random`, `edge` or `centre`")
 
   }
 
