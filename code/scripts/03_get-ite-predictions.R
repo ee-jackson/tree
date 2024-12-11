@@ -31,14 +31,11 @@ keys <- expand.grid(
                  "correlated_altitude"),
   prop_not_treated = c(0.3, 0.5, 0.7),
   n_train = c(62, 125, 250, 500, 1000),
-  learner = c("s", "t", "x"),
+  learner = c("s", "t", "dr", "x"),
   var_omit = c(TRUE, FALSE),
   test_plot_location = c("random", "edge", "centre"),
-  restrict_confounder = c(TRUE, FALSE)
+  restrict_confounder = FALSE
   ) %>%
-  filter((learner == "s" & restrict_confounder == FALSE) |
-           (learner == "t" & restrict_confounder == FALSE) |
-           (learner == "x")) %>%
   # add replicates
   slice(rep(1:n(), each = 5))
 
