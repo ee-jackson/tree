@@ -12,9 +12,11 @@ assign_treatment <- function(df_clean, assignment) {
     dplyr::filter(period == 0) |>
     dplyr::select(
       description, sampling_location, soil_moist_code,
-      altitude, mat_5yr, map_5yr, ditch, no_of_stems, volume_pine, volume_spruce,
-      volume_birch, volume_aspen, volume_oak, volume_beech,
-      volume_southern_broadleaf, volume_larch
+      altitude, mat_5yr, map_5yr, ditch, no_of_stems,
+      volume_pine, volume_spruce, volume_birch,
+      volume_aspen, volume_oak, volume_contorta,
+      volume_southern_broadleaf, volume_larch,
+      volume_other_broadleaf, volume_beech
     )
 
   # first assign test data for specified locations
