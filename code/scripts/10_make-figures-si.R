@@ -15,6 +15,7 @@ library("ggmap")
 library("janitor")
 library("factoextra")
 library("vip")
+library("tidymodels")
 library("ggtext")
 
 # Load data ---------------------------------------------------------------
@@ -352,17 +353,17 @@ get_vip_t <- function(df) {
   vi_df %>%
     mutate(Variable = case_when(
       Variable == "n_train" ~ "Training sample size",
-      Variable == "var_omit" ~ "Omission of important variable",
-      Variable == "assignment" ~ "Treatment assignment",
-      Variable == "prop_not_treated" ~ "Treatment imbalance",
-      Variable == "test_plot_location" ~ "Location of test plots",
+      Variable == "var_omit" ~ "Covariate omission",
+      Variable == "assignment" ~ "Selection bias",
+      Variable == "prop_not_treated" ~ "Sample imbalance",
+      Variable == "test_plot_location" ~ "Spatial overlap of test\nand training data",
       Variable == "learner" ~ "Meta-learner algorithm"
     ) ) %>%
     mutate(Variable = fct_relevel(Variable,
-                                  c("Treatment assignment",
-                                    "Treatment imbalance",
-                                    "Omission of important variable",
-                                    "Location of test plots",
+                                  c("Selection bias",
+                                    "Sample imbalance",
+                                    "Covariate omission",
+                                    "Spatial overlap of test\nand training data",
                                     "Meta-learner algorithm",
                                     "Training sample size"
                                   ))
@@ -381,15 +382,16 @@ get_vip_t <- function(df) {
     scale_colour_manual(values =
                           c("Training sample size" = "#E69f00",
                             "Meta-learner algorithm" = "#D55E00",
-                            "Omission of important variable" = "#56B4E9",
-                            "Treatment assignment" = "#0072B2",
-                            "Treatment imbalance" = "#F0E442",
-                            "Location of test plots" = "#009E73")) -> ps
+                            "Covariate omission" = "#56B4E9",
+                            "Selection bias" = "#0072B2",
+                            "Sample imbalance" = "#F0E442",
+                            "Spatial overlap of test\nand training data" = "#009E73")) -> ps
 }
 
 vip_a <- get_vip_t(df = results)
 
 ggsave(here::here("output","figures","si-meta-meta-vip-all.png"),
+       vip_a,
        width = 600, height = 600, units = "px")
 
 
