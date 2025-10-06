@@ -42,7 +42,7 @@ lapply(file_names, gunzip)
 
 # read in data
 file_names <- as.list(dir(path = here::here("data", "raw", "climate_data"),
-                          pattern = "cru_ts4*", full.names = TRUE))
+                          pattern = ".dat.nc$", full.names = TRUE))
 
 cru_ts4_list <- lapply(file_names, nc_open)
 
@@ -118,7 +118,7 @@ map_data <- pre_data %>%
 # Match to NFI plots ------------------------------------------------------
 
 nfi_coords <- readxl::read_excel(
-  here::here("data", "raw", "NFI plot coords NFI 2016-2020.xlsx"),
+  here::here("data", "raw", "NFI_plot_coords_NFI_2016-2020.xlsx"),
   col_types = c("numeric", "text", "text","numeric","numeric","numeric",
     "numeric","numeric","numeric","numeric","numeric","numeric","numeric")
 ) %>%
