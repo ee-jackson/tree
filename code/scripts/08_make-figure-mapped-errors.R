@@ -136,7 +136,7 @@ plot_real_pred <- function(treat_as, sample_imbalance,
           plot.margin = unit(c(0, 0, 0, 0), "cm")) +
     scale_colour_gradientn(
       colours = colorspace::divergingx_hcl(n = 10, palette = "RdYlBu"),
-      limits = c(-20, 20)) -> p3
+      limits = c(-25, 25)) -> p3
 
   plot_dat %>%
     ggplot(aes(x = cate_real, y = cate_pred, colour = Error)) +
@@ -148,9 +148,9 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     geom_abline(intercept = 0, slope = 1, colour = "blue", linewidth = 0.25) +
     scale_colour_gradientn(
       colours = colorspace::divergingx_hcl(n = 10, palette = "RdYlBu"),
-      limits = c(-20, 20)) +
-    xlim(-25, 25) +
-    ylim(-25, 25) +
+      limits = c(-25, 25)) +
+    xlim(-30, 15) +
+    ylim(-30, 15) +
     theme_classic(base_size = 6) +
     # geom_richtext(data = labels, aes(label = rmse),
     #           x = -28, y = 25, hjust = 0, colour = "blue",
@@ -171,11 +171,12 @@ plot_real_pred <- function(treat_as, sample_imbalance,
               linewidth = 0.25,
               alpha = 0.4) +
     scale_colour_gradientn(colours = colorspace::divergingx_hcl(n = 10, palette = "RdYlBu"),
-                           limits = c(-20, 20)) +
-    ylim(-25, 25) +
+                           limits = c(-25, 25)) +
+    ylim(-30, 15) +
     labs(x = "", y = "") +
     theme_classic(base_size = 6) +
-    geom_hline(yintercept = 0, colour = "grey", linetype = 2) -> p2
+    geom_hline(yintercept = 0, colour = "grey",
+               linetype = 2, linewidth = 0.25) -> p2
 
 
   p1 + p2 + p3 +
