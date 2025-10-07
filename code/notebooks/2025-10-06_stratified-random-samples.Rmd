@@ -1,0 +1,421 @@
+---
+title: "Stratified random samples"
+author: '`r Sys.getenv("USER")`'
+date: '`r format(Sys.time(), "%d %B, %Y")`' 
+always_allow_html: true
+output: 
+  github_document:
+    keep_html: true
+---
+	
+```{r setup, include = FALSE}
+file_name <- rstudioapi::getSourceEditorContext()$path
+
+knitr::opts_chunk$set(
+  fig.path =
+    paste0("figures/", sub("\\.Rmd$", "", basename(file_name)), "/", sep = "")
+)
+
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 15))
+```
+
+```{r}
+set.seed(123)
+library("tidyverse")
+library("ggtext")
+library("patchwork")
+library("yardstick")
+```
+
+- It's hard to compare like for like because the test data are different
+- We think the results are sensitive to random selection
+- I wonder if we could calculate the rmse and r2 statistics on a random subset of the data
+- Could we choose 'stratified random' sampling, rather than pure random
+
+Basically, we take all the possible test data (all NFI plots):, and stratify by true ITE values.
+So do a new simulation set. That way, we will always have a good spread in the data
+the distribution would no longer be normally distributed
+but it would still be interesting to compare the rmse and the r2
+
+
+for each test data prediction, could we then calculate error, and plot half-violin plots? Learner on x-axis. Add a horizontal dotted line to show error=0. And facet by sample size?
+
+1) take the true ITEs of all the NFI plots. bin by deciles (Deciles, also called 10-quantiles, use nine dividing values (the deciles themselves) to create these ten group), using the cut() function.
+2) then randomly choose N plots per decile, group_by(declile)%>%slice_sample(n=10?) --> training data
+3) choose another random lot from remaining data --> test data
+3) use the test data to train a s, t and x-learner.
+4) make predictions for training data 
+5) for each test data prediction, could we then calculate: RMSE, R2, error values for each NFI plot, and plot half-violin plots? Learner on x-axis, error on y-axis. Add a horizontal dotted line to show error=0. And facet by sample size?
+ 
+```{r}
+clean_data <-
+  readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time_clim_squ.rds"))
+```
+
+```{r}
+# get my functions
+function_dir <- list.files(here::here("code", "functions"),
+                           full.names = TRUE)
+
+sapply(function_dir, source)
+```
+
+
+## First randomly assign data to treated or not treated
+
+```{r}
+df_assigned_rand <- 
+  assign_treatment(clean_data, "random")
+```
+
+## Re-design function to sample training data
+
+Training data are selected by stratified random sampling i.e., 
+an equal number randomly selected from each decile with 50% treated and 50% not treated.
+
+```{r}
+sample_data_strat <- function(df_assigned, prop_not_treated = 0.5, n_train) {
+
+  # sample train
+  df_train_0 <- df_assigned |>
+    dplyr::filter(sampling_location == "other") |>
+    dplyr::filter(tr == 0) |>
+    mutate(ite_real = soil_carbon_0 - soil_carbon_1) |>
+    mutate(decile = ntile(ite_real, 10)) |>
+    group_by(decile) |>
+    dplyr::slice_sample(n = as.integer((n_train*prop_not_treated)/10)) |>
+    ungroup()
+
+  df_train_1 <- df_assigned |>
+    dplyr::filter(sampling_location == "other") |>
+    dplyr::filter(tr == 1) |>
+    mutate(ite_real = soil_carbon_0 - soil_carbon_1) |>
+    mutate(decile = ntile(ite_real, 10)) |>
+    group_by(decile) |>
+    dplyr::slice_sample(n = as.integer((n_train*prop_not_treated)/10)) |>
+    ungroup()
+
+  df_train <- dplyr::bind_rows(df_train_0, df_train_1) |>
+    select(-c(ite_real, decile))
+
+  return(df_train)
+
+}
+```
+
+Only vary sample size and learner
+
+```{r}
+keys <- 
+  expand.grid(
+  n_train = c(62, 125, 250, 500, 1000),
+  learner = c("s", "t", "x"),
+  var_omit = FALSE,
+  test_plot_location = "random") %>%
+  mutate(df_assigned = list(df_assigned_rand))
+```
+
+Run function over keys
+
+```{r}
+
+sample_out <- 
+  purrr::pmap(list(df_assigned = keys$df_assigned,
+                 n_train = keys$n_train
+                 ),
+            sample_data_strat) 
+
+```
+ 
+Now add training data to keys
+ 
+```{r}
+keys <- 
+  keys %>%
+  mutate(df_train = sample_out) %>% 
+  mutate(assignment = "random",
+         prop_not_treated = 0.5,
+         restrict_confounder = FALSE)
+```
+
+## Fit metalearners
+
+```{r}
+
+model_out <- 
+  purrr::pmap(list(df_train = keys$df_train,
+                 df_assigned = keys$df_assigned,
+                 learner = keys$learner,
+                 var_omit = keys$var_omit,
+                 test_plot_location = keys$test_plot_location
+), fit_metalearner, seed = 123)
+
+```
+
+Add output from metalearners to keys 
+
+```{r}
+keys <- 
+  keys %>%
+  mutate(df_out = model_out) %>%
+  mutate(run_id = row_number()) 
+```
+ 
+## Plotting
+
+Create plotting function
+
+```{r}
+# function to make rmse and r2 labels
+make_labels <- function(dat) {
+  rmse <- paste("RMSE = ", round(yardstick::rmse_vec(truth = dat$cate_real,
+                                                 estimate = dat$cate_pred), 3))
+  r2 <- paste("R<sup>2</sup> =", round(yardstick::rsq_vec(truth = dat$cate_real,
+                                                          estimate = dat$cate_pred), 3))
+  data.frame(rmse = rmse, r2 = r2, stringsAsFactors = FALSE)
+}
+
+# plotting function
+plot_real_pred <- function(treat_as, sample_imbalance,
+                           sample_size, variable_omit, plot_location,
+                           meta_learner,
+                           id, out, plot_title) {
+  out %>%
+    filter(
+      assignment == treat_as,
+      prop_not_treated == sample_imbalance,
+      n_train == sample_size,
+      var_omit == variable_omit,
+      test_plot_location == plot_location,
+      learner == meta_learner,
+      restrict_confounder == FALSE
+    ) -> out_subset
+
+  out_subset %>%
+    unnest(df_out) %>%
+    mutate(Error = cate_pred - cate_real) %>%
+    mutate(learner = str_to_upper(learner)) -> plot_dat
+  
+  plot_dat %>%
+    group_by(learner) %>%
+    do(make_labels(.)) -> labels
+
+  plot_dat %>%
+    select(description, cate_pred, cate_real, Error) %>%
+    rename(`true\nITE` = cate_real, `predicted\nITE` = cate_pred) %>%
+    rowid_to_column() %>%
+    pivot_longer(cols = c(`predicted\nITE`, `true\nITE`)) %>%
+    mutate(name = factor(name, levels = c("true\nITE", "predicted\nITE"))) %>%
+    arrange(rowid, name)  -> pivot_dat
+
+  plot_dat %>%
+    ggplot(aes(x = cate_real, y = cate_pred, colour = Error)) +
+    geom_hline(yintercept = 0, colour = "grey",
+               linetype = 2, linewidth = 0.25) +
+    geom_vline(xintercept = 0, colour = "grey",
+               linetype = 2, linewidth = 0.25) +
+    geom_point(size = 0.25) +
+    geom_abline(intercept = 0, slope = 1, colour = "blue", linewidth = 0.25) +
+    geom_richtext(data = labels, aes(label = rmse),
+                  x = -35, y = 14, hjust = 0, colour = "blue",
+                  label.colour = NA, size = 2, label.size = 0, fill = NA) +
+    geom_richtext(data = labels, aes(label = r2),
+                  x = -35, y = 10, hjust = 0, colour = "blue",
+                  label.colour = NA, size = 2, label.size = 0, fill = NA) +
+    scale_colour_gradientn(
+      colours = colorspace::divergingx_hcl(n = 10, palette = "RdYlBu"),
+      limits = c(-25, 25)) +
+    xlim(-35, 15) +
+    ylim(-35, 15) +
+    theme_classic(base_size = 6) +
+    labs(y = "predicted ITE", x = "true ITE") +
+    labs(title = plot_title)  -> p1
+
+
+  pivot_dat %>%
+    ggplot(aes(x = name, y = value, colour = Error)) +
+    ggdist::stat_slab(orientation = "x", side = "both", normalize = "all") +
+    geom_point(size = 0.25) +
+    geom_line(aes(group = interaction(Error, rowid)),
+              linewidth = 0.25,
+              alpha = 0.4) +
+    scale_colour_gradientn(colours = colorspace::divergingx_hcl(n = 10, palette = "RdYlBu"),
+                           limits = c(-25, 25)) +
+    ylim(-35, 15) +
+    labs(x = "", y = "") +
+    theme_classic(base_size = 6) +
+    geom_hline(yintercept = 0, colour = "grey",
+               linetype = 2, linewidth = 0.25) -> p2
+
+
+  p1 + p2 + 
+    plot_layout(guides = "collect",
+                widths = c(2,1))
+}
+```
+
+### S learner plots
+
+```{r fig.height=8, fig.width=4, warning=FALSE}
+
+(plot_real_pred(
+  out = keys,
+  treat_as = "random",
+  sample_imbalance = 0.5,
+  sample_size = 1000,
+  variable_omit = FALSE,
+  plot_location = "random",
+  meta_learner = "s",
+  plot_title = "S-learner, n = 1000"
+) ) /
+  (plot_real_pred(
+    out = keys,
+    treat_as = "random",
+    sample_imbalance = 0.5,
+    sample_size = 500,
+    variable_omit = FALSE,
+    plot_location = "random",
+    meta_learner = "s",
+    plot_title = "S-learner, n = 500"
+  ) ) /
+  (plot_real_pred(
+    out = keys,
+    treat_as = "random",
+    sample_imbalance = 0.5,
+    sample_size = 250,
+    variable_omit = FALSE,
+    plot_location = "random",
+    meta_learner = "s",
+    plot_title = "S-learner, n = 250"
+  ) ) /
+  (plot_real_pred(
+    out = keys,
+    treat_as = "random",
+    sample_imbalance = 0.5,
+    sample_size = 125,
+    variable_omit = FALSE,
+    plot_location = "random",
+    meta_learner = "s",
+    plot_title = "S-learner, n = 125"
+  )) /
+  (plot_real_pred(
+    out = keys,
+    treat_as = "random",
+    sample_imbalance = 0.5,
+    sample_size = 62,
+    variable_omit = FALSE,
+    plot_location = "random",
+    meta_learner = "s",
+    plot_title = "S-learner, n = 62"
+  )) 
+```
+
+### T learner plots
+
+```{r  fig.height=8, fig.width=4, warning=FALSE}
+(plot_real_pred(
+  out = keys,
+  treat_as = "random",
+  sample_imbalance = 0.5,
+  sample_size = 1000,
+  variable_omit = FALSE,
+  plot_location = "random",
+  meta_learner = "t",
+  plot_title = "T-learner, n = 1000"
+) ) /
+  (plot_real_pred(
+    out = keys,
+    treat_as = "random",
+    sample_imbalance = 0.5,
+    sample_size = 500,
+    variable_omit = FALSE,
+    plot_location = "random",
+    meta_learner = "t",
+    plot_title = "T-learner, n = 500"
+  ) ) /
+  (plot_real_pred(
+    out = keys,
+    treat_as = "random",
+    sample_imbalance = 0.5,
+    sample_size = 250,
+    variable_omit = FALSE,
+    plot_location = "random",
+    meta_learner = "t",
+    plot_title = "T-learner, n = 250"
+  ) ) /
+  (plot_real_pred(
+    out = keys,
+    treat_as = "random",
+    sample_imbalance = 0.5,
+    sample_size = 125,
+    variable_omit = FALSE,
+    plot_location = "random",
+    meta_learner = "t",
+    plot_title = "T-learner, n = 125"
+  )) /
+  (plot_real_pred(
+    out = keys,
+    treat_as = "random",
+    sample_imbalance = 0.5,
+    sample_size = 62,
+    variable_omit = FALSE,
+    plot_location = "random",
+    meta_learner = "t",
+    plot_title = "T-learner, n = 62"
+  )) 
+```
+
+### T learner plots
+
+```{r  fig.height=8, fig.width=4, warning=FALSE}
+(plot_real_pred(
+  out = keys,
+  treat_as = "random",
+  sample_imbalance = 0.5,
+  sample_size = 1000,
+  variable_omit = FALSE,
+  plot_location = "random",
+  meta_learner = "x",
+  plot_title = "X-learner, n = 1000"
+) ) /
+  (plot_real_pred(
+    out = keys,
+    treat_as = "random",
+    sample_imbalance = 0.5,
+    sample_size = 500,
+    variable_omit = FALSE,
+    plot_location = "random",
+    meta_learner = "x",
+    plot_title = "X-learner, n = 500"
+  ) ) /
+  (plot_real_pred(
+    out = keys,
+    treat_as = "random",
+    sample_imbalance = 0.5,
+    sample_size = 250,
+    variable_omit = FALSE,
+    plot_location = "random",
+    meta_learner = "x",
+    plot_title = "X-learner, n = 250"
+  ) ) /
+  (plot_real_pred(
+    out = keys,
+    treat_as = "random",
+    sample_imbalance = 0.5,
+    sample_size = 125,
+    variable_omit = FALSE,
+    plot_location = "random",
+    meta_learner = "x",
+    plot_title = "X-learner, n = 125"
+  )) /
+  (plot_real_pred(
+    out = keys,
+    treat_as = "random",
+    sample_imbalance = 0.5,
+    sample_size = 62,
+    variable_omit = FALSE,
+    plot_location = "random",
+    meta_learner = "x",
+    plot_title = "X-learner, n = 62"
+  )) 
+```
