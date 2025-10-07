@@ -365,7 +365,7 @@ plot_real_pred <- function(treat_as, sample_imbalance,
   )) 
 ```
 
-### T learner plots
+### X learner plots
 
 ```{r  fig.height=8, fig.width=4, warning=FALSE}
 (plot_real_pred(

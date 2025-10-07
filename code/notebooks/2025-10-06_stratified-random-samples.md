@@ -388,7 +388,7 @@ plot_real_pred <- function(treat_as, sample_imbalance,
 
 ![](figures/2025-10-06_stratified-random-samples/unnamed-chunk-13-1.png)<!-- -->
 
-### T learner plots
+### X learner plots
 
 ``` r
 (plot_real_pred(
