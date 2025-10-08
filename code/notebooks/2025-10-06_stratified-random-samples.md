@@ -1,7 +1,7 @@
 Stratified random samples
 ================
 eleanorjackson
-07 October, 2025
+08 October, 2025
 
 ``` r
 set.seed(123)
@@ -102,7 +102,6 @@ sample_data_strat <- function(df_assigned, prop_not_treated = 0.5, n_train) {
 
   # sample train
   df_train_0 <- df_assigned |>
-    dplyr::filter(sampling_location == "other") |>
     dplyr::filter(tr == 0) |>
     mutate(ite_real = soil_carbon_0 - soil_carbon_1) |>
     mutate(decile = ntile(ite_real, 10)) |>
@@ -111,7 +110,6 @@ sample_data_strat <- function(df_assigned, prop_not_treated = 0.5, n_train) {
     ungroup()
 
   df_train_1 <- df_assigned |>
-    dplyr::filter(sampling_location == "other") |>
     dplyr::filter(tr == 1) |>
     mutate(ite_real = soil_carbon_0 - soil_carbon_1) |>
     mutate(decile = ntile(ite_real, 10)) |>
@@ -127,19 +125,15 @@ sample_data_strat <- function(df_assigned, prop_not_treated = 0.5, n_train) {
 }
 ```
 
-Only vary sample size and learner
-
 ``` r
 keys <- 
-  expand.grid(
+  tibble(
   n_train = c(62, 125, 250, 500, 1000),
-  learner = c("s", "t", "x"),
-  var_omit = FALSE,
-  test_plot_location = "random") %>%
-  mutate(df_assigned = list(df_assigned_rand))
+  df_assigned = list(df_assigned_rand)
+  )
 ```
 
-Run function over keys
+Run function over keys to sample training data
 
 ``` r
 sample_out <- 
@@ -149,26 +143,243 @@ sample_out <-
             sample_data_strat) 
 ```
 
-Now add training data to keys
+Now add training data to keys. Runs with the same sample size will have
+exactly the same training data.
 
 ``` r
 keys <- 
   keys %>%
-  mutate(df_train = sample_out) %>% 
+  mutate(df_train = sample_out) %>%
+  slice(rep(1:n(), each = 3)) %>% 
   mutate(assignment = "random",
+         learner = rep(c("s", "t", "x"), 5),
          prop_not_treated = 0.5,
-         restrict_confounder = FALSE)
+         restrict_confounder = FALSE,
+         df_assigned = list(df_assigned_rand))
+```
+
+## Re-write metalearner function
+
+``` r
+fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
+                            test_data, restrict_confounder = FALSE,
+                            seed = NULL) {
+  set.seed(seed = seed)
+
+  train_plot_list <- pull(df_train, description)
+  
+
+  if (var_omit == FALSE) {
+
+    feat_list <- c("soil_moist_code", "mat_5yr", "soil_carbon_initial",
+                   "map_5yr", "altitude", "no_of_stems", "ditch",
+                   "volume_pine", "volume_spruce", "volume_birch",
+                   "volume_aspen", "volume_oak", "volume_beech",
+                   "volume_southern_broadleaf", "volume_larch")
+
+  } else if (var_omit == TRUE) {
+
+    feat_list <- c("soil_moist_code", "mat_5yr",
+                   "map_5yr", "altitude", "no_of_stems", "ditch",
+                   "volume_pine", "volume_spruce", "volume_birch",
+                   "volume_aspen", "volume_oak", "volume_beech",
+                   "volume_southern_broadleaf", "volume_larch")
+
+  } else {
+
+    print("`var_omit` should be either `TRUE` or `FALSE`")
+
+  }
+
+
+  if (learner == "s" & restrict_confounder == FALSE) {
+
+    # create the hte object
+    s_learn <- causalToolbox::S_RF(
+      feat = dplyr::select(df_train, tidyselect::all_of(feat_list)),
+      tr = df_train$tr,
+      yobs = df_train$soil_carbon_obs,
+      nthread = 2)
+
+    # estimate the CATE
+    cate_s_learn <- causalToolbox::EstimateCate(s_learn,
+                                 dplyr::select(test_data,
+                                               tidyselect::all_of(feat_list)))
+
+    s_learn_out <- test_data |>
+      dplyr::mutate(cate_pred = cate_s_learn,
+             cate_real = soil_carbon_1 - soil_carbon_0)
+
+    return(s_learn_out)
+
+  } else if (learner == "t" & restrict_confounder == FALSE) {
+
+    # create the hte object
+    t_learn <- causalToolbox::T_RF(
+      feat = dplyr::select(df_train, tidyselect::all_of(feat_list)),
+      tr = df_train$tr,
+      yobs = df_train$soil_carbon_obs,
+      nthread = 2)
+
+    # estimate the CATE
+    cate_t_learn <- causalToolbox::EstimateCate(t_learn,
+                                 dplyr::select(test_data,
+                                               tidyselect::all_of(feat_list)))
+
+    t_learn_out <- test_data |>
+      dplyr::mutate(cate_pred = cate_t_learn,
+             cate_real = soil_carbon_1 - soil_carbon_0)
+
+    return(t_learn_out)
+
+  } else if (learner == "x" & restrict_confounder == FALSE) {
+
+    # create the hte object
+    x_learn <- causalToolbox::X_RF(
+      feat = dplyr::select(df_train,
+                           tidyselect::all_of(feat_list)),
+      tr = df_train$tr,
+      yobs = df_train$soil_carbon_obs,
+      nthread = 2)
+
+    cate_x_learn <- causalToolbox::EstimateCate(x_learn,
+                                 dplyr::select(test_data,
+                                               tidyselect::all_of(feat_list)))
+
+    x_learn_out <- test_data |>
+      dplyr::mutate(cate_pred = cate_x_learn,
+             cate_real = soil_carbon_1 - soil_carbon_0)
+
+    return(x_learn_out)
+
+  } else if (learner == "x" & restrict_confounder == TRUE & var_omit == FALSE) {
+
+    # create the hte object
+    x_learn <- causalToolbox::X_RF(
+      feat = dplyr::select(df_train,
+                           tidyselect::all_of(feat_list)),
+      tr = df_train$tr,
+      yobs = df_train$soil_carbon_obs,
+      nthread = 2,
+      e.forestry = list(relevant.Variable = 1:3,
+                        ntree = 500, replace = TRUE, sample.fraction = 0.5,
+                        mtry = 3, nodesizeSpl = 11, nodesizeAvg = 33,
+                        nodesizeStrictSpl = 2, nodesizeStrictAvg = 1, splitratio = 1,
+                        middleSplit = FALSE, OOBhonest = TRUE))
+
+    cate_x_learn <- causalToolbox::EstimateCate(x_learn,
+                                                dplyr::select(test_data,
+                                                              tidyselect::all_of(feat_list)))
+
+    x_learn_out <- test_data |>
+      dplyr::mutate(cate_pred = cate_x_learn,
+                    cate_real = soil_carbon_1 - soil_carbon_0)
+
+    return(x_learn_out)
+
+  }else if (learner == "x" & restrict_confounder == TRUE & var_omit == TRUE) {
+
+    # create the hte object
+    x_learn <- causalToolbox::X_RF(
+      feat = dplyr::select(df_train,
+                           tidyselect::all_of(feat_list)),
+      tr = df_train$tr,
+      yobs = df_train$soil_carbon_obs,
+      nthread = 2,
+      e.forestry = list(relevant.Variable = 1:2,
+                        ntree = 500, replace = TRUE, sample.fraction = 0.5,
+                        mtry = 2, nodesizeSpl = 11, nodesizeAvg = 33,
+                        nodesizeStrictSpl = 2, nodesizeStrictAvg = 1, splitratio = 1,
+                        middleSplit = FALSE, OOBhonest = TRUE))
+
+    cate_x_learn <- causalToolbox::EstimateCate(x_learn,
+                                                dplyr::select(test_data,
+                                                              tidyselect::all_of(feat_list)))
+
+    x_learn_out <- test_data |>
+      dplyr::mutate(cate_pred = cate_x_learn,
+                    cate_real = soil_carbon_1 - soil_carbon_0)
+
+    return(x_learn_out)
+
+  } else {
+    print("learner should be either 's', 't' or 'x'.
+          restrict_confounder == TRUE is only valid when learner == 'x'")
+  }
+}
+
+# Change Rforestry function so that warning is thrown rather than error when
+# changing x-leaner propensity model confounders
+
+custom_testing_data_checker <- function(object, newdata, hasNas) {
+  if(ncol(newdata) != object@processed_dta$numColumns) {
+    warning(paste0("newdata has ", ncol(newdata), " but the forest was trained with ",
+                   object@processed_dta$numColumns, " columns.")
+    )
+  }
+  if(!is.null(object@processed_dta$featNames)) {
+    if(!all(names(newdata) == object@processed_dta$featNames)) {
+      warning("newdata columns have been reordered so that they match the training feature matrix")
+      matchingPositions <- match(object@processed_dta$featNames, names(newdata))
+      newdata <- newdata[, matchingPositions]
+    }
+  }
+
+  # If linear is true we can't predict observations with some features missing.
+  if(object@linear && any(is.na(newdata))) {
+    stop("linear does not support missing data")
+  }
+  return(newdata)
+}
+
+environment(custom_testing_data_checker) <- asNamespace('Rforestry')
+assignInNamespace("testing_data_checker", custom_testing_data_checker, ns = "Rforestry")
+```
+
+## Select test data
+
+``` r
+not_train_plots <- 
+  df_assigned_rand %>% 
+  filter(!description %in% keys$df_train[[1]],
+         !description %in% keys$df_train[[4]],
+         !description %in% keys$df_train[[7]],
+         !description %in% keys$df_train[[10]],
+         !description %in% keys$df_train[[13]] )
+
+# sample train
+df_test_0 <- not_train_plots |>
+  dplyr::filter(tr == 0) |>
+  mutate(ite_real = soil_carbon_0 - soil_carbon_1) |>
+  mutate(decile = ntile(ite_real, 10)) |>
+  group_by(decile) |>
+  dplyr::slice_sample(n = as.integer((81)/10)) |>
+  ungroup()
+
+df_test_1 <- not_train_plots |>
+  dplyr::filter(tr == 1) |>
+  mutate(ite_real = soil_carbon_0 - soil_carbon_1) |>
+  mutate(decile = ntile(ite_real, 10)) |>
+  group_by(decile) |>
+  dplyr::slice_sample(n = as.integer((81)/10)) |>
+  ungroup()
+
+test_data_strat <- dplyr::bind_rows(df_test_0, df_test_1) |>
+    select(-c(ite_real, decile))
 ```
 
 ## Fit metalearners
 
 ``` r
+keys <- 
+  keys %>%
+  mutate(test_data = list(test_data_strat)) 
+
 model_out <- 
   purrr::pmap(list(df_train = keys$df_train,
                  df_assigned = keys$df_assigned,
                  learner = keys$learner,
-                 var_omit = keys$var_omit,
-                 test_plot_location = keys$test_plot_location
+                 test_data = keys$test_data
 ), fit_metalearner, seed = 123)
 ```
 
@@ -197,7 +408,7 @@ make_labels <- function(dat) {
 
 # plotting function
 plot_real_pred <- function(treat_as, sample_imbalance,
-                           sample_size, variable_omit, plot_location,
+                           sample_size,
                            meta_learner,
                            id, out, plot_title) {
   out %>%
@@ -205,10 +416,7 @@ plot_real_pred <- function(treat_as, sample_imbalance,
       assignment == treat_as,
       prop_not_treated == sample_imbalance,
       n_train == sample_size,
-      var_omit == variable_omit,
-      test_plot_location == plot_location,
-      learner == meta_learner,
-      restrict_confounder == FALSE
+      learner == meta_learner
     ) -> out_subset
 
   out_subset %>%
@@ -282,8 +490,6 @@ plot_real_pred <- function(treat_as, sample_imbalance,
   treat_as = "random",
   sample_imbalance = 0.5,
   sample_size = 1000,
-  variable_omit = FALSE,
-  plot_location = "random",
   meta_learner = "s",
   plot_title = "S-learner, n = 1000"
 ) ) /
@@ -292,8 +498,6 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     treat_as = "random",
     sample_imbalance = 0.5,
     sample_size = 500,
-    variable_omit = FALSE,
-    plot_location = "random",
     meta_learner = "s",
     plot_title = "S-learner, n = 500"
   ) ) /
@@ -302,8 +506,6 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     treat_as = "random",
     sample_imbalance = 0.5,
     sample_size = 250,
-    variable_omit = FALSE,
-    plot_location = "random",
     meta_learner = "s",
     plot_title = "S-learner, n = 250"
   ) ) /
@@ -312,8 +514,6 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     treat_as = "random",
     sample_imbalance = 0.5,
     sample_size = 125,
-    variable_omit = FALSE,
-    plot_location = "random",
     meta_learner = "s",
     plot_title = "S-learner, n = 125"
   )) /
@@ -322,14 +522,12 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     treat_as = "random",
     sample_imbalance = 0.5,
     sample_size = 62,
-    variable_omit = FALSE,
-    plot_location = "random",
     meta_learner = "s",
     plot_title = "S-learner, n = 62"
   )) 
 ```
 
-![](figures/2025-10-06_stratified-random-samples/unnamed-chunk-12-1.png)<!-- -->
+![](figures/2025-10-06_stratified-random-samples/unnamed-chunk-14-1.png)<!-- -->
 
 ### T learner plots
 
@@ -339,8 +537,6 @@ plot_real_pred <- function(treat_as, sample_imbalance,
   treat_as = "random",
   sample_imbalance = 0.5,
   sample_size = 1000,
-  variable_omit = FALSE,
-  plot_location = "random",
   meta_learner = "t",
   plot_title = "T-learner, n = 1000"
 ) ) /
@@ -349,8 +545,6 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     treat_as = "random",
     sample_imbalance = 0.5,
     sample_size = 500,
-    variable_omit = FALSE,
-    plot_location = "random",
     meta_learner = "t",
     plot_title = "T-learner, n = 500"
   ) ) /
@@ -359,8 +553,6 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     treat_as = "random",
     sample_imbalance = 0.5,
     sample_size = 250,
-    variable_omit = FALSE,
-    plot_location = "random",
     meta_learner = "t",
     plot_title = "T-learner, n = 250"
   ) ) /
@@ -369,8 +561,6 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     treat_as = "random",
     sample_imbalance = 0.5,
     sample_size = 125,
-    variable_omit = FALSE,
-    plot_location = "random",
     meta_learner = "t",
     plot_title = "T-learner, n = 125"
   )) /
@@ -379,14 +569,12 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     treat_as = "random",
     sample_imbalance = 0.5,
     sample_size = 62,
-    variable_omit = FALSE,
-    plot_location = "random",
     meta_learner = "t",
     plot_title = "T-learner, n = 62"
   )) 
 ```
 
-![](figures/2025-10-06_stratified-random-samples/unnamed-chunk-13-1.png)<!-- -->
+![](figures/2025-10-06_stratified-random-samples/unnamed-chunk-15-1.png)<!-- -->
 
 ### X learner plots
 
@@ -396,8 +584,6 @@ plot_real_pred <- function(treat_as, sample_imbalance,
   treat_as = "random",
   sample_imbalance = 0.5,
   sample_size = 1000,
-  variable_omit = FALSE,
-  plot_location = "random",
   meta_learner = "x",
   plot_title = "X-learner, n = 1000"
 ) ) /
@@ -406,8 +592,6 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     treat_as = "random",
     sample_imbalance = 0.5,
     sample_size = 500,
-    variable_omit = FALSE,
-    plot_location = "random",
     meta_learner = "x",
     plot_title = "X-learner, n = 500"
   ) ) /
@@ -416,8 +600,6 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     treat_as = "random",
     sample_imbalance = 0.5,
     sample_size = 250,
-    variable_omit = FALSE,
-    plot_location = "random",
     meta_learner = "x",
     plot_title = "X-learner, n = 250"
   ) ) /
@@ -426,8 +608,6 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     treat_as = "random",
     sample_imbalance = 0.5,
     sample_size = 125,
-    variable_omit = FALSE,
-    plot_location = "random",
     meta_learner = "x",
     plot_title = "X-learner, n = 125"
   )) /
@@ -436,11 +616,9 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     treat_as = "random",
     sample_imbalance = 0.5,
     sample_size = 62,
-    variable_omit = FALSE,
-    plot_location = "random",
     meta_learner = "x",
     plot_title = "X-learner, n = 62"
   )) 
 ```
 
-![](figures/2025-10-06_stratified-random-samples/unnamed-chunk-14-1.png)<!-- -->
+![](figures/2025-10-06_stratified-random-samples/unnamed-chunk-16-1.png)<!-- -->
