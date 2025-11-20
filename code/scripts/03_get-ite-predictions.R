@@ -11,8 +11,6 @@
 library("tidyverse")
 library("here")
 
-set.seed(123)
-
 # get my functions
 function_dir <- list.files(here::here("code", "functions"),
                            full.names = TRUE)
