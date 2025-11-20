@@ -25,7 +25,7 @@ keys <- expand.grid(
   prop_not_treated = c(0.3, 0.5, 0.7),
   n_train = c(62, 125, 250, 500, 1000),
   var_omit = c(TRUE, FALSE),
-  test_plot_location = c("random", "edge", "centre")) %>%
+  test_plot_location = c("random", "edge", "core")) %>%
   rowid_to_column(var = "id")
 
 # function to make rmse and r2 labels

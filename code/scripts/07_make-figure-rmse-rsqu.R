@@ -32,7 +32,7 @@ results <- readRDS(here("data", "derived", "results.rds")) %>%
     test_plot_location = recode_factor(
       test_plot_location,
       random = "Random",
-      centre = "Core",
+      core = "Core",
       edge = "Edge",
       .ordered = TRUE
     ),

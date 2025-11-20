@@ -2,7 +2,7 @@
 #' @param df_train The training data.
 #' @param df_assigned The full dataset to which treatment has been assigned.
 #' @param var_omit Logical indicating if `soil_carbon_initial` should be omitted from the feature list.
-#' @param test_plot_location Should test plots should be randomly selected `random` or selected from a geographically distinct area `edge` or `centre`.
+#' @param test_plot_location Should test plots should be randomly selected `random` or selected from a geographically distinct area `edge` or `core`.
 #' @param learner The choice of metalearner `s`, `t` or `x`
 #' @param restrict_confounder Logical indicating if the confounders for propensity score estimation should
 #' be restricted to `soil_carbon_initial`, `soil_moist_code`, `mat_5yr`? Only valid when `learner == x`.
@@ -31,15 +31,15 @@ fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
 
   test_data_random <- dplyr::bind_rows(test_data_0, test_data_1)
 
-  test_data_centre <- df_assigned |>
-    dplyr::filter(sampling_location == "centre")
+  test_data_core <- df_assigned |>
+    dplyr::filter(sampling_location == "core")
 
   test_data_edge <- df_assigned |>
     dplyr::filter(sampling_location == "edge")
 
-  if (test_plot_location == "centre") {
+  if (test_plot_location == "core") {
 
-    test_data <- test_data_centre
+    test_data <- test_data_core
 
   } else if (test_plot_location == "edge") {
 
@@ -51,7 +51,7 @@ fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
 
   } else {
 
-    print0("`test_plot_location` should be either `random`, `edge` or `centre`")
+    print0("`test_plot_location` should be either `random`, `edge` or `core`")
 
   }
 
@@ -60,7 +60,7 @@ fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
     feat_list <- c("soil_moist_code", "mat_5yr", "soil_carbon_initial",
                    "map_5yr", "altitude", "no_of_stems", "ditch",
                    "volume_pine", "volume_spruce", "volume_birch",
-                   "volume_aspen", "volume_oak", "volume_beech",
+                   "volume_aspen", "volume_oak", "volume_contorta",
                    "volume_southern_broadleaf", "volume_larch")
 
   } else if (var_omit == TRUE) {
@@ -68,7 +68,7 @@ fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
     feat_list <- c("soil_moist_code", "mat_5yr",
                    "map_5yr", "altitude", "no_of_stems", "ditch",
                    "volume_pine", "volume_spruce", "volume_birch",
-                   "volume_aspen", "volume_oak", "volume_beech",
+                   "volume_aspen", "volume_oak", "volume_contorta",
                    "volume_southern_broadleaf", "volume_larch")
 
   } else {

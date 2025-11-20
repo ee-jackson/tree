@@ -257,7 +257,7 @@ clean_data %>%
   filter(period == 0) %>%
   mutate(sampling_location =
            recode(sampling_location,
-             centre = "Core",
+             core = "Core",
              edge = "Edge",
              other = "Other"
              )

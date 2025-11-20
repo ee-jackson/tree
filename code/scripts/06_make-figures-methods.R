@@ -137,7 +137,7 @@ all_runs %>%
   mutate(sampling_location = recode_factor(
     sampling_location,
     other = "Random",
-    centre = "Core",
+    core = "Core",
     edge = "Edge",
     .ordered = TRUE
   )) %>%

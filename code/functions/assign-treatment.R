@@ -19,21 +19,21 @@ assign_treatment <- function(df_clean, assignment) {
 
   # first assign test data for specified locations
 
-  # give "centre" test data even treatment assignment
-  sample_centre <- df_clean |>
-    dplyr::filter(sampling_location == "centre") |>
+  # give "core" test data even treatment assignment
+  sample_core <- df_clean |>
+    dplyr::filter(sampling_location == "core") |>
     dplyr::select(description) |>
     dplyr::distinct() |>
     dplyr::slice_sample(n = 162)
 
-  no_treat_ids_centre <- sample_centre |>
+  no_treat_ids_core <- sample_core |>
     dplyr::slice_sample(prop = 0.5)
 
-  data_assigned_centre <- df_clean |>
-    dplyr::filter(description %in% sample_centre$description) |>
+  data_assigned_core <- df_clean |>
+    dplyr::filter(description %in% sample_core$description) |>
     dplyr::mutate(tr =
                     dplyr::case_when(
-                      description %in% no_treat_ids_centre$description ~ 0,
+                      description %in% no_treat_ids_core$description ~ 0,
                       .default = 1)
     )
 
@@ -55,7 +55,7 @@ assign_treatment <- function(df_clean, assignment) {
                       .default = 1)
     )
 
-  test_assigned <- dplyr::bind_rows(data_assigned_centre, data_assigned_edge)
+  test_assigned <- dplyr::bind_rows(data_assigned_core, data_assigned_edge)
 
   if (assignment == "random") {
 

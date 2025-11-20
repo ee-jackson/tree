@@ -31,7 +31,7 @@ models_out <- readRDS(here("data", "derived", "all_runs.rds")) %>%
     test_plot_location,
     random = "Random",
     edge = "Edge",
-    centre = "Core",
+    core = "Core",
     .ordered = TRUE
   ),
   var_omit = factor(var_omit, levels = c("TRUE", "FALSE"))

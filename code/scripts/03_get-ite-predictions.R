@@ -31,7 +31,7 @@ keys <- expand.grid(
   n_train = c(62, 125, 250, 500, 1000),
   learner = c("s", "t", "x"),
   var_omit = c(TRUE, FALSE),
-  test_plot_location = c("random", "edge", "centre"),
+  test_plot_location = c("random", "edge", "core"),
   restrict_confounder = c(TRUE, FALSE)
   ) %>%
   filter((learner == "s" & restrict_confounder == FALSE) |
