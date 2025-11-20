@@ -4,6 +4,7 @@ code/notebooks/*.html
 code/graveyard
 output/plots
 data/*
+docs/preprint_*
 *.doc
 *.docx
 *.xlsx
