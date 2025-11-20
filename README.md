@@ -40,3 +40,7 @@ Then, run the `.R` scripts in [`code/scripts/`](code/scripts/) in the order in w
 starting from `02_identify-test-plots.R`. 
 Note that the first two scripts which clean and filter the data are for reference only, 
 since we will be providing the cleaned data in this repository.
+
+[NetCDF](https://www.unidata.ucar.edu/software/netcdf) 
+(required by the R package [{ncdf4}](https://doi.org/10.32614/CRAN.package.ncdf4))
+is needed to read the [CRU TS climate data](https://doi.org/10.1038/s41597-020-0453-3).
