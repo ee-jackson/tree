@@ -205,40 +205,14 @@ clean_data %>%
   scale_fill_viridis_d() +
   scale_y_continuous(n.breaks = 3) +
   scale_x_log10() +
-  theme_classic(base_size = 4) +
+  theme_classic(base_size = 6) +
   theme(legend.position = "none",
         axis.title.x = element_markdown()) +
   facet_wrap(~name, ncol = 2) +
   labs(x = " log<sub>10</sub> Volume m<sup>3</sup>/ha" )
 
 ggsave(here::here("output","figures","methods-sp-vol-log.png"),
-       width = 1000, height = 1500, units = "px")
-
-# not logged
-clean_data %>%
-  filter(period == 0) %>%
-  select(ost_wgs84, nord_wgs84, starts_with("volume_")) %>%
-  select(- volume_beech, - volume_larch) %>%  # there is no beech, only 2 plots with larch
-  pivot_longer(cols = starts_with("volume_")) %>%
-  mutate(name = str_remove(name, "volume_")) %>%
-  mutate(name = str_replace(name, "_", "\n")) %>%
-  mutate(name = str_to_title(name)) %>%
-  ggplot(aes(value,
-             colour = name,
-             fill = name)) +
-  geom_density(
-    alpha = 0.5) +
-  scale_colour_viridis_d() +
-  scale_fill_viridis_d() +
-  scale_y_continuous(n.breaks = 3) +
-  theme_classic(base_size = 4) +
-  theme(legend.position = "none",
-        axis.title.x = element_markdown()) +
-  facet_wrap(~name, ncol = 2, scales = "free") +
-  labs(x = "Volume m<sup>3</sup>/ha" )
-
-ggsave(here::here("output","figures","methods-sp-vol.png"),
-       width = 1000, height = 1500, units = "px")
+       width = 500, height = 600, units = "px")
 
 clean_data %>%
   filter(period == 0) %>%
