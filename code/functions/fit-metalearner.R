@@ -2,7 +2,7 @@
 #' @param df_train The training data.
 #' @param df_assigned The full dataset to which treatment has been assigned.
 #' @param var_omit Logical indicating if `soil_carbon_initial` should be omitted from the feature list.
-#' @param test_plot_location Should test plots should be randomly selected `random` or selected from a geographically distinct area `edge` or `core`.
+#' @param test_plot_location Should test plots should be selected by stratified random sampling `stratified` or selected from a geographically distinct area `edge` or `core`.
 #' @param learner The choice of metalearner `s`, `t` or `x`
 #' @param restrict_confounder Logical indicating if the confounders for propensity score estimation should
 #' be restricted to `soil_carbon_initial`, `soil_moist_code`, `mat_5yr`? Only valid when `learner == x`.
@@ -18,24 +18,14 @@ fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
 
   train_plot_list <- pull(df_train, description)
 
-  # sample random test
-  test_data_0 <- df_assigned |>
-    dplyr::filter(! description %in% train_plot_list) |>
-    dplyr::filter(tr == 0) |>
-    dplyr::slice_sample(n = 81)
-
-  test_data_1 <- df_assigned |>
-    dplyr::filter(! description %in% train_plot_list) |>
-    dplyr::filter(tr == 1) |>
-    dplyr::slice_sample(n = 81)
-
-  test_data_random <- dplyr::bind_rows(test_data_0, test_data_1)
-
   test_data_core <- df_assigned |>
     dplyr::filter(sampling_location == "core")
 
   test_data_edge <- df_assigned |>
     dplyr::filter(sampling_location == "edge")
+
+  test_data_stratified <- df_assigned |>
+    dplyr::filter(sampling_location == "stratified")
 
   if (test_plot_location == "core") {
 
@@ -45,13 +35,13 @@ fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
 
     test_data <- test_data_edge
 
-  } else if (test_plot_location == "random") {
+  } else if (test_plot_location == "stratified") {
 
-    test_data <- test_data_random
+    test_data <- test_data_stratified
 
   } else {
 
-    print0("`test_plot_location` should be either `random`, `edge` or `core`")
+    print("`test_plot_location` should be either `stratified`, `edge` or `core`")
 
   }
 
@@ -60,16 +50,18 @@ fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
     feat_list <- c("soil_moist_code", "mat_5yr", "soil_carbon_initial",
                    "map_5yr", "altitude", "no_of_stems", "ditch",
                    "volume_pine", "volume_spruce", "volume_birch",
-                   "volume_aspen", "volume_oak", "volume_contorta",
-                   "volume_southern_broadleaf", "volume_larch")
+                   "volume_aspen", "volume_oak", "volume_beech",
+                   "volume_southern_broadleaf", "volume_contorta",
+                   "volume_other_broadleaf", "volume_larch")
 
   } else if (var_omit == TRUE) {
 
     feat_list <- c("soil_moist_code", "mat_5yr",
                    "map_5yr", "altitude", "no_of_stems", "ditch",
                    "volume_pine", "volume_spruce", "volume_birch",
-                   "volume_aspen", "volume_oak", "volume_contorta",
-                   "volume_southern_broadleaf", "volume_larch")
+                   "volume_aspen", "volume_oak", "volume_beech",
+                   "volume_southern_broadleaf", "volume_contorta",
+                   "volume_other_broadleaf", "volume_larch")
 
   } else {
 
