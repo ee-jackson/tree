@@ -12,19 +12,20 @@ assign_treatment <- function(df_clean, assignment) {
     dplyr::filter(period == 0) |>
     dplyr::select(
       description, sampling_location, soil_moist_code,
-      altitude, mat_5yr, map_5yr, ditch, no_of_stems, volume_pine, volume_spruce,
-      volume_birch, volume_aspen, volume_oak, volume_beech,
-      volume_southern_broadleaf, volume_larch
+      altitude, mat_5yr, map_5yr, ditch, no_of_stems,
+      volume_pine, volume_spruce, volume_birch,
+      volume_aspen, volume_oak, volume_beech,
+      volume_southern_broadleaf, volume_contorta,
+      volume_other_broadleaf, volume_larch
     )
 
-  # first assign test data for specified locations
+  # first assign test data
 
   # give "core" test data even treatment assignment
   sample_core <- df_clean |>
     dplyr::filter(sampling_location == "core") |>
     dplyr::select(description) |>
-    dplyr::distinct() |>
-    dplyr::slice_sample(n = 162)
+    dplyr::distinct()
 
   no_treat_ids_core <- sample_core |>
     dplyr::slice_sample(prop = 0.5)
@@ -41,8 +42,7 @@ assign_treatment <- function(df_clean, assignment) {
   sample_edge <- df_clean |>
     dplyr::filter(sampling_location == "edge") |>
     dplyr::select(description) |>
-    dplyr::distinct() |>
-    dplyr::slice_sample(n = 162)
+    dplyr::distinct()
 
   no_treat_ids_edge <- sample_edge |>
     dplyr::slice_sample(prop = 0.5)
@@ -55,7 +55,26 @@ assign_treatment <- function(df_clean, assignment) {
                       .default = 1)
     )
 
-  test_assigned <- dplyr::bind_rows(data_assigned_core, data_assigned_edge)
+  # give "stratified" test data even treatment assignment
+  sample_stratified <- df_clean |>
+    dplyr::filter(sampling_location == "stratified") |>
+    dplyr::select(description) |>
+    dplyr::distinct()
+
+  no_treat_ids_stratified <- sample_stratified |>
+    dplyr::slice_sample(prop = 0.5)
+
+  data_assigned_stratified <- df_clean |>
+    dplyr::filter(description %in% sample_stratified$description) |>
+    dplyr::mutate(tr =
+                    dplyr::case_when(
+                      description %in% no_treat_ids_stratified$description ~ 0,
+                      .default = 1)
+    )
+
+  test_assigned <- dplyr::bind_rows(data_assigned_core,
+                                    data_assigned_edge,
+                                    data_assigned_stratified)
 
   if (assignment == "random") {
 
