@@ -18,7 +18,6 @@ set.seed(123)
 # get data ----------------------------------------------------------------
 
 models_out <- readRDS(here("data", "derived", "all_runs.rds")) %>%
-  filter(restrict_confounder == FALSE) %>%
   mutate(
     learner = recode_factor(
     learner,
@@ -29,7 +28,7 @@ models_out <- readRDS(here("data", "derived", "all_runs.rds")) %>%
   ),
   test_plot_location = recode_factor(
     test_plot_location,
-    random = "Random",
+    stratified = "Random",
     edge = "Edge",
     core = "Core",
     .ordered = TRUE
@@ -48,8 +47,8 @@ plot_real_pred <- function(data, col_var, lab_var) {
     geom_point(size = 0.5, alpha = 0.5, shape = 16) +
     geom_abline(intercept = 0, slope = 1, colour = "blue", linewidth = 0.25) +
     scale_colour_viridis_d() +
-    xlim(-25, 25) +
-    ylim(-25, 25) +
+    xlim(-30, 30) +
+    ylim(-30, 30) +
     theme_classic(base_size = 6) +
     theme(legend.position = "top",
           legend.direction = "horizontal",
@@ -65,6 +64,7 @@ plot_real_pred <- function(data, col_var, lab_var) {
          colour = lab_var) +
     facet_wrap(~learner, ncol = 1)
 }
+
 
 # subset data -------------------------------------------------------------
 

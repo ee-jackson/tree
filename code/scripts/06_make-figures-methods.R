@@ -18,9 +18,9 @@ all_runs <-
   mutate(
     learner = recode_factor(
       learner,
-      s = "Single model",
-      t = "Two models",
-      x = "Crossed models",
+      s = "S-learner",
+      t = "T-learner",
+      x = "X-learner",
       .ordered = TRUE
     ),
     assignment = recode_factor(
@@ -132,11 +132,12 @@ all_runs %>%
          prop_not_treated == 0.5) %>%
   sample_n(3) %>%
   unnest(df_assigned) %>%
+  filter(sampling_location != "other") %>%
   group_by(sampling_location) %>%
   slice_sample(n = 162) %>%
   mutate(sampling_location = recode_factor(
     sampling_location,
-    other = "Random",
+    stratified = "Random",
     core = "Core",
     edge = "Edge",
     .ordered = TRUE

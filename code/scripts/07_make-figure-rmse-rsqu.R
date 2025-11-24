@@ -20,7 +20,6 @@ set.seed(123)
 # get data ----------------------------------------------------------------
 
 results <- readRDS(here("data", "derived", "results.rds")) %>%
-  filter(restrict_confounder == FALSE) %>%
   mutate(
     assignment = recode_factor(
     assignment,
@@ -31,7 +30,7 @@ results <- readRDS(here("data", "derived", "results.rds")) %>%
     ),
     test_plot_location = recode_factor(
       test_plot_location,
-      random = "Random",
+      stratified = "Random",
       core = "Core",
       edge = "Edge",
       .ordered = TRUE

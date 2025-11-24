@@ -16,8 +16,6 @@ set.seed(123)
 results <- readRDS(here("data", "derived", "results.rds"))
 
 get_vip <- function(df, plot_title, show_y_var) {
-  df <- df %>%
-    filter(restrict_confounder == FALSE)
 
   # test-train split
   data_split <- initial_split(df, prop = 1/3)

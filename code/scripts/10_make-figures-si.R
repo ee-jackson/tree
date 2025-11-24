@@ -191,7 +191,7 @@ ggsave(here::here("output","figures","si-env-var-map.png"),
 clean_data %>%
   filter(period == 0) %>%
   select(ost_wgs84, nord_wgs84, starts_with("volume_")) %>%
-  select(- volume_excl_overstory, - volume_beech) %>%
+  select(- volume_beech, - volume_larch) %>%  # there is no beech, only 2 plots with larch
   pivot_longer(cols = starts_with("volume_")) %>%
   mutate(name = str_remove(name, "volume_")) %>%
   mutate(name = str_replace(name, "_", "\n")) %>%
@@ -211,11 +211,14 @@ clean_data %>%
   facet_wrap(~name, ncol = 2) +
   labs(x = " log<sub>10</sub> Volume m<sup>3</sup>/ha" )
 
+ggsave(here::here("output","figures","methods-sp-vol-log.png"),
+       width = 1000, height = 1500, units = "px")
+
 # not logged
 clean_data %>%
   filter(period == 0) %>%
   select(ost_wgs84, nord_wgs84, starts_with("volume_")) %>%
-  select(- volume_excl_overstory, - volume_beech) %>%
+  select(- volume_beech, - volume_larch) %>%  # there is no beech, only 2 plots with larch
   pivot_longer(cols = starts_with("volume_")) %>%
   mutate(name = str_remove(name, "volume_")) %>%
   mutate(name = str_replace(name, "_", "\n")) %>%
@@ -234,6 +237,9 @@ clean_data %>%
   facet_wrap(~name, ncol = 2, scales = "free") +
   labs(x = "Volume m<sup>3</sup>/ha" )
 
+ggsave(here::here("output","figures","methods-sp-vol.png"),
+       width = 1000, height = 1500, units = "px")
+
 clean_data %>%
   filter(period == 0) %>%
   ggplot(aes(ost_wgs84, nord_wgs84,
@@ -245,13 +251,15 @@ clean_data %>%
   theme_void(base_size = 6) + labs(colour = "No. of stems") +
   theme(legend.key.width = unit(0.3, "lines"))
 
+
 # test plot location fig --------------------------------------------------
 
-feat_list <- c("total_soil_carbon", "altitude",
-               "mat_5yr", "map_5yr", "ditch", "no_of_stems", "volume_pine",
-               "volume_spruce", "volume_birch", "volume_aspen",
-               "volume_oak", "volume_beech", "soil_moist_code",
-               "volume_southern_broadleaf", "volume_larch")
+feat_list <- c("total_soil_carbon", "soil_moist_code", "mat_5yr",
+               "map_5yr", "altitude", "no_of_stems", "ditch",
+               "volume_pine", "volume_spruce", "volume_birch",
+               "volume_aspen", "volume_oak", "volume_beech",
+               "volume_southern_broadleaf", "volume_contorta",
+               "volume_other_broadleaf", "volume_larch")
 
 clean_data %>%
   filter(period == 0) %>%
@@ -259,6 +267,7 @@ clean_data %>%
            recode(sampling_location,
              core = "Core",
              edge = "Edge",
+             stratified = "Random",
              other = "Other"
              )
          ) -> clean_data_0
@@ -274,7 +283,7 @@ fviz_mca_ind(data_pca,
              geom = "point", alpha = 0.5, shape = 16, pointsize = 0.7,
              col.ind = as.factor(clean_data_0$sampling_location),
              addEllipses = FALSE,
-             palette = c("orange", "purple",  "lightgrey"),
+             palette = c("orange", "purple", "lightgrey","forestgreen"),
              title = "") +
   theme(legend.title = element_blank()) -> pca
 
@@ -282,7 +291,7 @@ clean_data %>%
   filter(period == 0) %>%
   ggplot(aes(ost_wgs84, nord_wgs84, colour = sampling_location)) +
   geom_point(alpha = 0.5, shape = 16, size = 0.7) +
-  scale_colour_manual(values = c("orange", "purple",  "lightgrey")) +
+  scale_colour_manual(values = c("orange", "purple", "lightgrey","forestgreen")) +
   borders("world", regions = "sweden") +
   coord_quickmap() +
   theme_void() +
@@ -297,9 +306,6 @@ ggsave(here::here("output","figures","si-pca-map.png"),
 # vip across all meta-learners --------------------------------------------
 
 get_vip_t <- function(df) {
-  df <- df %>%
-    filter(restrict_confounder == FALSE)
-
   # test-train split
   data_split <- initial_split(df, prop = 1/3)
   train_data <- training(data_split)
@@ -402,11 +408,11 @@ one_run <- readRDS(here("data", "derived", "all_runs.rds")) %>%
          n_train == 1000,
          assignment == "random",
          prop_not_treated == 0.5,
-         test_plot_location == "random",
+         test_plot_location == "stratified",
          var_omit == FALSE) %>%
   slice_sample(n = 1)
 
-get_vip_t <- function(df) {
+get_vip <- function(df) {
 
   # test-train split
   data_split <- initial_split(df, prop = 1/3)
@@ -427,7 +433,8 @@ get_vip_t <- function(df) {
                         map_5yr + altitude + no_of_stems  + ditch  +
                         volume_pine + volume_spruce  + volume_birch  +
                         volume_aspen  + volume_oak  + volume_beech  +
-                        volume_southern_broadleaf  + volume_larch,
+                        volume_southern_broadleaf + volume_contorta +
+                        volume_other_broadleaf + volume_larch,
                       data = train_data)
 
   rf_workflow <- workflow() %>%
@@ -481,6 +488,8 @@ get_vip_t <- function(df) {
       Variable == "volume_oak" ~ "Volume Oak",
       Variable == "volume_beech" ~ "Volume Oak",
       Variable == "volume_southern_broadleaf" ~ "Volume Southen Broadleaf",
+      Variable == "volume_contorta" ~ "Volume Contorta",
+      Variable == "volume_other_broadleaf" ~ "Volume Other Broadleaf",
       Variable == "volume_larch" ~ "Volume Larch"
     ) ) %>%
     ggplot(aes(y = reorder(Variable, Importance), x = Importance)) +
@@ -496,7 +505,7 @@ get_vip_t <- function(df) {
     scale_x_continuous(expand = expansion(mult = c(0, .1))) -> ps
 }
 
-vip_s <- get_vip_t(df = one_run$df_assigned[[1]])
+vip_s <- get_vip(df = one_run$df_assigned[[1]])
 
-ggsave(here::here("output","figures","si-vip-s.png"),
+ggsave(here::here("output","figures","si-meta-vip-s.png"),
        width = 600, height = 600, units = "px")
