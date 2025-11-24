@@ -406,9 +406,9 @@ get_vip <- function(df) {
                         tr  + soil_moist_code + mat_5yr + soil_carbon_initial +
                         map_5yr + altitude + no_of_stems  + ditch  +
                         volume_pine + volume_spruce  + volume_birch  +
-                        volume_aspen  + volume_oak  + volume_beech  +
+                        volume_aspen  + volume_oak  +
                         volume_southern_broadleaf + volume_contorta +
-                        volume_other_broadleaf + volume_larch,
+                        volume_other_broadleaf,
                       data = train_data)
 
   rf_workflow <- workflow() %>%
@@ -438,9 +438,10 @@ get_vip <- function(df) {
     fit(soil_carbon_obs ~
         tr  + soil_moist_code  + mat_5yr  + soil_carbon_initial  +
         map_5yr  + altitude  + no_of_stems  + ditch  +
-        volume_pine  + volume_spruce  + volume_birch  +
-        volume_aspen  + volume_oak  + volume_beech  +
-        volume_southern_broadleaf  + volume_larch,
+          volume_pine + volume_spruce  + volume_birch  +
+          volume_aspen  + volume_oak  +
+          volume_southern_broadleaf + volume_contorta +
+          volume_other_broadleaf,
         data = df
     ) %>%
     vi()
@@ -460,11 +461,9 @@ get_vip <- function(df) {
       Variable == "volume_birch" ~ "Volume Birch",
       Variable == "volume_aspen" ~ "Volume Aspen",
       Variable == "volume_oak" ~ "Volume Oak",
-      Variable == "volume_beech" ~ "Volume Oak",
       Variable == "volume_southern_broadleaf" ~ "Volume Southen Broadleaf",
       Variable == "volume_contorta" ~ "Volume Contorta",
-      Variable == "volume_other_broadleaf" ~ "Volume Other Broadleaf",
-      Variable == "volume_larch" ~ "Volume Larch"
+      Variable == "volume_other_broadleaf" ~ "Volume Other Broadleaf"
     ) ) %>%
     ggplot(aes(y = reorder(Variable, Importance), x = Importance)) +
     geom_segment(aes(y = Variable, x = 0, xend = Importance),
