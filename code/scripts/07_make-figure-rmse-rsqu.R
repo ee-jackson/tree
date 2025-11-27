@@ -2,7 +2,7 @@
 
 ## Author: E E Jackson, eleanor.elizabeth.j@gmail.com
 ## Script: make-figure-rmse-rsqu.R
-## Desc: RMSE and Rsqu plots
+## Desc: RMSE and Rsqu plots, make Figure 1
 ## Date: April 2024
 
 
@@ -133,7 +133,7 @@ plot_rmse(data = results,
             y_var = results$rmse,
             y_lab = "RMSE",
             x_var = results$prop_not_treated,
-            x_lab = "Sample imbalance",
+            x_lab = "Treatment imbalance",
             x_breaks = c(0.3, 0.5, 0.7),
             x_cont = TRUE) +
 
@@ -141,7 +141,7 @@ plot_rmse(data = results,
             y_var = results$rsq,
             y_lab = "R<sup>2</sup>",
             x_var = results$prop_not_treated,
-            x_lab = "Sample imbalance",
+            x_lab = "Treatment imbalance",
             x_breaks = c(0.3, 0.5, 0.7),
             x_cont = TRUE) +
 

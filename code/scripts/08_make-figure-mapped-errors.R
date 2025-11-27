@@ -2,7 +2,7 @@
 
 ## Author: E E Jackson, eleanor.elizabeth.j@gmail.com
 ## Script: make-figure-mapped-errors.R
-## Desc: Make a figure of S, T and X predictions from the same sample of plots
+## Desc: Make a figure of S, T and X predictions from the same sample of plots. Figure 3.
 ## Date: April 2024
 
 

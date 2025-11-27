@@ -335,13 +335,13 @@ get_vip_t <- function(df) {
       Variable == "n_train" ~ "Training sample size",
       Variable == "var_omit" ~ "Covariate omission",
       Variable == "assignment" ~ "Selection bias",
-      Variable == "prop_not_treated" ~ "Sample imbalance",
+      Variable == "prop_not_treated" ~ "Treatment imbalance",
       Variable == "test_plot_location" ~ "Spatial overlap of test\nand training data",
       Variable == "learner" ~ "Meta-learner algorithm"
     ) ) %>%
     mutate(Variable = fct_relevel(Variable,
                                   c("Selection bias",
-                                    "Sample imbalance",
+                                    "Treatment imbalance",
                                     "Covariate omission",
                                     "Spatial overlap of test\nand training data",
                                     "Meta-learner algorithm",
@@ -364,7 +364,7 @@ get_vip_t <- function(df) {
                             "Meta-learner algorithm" = "#D55E00",
                             "Covariate omission" = "#56B4E9",
                             "Selection bias" = "#0072B2",
-                            "Sample imbalance" = "#F0E442",
+                            "Treatment imbalance" = "#F0E442",
                             "Spatial overlap of test\nand training data" = "#009E73")) -> ps
 }
 
