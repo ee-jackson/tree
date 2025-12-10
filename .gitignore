@@ -8,6 +8,7 @@ docs/preprint_*
 *.doc
 *.docx
 *.xlsx
+*.pdf
 
 ## R ignores:
 

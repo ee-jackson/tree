@@ -1,13 +1,11 @@
-#!/usr/bin/env Rscript
+Treatment imbalance interations
+================
+user
+27 November, 2025
 
-## Author: E E Jackson, eleanor.elizabeth.j@gmail.com
-## Script: make-figure-rmse-rsqu.R
-## Desc: RMSE and Rsqu plots, make Figure 1
-## Date: April 2024
+Make figure 1 but facet by treatment imbalance to look for interactions.
 
-
-# Load packages -----------------------------------------------------------
-
+``` r
 library("tidyverse")
 library("here")
 library("patchwork")
@@ -15,10 +13,9 @@ library("yardstick")
 library("ggtext")
 
 set.seed(123)
+```
 
-
-# get data ----------------------------------------------------------------
-
+``` r
 results <- readRDS(here("data", "derived", "results.rds")) %>%
   mutate(
     assignment = recode_factor(
@@ -42,8 +39,9 @@ results <- readRDS(here("data", "derived", "results.rds")) %>%
       x = "X-leaner",
       .ordered = TRUE
     ))
+```
 
-
+``` r
 # make function -----------------------------------------------------------
 
 plot_rmse <- function(data,
@@ -71,7 +69,8 @@ plot_rmse <- function(data,
       ylab(y_lab) +
       theme_classic(base_size = 6) +
       theme(axis.title.y = element_markdown(),
-            legend.title = element_blank())
+            legend.title = element_blank()) +
+      facet_wrap(~prop_not_treated)
 
   } else if (x_cont == FALSE) {
     data %>%
@@ -92,12 +91,14 @@ plot_rmse <- function(data,
       ylab(y_lab) +
       theme_classic(base_size = 6) +
       theme(axis.title.y = element_markdown(),
-            legend.title = element_blank())
+            legend.title = element_blank()) +
+      facet_wrap(~prop_not_treated)
   }
 
 }
+```
 
-
+``` r
 # make plots --------------------------------------------------------------
 
 plot_rmse(data = results,
@@ -132,22 +133,6 @@ plot_rmse(data = results,
   plot_rmse(data = results,
             y_var = results$rmse,
             y_lab = "RMSE",
-            x_var = results$prop_not_treated,
-            x_lab = "Treatment imbalance",
-            x_breaks = c(0.3, 0.5, 0.7),
-            x_cont = TRUE) +
-
-  plot_rmse(data = results,
-            y_var = results$rsq,
-            y_lab = "R<sup>2</sup>",
-            x_var = results$prop_not_treated,
-            x_lab = "Treatment imbalance",
-            x_breaks = c(0.3, 0.5, 0.7),
-            x_cont = TRUE) +
-
-  plot_rmse(data = results,
-            y_var = results$rmse,
-            y_lab = "RMSE",
             x_var = results$test_plot_location,
             x_lab = "Spatial overlap of test\nand training data") +
 
@@ -172,7 +157,6 @@ plot_rmse(data = results,
   plot_layout(guides = "collect", ncol = 2) +
   plot_annotation(tag_levels = "a") &
   theme(legend.position = "bottom")
+```
 
-
-ggsave(here::here("output","figures","results-rmse-rsqu.png"),
-       width = 1000, height = 2000, units = "px")
+![](figures/2025-11-26_treatment-imbalance-interactions/unnamed-chunk-3-1.png)<!-- -->

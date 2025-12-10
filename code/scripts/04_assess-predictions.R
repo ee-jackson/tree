@@ -38,6 +38,8 @@ get_ps <- function(df_train, var_omit) {
                  volume_oak +
                  volume_beech +
                  volume_southern_broadleaf +
+                 volume_contorta +
+                 volume_other_broadleaf +
                  volume_larch,
                family = binomial(),
                data = df_train)
@@ -58,6 +60,8 @@ get_ps <- function(df_train, var_omit) {
                  volume_oak +
                  volume_beech +
                  volume_southern_broadleaf +
+                 volume_contorta +
+                 volume_other_broadleaf +
                  volume_larch,
                family = binomial(),
                data = df_train)
@@ -78,6 +82,8 @@ get_ps <- function(df_train, var_omit) {
                  volume_oak +
                  volume_beech +
                  volume_southern_broadleaf +
+                 volume_contorta +
+                 volume_other_broadleaf +
                  volume_larch,
                family = binomial(),
                data = df_train)
@@ -97,6 +103,8 @@ get_ps <- function(df_train, var_omit) {
                  volume_oak +
                  volume_beech +
                  volume_southern_broadleaf +
+                 volume_contorta +
+                 volume_other_broadleaf +
                  volume_larch,
                family = binomial(),
                data = df_train)
@@ -174,7 +182,6 @@ all_runs %>%
          n_train,
          var_omit,
          test_plot_location,
-         restrict_confounder,
          learner,
          mean_ps,
          median_ps,

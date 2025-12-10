@@ -1,13 +1,27 @@
-#!/usr/bin/env Rscript
+---
+title: "Treatment imbalance interations"
+author: '`r Sys.getenv("USER")`'
+date: '`r format(Sys.time(), "%d %B, %Y")`' 
+always_allow_html: true
+output: 
+  github_document:
+    keep_html: true
+---
+	
+```{r setup, include = FALSE}
+file_name <- rstudioapi::getSourceEditorContext()$path
 
-## Author: E E Jackson, eleanor.elizabeth.j@gmail.com
-## Script: make-figure-rmse-rsqu.R
-## Desc: RMSE and Rsqu plots, make Figure 1
-## Date: April 2024
+knitr::opts_chunk$set(
+  fig.path =
+    paste0("figures/", sub("\\.Rmd$", "", basename(file_name)), "/", sep = "")
+)
 
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
+```
 
-# Load packages -----------------------------------------------------------
+Make figure 1 but facet by treatment imbalance to look for interactions.
 
+```{r packages, message=FALSE, warning=FALSE}
 library("tidyverse")
 library("here")
 library("patchwork")
@@ -15,10 +29,9 @@ library("yardstick")
 library("ggtext")
 
 set.seed(123)
+```
 
-
-# get data ----------------------------------------------------------------
-
+```{r}
 results <- readRDS(here("data", "derived", "results.rds")) %>%
   mutate(
     assignment = recode_factor(
@@ -42,8 +55,9 @@ results <- readRDS(here("data", "derived", "results.rds")) %>%
       x = "X-leaner",
       .ordered = TRUE
     ))
+```
 
-
+```{r}
 # make function -----------------------------------------------------------
 
 plot_rmse <- function(data,
@@ -71,7 +85,8 @@ plot_rmse <- function(data,
       ylab(y_lab) +
       theme_classic(base_size = 6) +
       theme(axis.title.y = element_markdown(),
-            legend.title = element_blank())
+            legend.title = element_blank()) +
+      facet_wrap(~prop_not_treated)
 
   } else if (x_cont == FALSE) {
     data %>%
@@ -92,12 +107,15 @@ plot_rmse <- function(data,
       ylab(y_lab) +
       theme_classic(base_size = 6) +
       theme(axis.title.y = element_markdown(),
-            legend.title = element_blank())
+            legend.title = element_blank()) +
+      facet_wrap(~prop_not_treated)
   }
 
 }
+```
 
 
+```{r, message=FALSE, warning=FALSE}
 # make plots --------------------------------------------------------------
 
 plot_rmse(data = results,
@@ -132,22 +150,6 @@ plot_rmse(data = results,
   plot_rmse(data = results,
             y_var = results$rmse,
             y_lab = "RMSE",
-            x_var = results$prop_not_treated,
-            x_lab = "Treatment imbalance",
-            x_breaks = c(0.3, 0.5, 0.7),
-            x_cont = TRUE) +
-
-  plot_rmse(data = results,
-            y_var = results$rsq,
-            y_lab = "R<sup>2</sup>",
-            x_var = results$prop_not_treated,
-            x_lab = "Treatment imbalance",
-            x_breaks = c(0.3, 0.5, 0.7),
-            x_cont = TRUE) +
-
-  plot_rmse(data = results,
-            y_var = results$rmse,
-            y_lab = "RMSE",
             x_var = results$test_plot_location,
             x_lab = "Spatial overlap of test\nand training data") +
 
@@ -173,6 +175,5 @@ plot_rmse(data = results,
   plot_annotation(tag_levels = "a") &
   theme(legend.position = "bottom")
 
+```
 
-ggsave(here::here("output","figures","results-rmse-rsqu.png"),
-       width = 1000, height = 2000, units = "px")

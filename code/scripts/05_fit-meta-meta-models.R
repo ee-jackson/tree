@@ -2,7 +2,7 @@
 
 ## Author: E E Jackson, eleanor.elizabeth.j@gmail.com
 ## Script: fit-meta-meta-model.R
-## Desc: Takes our `results.rds` and fits a RF to predict RMSE
+## Desc: Takes our `results.rds` and fits a RF to predict RMSE. Makes Figure 2.
 ## Date: March 2023
 
 library("tidyverse")
@@ -16,8 +16,6 @@ set.seed(123)
 results <- readRDS(here("data", "derived", "results.rds"))
 
 get_vip <- function(df, plot_title, show_y_var) {
-  df <- df %>%
-    filter(restrict_confounder == FALSE)
 
   # test-train split
   data_split <- initial_split(df, prop = 1/3)
@@ -75,13 +73,13 @@ get_vip <- function(df, plot_title, show_y_var) {
         Variable == "n_train" ~ "Training sample size",
         Variable == "var_omit" ~ "Covariate omission",
         Variable == "assignment" ~ "Selection bias",
-        Variable == "prop_not_treated" ~ "Sample imbalance",
+        Variable == "prop_not_treated" ~ "Treatment imbalance",
         Variable == "test_plot_location" ~ "Spatial overlap of test\nand training data"
       ) ) %>%
       mutate(Variable = fct_relevel(Variable,
                                     c("Covariate omission",
                                       "Spatial overlap of test\nand training data",
-                                      "Sample imbalance",
+                                      "Treatment imbalance",
                                       "Training sample size",
                                       "Selection bias"
                                     ))
@@ -102,7 +100,7 @@ get_vip <- function(df, plot_title, show_y_var) {
                             c("Training sample size" = "#E69f00",
                               "Covariate omission" = "#56B4E9",
                               "Selection bias" = "#0072B2",
-                              "Sample imbalance" = "#F0E442",
+                              "Treatment imbalance" = "#F0E442",
                               "Spatial overlap of test\nand training data" = "#009E73")) +
       labs(title = plot_title) -> ps
 
@@ -112,13 +110,13 @@ get_vip <- function(df, plot_title, show_y_var) {
           Variable == "n_train" ~ "Training sample size",
           Variable == "var_omit" ~ "Covariate omission",
           Variable == "assignment" ~ "Selection bias",
-          Variable == "prop_not_treated" ~ "Sample imbalance",
+          Variable == "prop_not_treated" ~ "Treatment imbalance",
           Variable == "test_plot_location" ~ "Spatial overlap of test\nand training data"
         ) ) %>%
         mutate(Variable = fct_relevel(Variable,
                                       c("Covariate omission",
                                         "Spatial overlap of test\nand training data",
-                                        "Sample imbalance",
+                                        "Treatment imbalance",
                                         "Training sample size",
                                         "Selection bias"
                                       ))
@@ -139,7 +137,7 @@ get_vip <- function(df, plot_title, show_y_var) {
                               c("Training sample size" = "#E69f00",
                                 "Covariate omission" = "#56B4E9",
                                 "Selection bias" = "#0072B2",
-                                "Sample imbalance" = "#F0E442",
+                                "Treatment imbalance" = "#F0E442",
                                 "Spatial overlap of test\nand training data" = "#009E73")) +
         labs(title = plot_title) -> ps
 

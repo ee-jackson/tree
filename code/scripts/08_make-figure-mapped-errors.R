@@ -2,7 +2,7 @@
 
 ## Author: E E Jackson, eleanor.elizabeth.j@gmail.com
 ## Script: make-figure-mapped-errors.R
-## Desc: Make a figure of S, T and X predictions from the same sample of plots
+## Desc: Make a figure of S, T and X predictions from the same sample of plots. Figure 3.
 ## Date: April 2024
 
 
@@ -34,7 +34,7 @@ keys <- expand.grid(
   n_train = 1000,
   learner = c("s", "t", "x"),
   var_omit = FALSE,
-  test_plot_location = "random"
+  test_plot_location = "stratified"
 )
 
 
@@ -70,7 +70,6 @@ keys %>%
   mutate(df_out = model_out) %>%
   mutate(assignment = "random",
          prop_not_treated = 0.5,
-         restrict_confounder = FALSE,
          run_id = row_number()) -> all_runs
 
 nfi_coords <- readxl::read_excel(
@@ -104,8 +103,7 @@ plot_real_pred <- function(treat_as, sample_imbalance,
       n_train == sample_size,
       var_omit == variable_omit,
       test_plot_location == plot_location,
-      learner == meta_learner,
-      restrict_confounder == FALSE
+      learner == meta_learner
     ) -> out_subset
 
   out_subset %>%
@@ -136,7 +134,7 @@ plot_real_pred <- function(treat_as, sample_imbalance,
           plot.margin = unit(c(0, 0, 0, 0), "cm")) +
     scale_colour_gradientn(
       colours = colorspace::divergingx_hcl(n = 10, palette = "RdYlBu"),
-      limits = c(-25, 25)) -> p3
+      limits = c(-30, 30)) -> p3
 
   plot_dat %>%
     ggplot(aes(x = cate_real, y = cate_pred, colour = Error)) +
@@ -148,7 +146,7 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     geom_abline(intercept = 0, slope = 1, colour = "blue", linewidth = 0.25) +
     scale_colour_gradientn(
       colours = colorspace::divergingx_hcl(n = 10, palette = "RdYlBu"),
-      limits = c(-25, 25)) +
+      limits = c(-30, 30)) +
     xlim(-30, 15) +
     ylim(-30, 15) +
     theme_classic(base_size = 6) +
@@ -171,7 +169,7 @@ plot_real_pred <- function(treat_as, sample_imbalance,
               linewidth = 0.25,
               alpha = 0.4) +
     scale_colour_gradientn(colours = colorspace::divergingx_hcl(n = 10, palette = "RdYlBu"),
-                           limits = c(-25, 25)) +
+                           limits = c(-30, 30)) +
     ylim(-30, 15) +
     labs(x = "", y = "") +
     theme_classic(base_size = 6) +
@@ -193,7 +191,7 @@ plot_real_pred <- function(treat_as, sample_imbalance,
   sample_imbalance = 0.5,
   sample_size = 1000,
   variable_omit = FALSE,
-  plot_location = "random",
+  plot_location = "stratified",
   meta_learner = "s",
   plot_title = "a  S-learner",
   coord_df = nfi_coords
@@ -204,7 +202,7 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     sample_imbalance = 0.5,
     sample_size = 1000,
     variable_omit = FALSE,
-    plot_location = "random",
+    plot_location = "stratified",
     meta_learner = "t",
     plot_title = "b  T-learner",
     coord_df = nfi_coords
@@ -215,7 +213,7 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     sample_imbalance = 0.5,
     sample_size = 1000,
     variable_omit = FALSE,
-    plot_location = "random",
+    plot_location = "stratified",
     meta_learner = "x",
     plot_title = "c  X-learner",
     coord_df = nfi_coords

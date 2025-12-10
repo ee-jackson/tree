@@ -5,27 +5,54 @@
 ## Desc: Make large PDF with plots for every combination of study conditions
 ## Date: March 2024
 
-# module load R/4.3.0
+# needs to be run on computing cluster
+# module load R/4.4.2-gfbf-2024a
 
 # Load packages -----------------------------------------------------------
 
-library("tidyverse")
-library("here")
-library("patchwork")
-library("yardstick")
-library("ggtext")
+library("tidyverse", lib.loc ="~/local/rlibs")
+library("here", lib.loc ="~/local/rlibs")
+library("patchwork", lib.loc ="~/local/rlibs")
+library("yardstick", lib.loc ="~/local/rlibs")
+library("ggtext", lib.loc ="~/local/rlibs")
+library("ggdist", lib.loc ="~/local/rlibs")
+library("colorspace", lib.loc ="~/local/rlibs")
 
 all_runs <-
   readRDS(here::here("data", "derived", "all_runs.rds")) %>%
-  filter(restrict_confounder == FALSE)
+  mutate(
+    assignment = recode_factor(
+      assignment,
+      random = "Random",
+      correlated_altitude = "Correlated with altitude",
+      correlated_region = "Correlated with region",
+      .ordered = FALSE
+    ),
+    test_plot_location = recode_factor(
+      test_plot_location,
+      stratified = "Random",
+      core = "Core",
+      edge = "Edge",
+      .ordered = FALSE
+    )) %>%
+  mutate(learner = case_when(
+    learner == "s" ~ "S-learner",
+    learner == "t" ~ "T-learner",
+    learner == "x" ~ "X-learner")) %>%
+  mutate(learner =
+           forcats::fct_relevel(learner,
+                                c("S-learner",
+                                  "T-learner",
+                                  "X-learner")
+  ))
 
 keys <- expand.grid(
-  assignment = c("random", "correlated_region",
-                 "correlated_altitude"),
+  assignment = c("Random", "Correlated with region",
+                 "Correlated with altitude"),
   prop_not_treated = c(0.3, 0.5, 0.7),
   n_train = c(62, 125, 250, 500, 1000),
   var_omit = c(TRUE, FALSE),
-  test_plot_location = c("random", "edge", "centre")) %>%
+  test_plot_location = c("Random", "Edge", "Core")) %>%
   rowid_to_column(var = "id")
 
 # function to make rmse and r2 labels
@@ -40,15 +67,14 @@ make_labels <- function(dat) {
 # plotting function
 plot_real_pred <- function(treat_as, sample_imbalance,
                            sample_size, variable_omit, plot_location,
-                           id, out, max_col) {
+                           id, out) {
   out %>%
     filter(
       assignment == treat_as,
       prop_not_treated == sample_imbalance,
       n_train == sample_size,
       var_omit == variable_omit,
-      test_plot_location == plot_location,
-      restrict_confounder == FALSE
+      test_plot_location == plot_location
     ) -> out_subset
 
   out_subset %>%
@@ -74,7 +100,7 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     geom_point(size = 0.25) +
     geom_abline(intercept = 0, slope = 1, colour = "blue", linewidth = 0.25) +
     scale_colour_gradientn(colours = colorspace::divergingx_hcl(n = 10,palette = "RdYlBu"),
-                           limits = c(-50, 50)) +
+                           limits = c(-55, 55)) +
     xlim(-40, 40) +
     ylim(-40, 40) +
     theme_classic(base_size = 7) +
@@ -87,10 +113,10 @@ plot_real_pred <- function(treat_as, sample_imbalance,
                   label.colour = NA, size = 2, label.size = 0, fill = NA) +
     labs(y = "predicted ITE", x = "true ITE",
          subtitle = paste("Selection bias = ", treat_as, ", ",
-                          "Sample imbalance = ", sample_imbalance, ", ",
-                          "n = ", sample_size, ", ",
+                          "Treatment imbalance = ", sample_imbalance, ", ",
+                          "Training sample size = ", sample_size, "\n",
                           "Covariate omission = ", variable_omit, ", ",
-                          "Test data location = ", plot_location,
+                          "Spatial overlap of test and training data = ", plot_location,
                           sep = ""))-> p1
 
 
@@ -102,7 +128,7 @@ plot_real_pred <- function(treat_as, sample_imbalance,
               linewidth = 0.25,
               alpha = 0.4) +
     scale_colour_gradientn(colours = colorspace::divergingx_hcl(n = 10, palette = "RdYlBu"),
-                           limits = c(-50, 50)) +
+                           limits = c(-55, 55)) +
     ylim(-40, 40) +
     labs(x = "", y = "") +
     theme_classic(base_size = 7) +
@@ -114,28 +140,15 @@ plot_real_pred <- function(treat_as, sample_imbalance,
     plot_layout(heights = c(2, 2), guides = "collect")
 }
 
-all_runs %>%
-  mutate(learner = case_when(
-    learner == "s" ~ "S-learner",
-    learner == "t" ~ "T-learner",
-    learner == "x" ~ "X-learner")) %>%
-  mutate(learner = fct_relevel(learner,
-                               c("S-learner",
-                               "T-learner",
-                               "X-learner")
-                             )
-         ) -> all_runs_rlvl
-
 # test one plot
-plot_real_pred(
-  out = all_runs_rlvl,
-  treat_as = "random",
-  sample_imbalance = 0.3,
-  sample_size = 62,
-  variable_omit = TRUE,
-  plot_location = "random",
-  max_col = 55
-)
+# plot_real_pred(
+#   out = all_runs,
+#   treat_as = "Random",
+#   sample_imbalance = 0.3,
+#   sample_size = 62,
+#   variable_omit = TRUE,
+#   plot_location = "Random"
+# )
 
 # create many plots
 plot_list <- purrr::pmap(
@@ -148,8 +161,7 @@ plot_list <- purrr::pmap(
     id = keys$id
   ),
   plot_real_pred,
-  out = all_runs_rlvl,
-  max_col = 55,
+  out = all_runs,
   .progress = TRUE
 )
 

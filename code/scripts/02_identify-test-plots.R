@@ -7,7 +7,6 @@
 ##       See notebooks/2024-01-22_find-test-area.md
 ## Date: February 2024
 
-# module load R/4.0.3
 
 # Load packages -----------------------------------------------------------
 
@@ -15,6 +14,7 @@ library("tidyverse")
 library("here")
 library("sf")
 
+set.seed(20412)
 
 # Load data ---------------------------------------------------------------
 
@@ -55,23 +55,38 @@ fishnet %>%
 joined <- st_intersection(data_projected, fishnet_sf)
 
 # get plots in net_22
-centre_plots <- joined %>%
+core_plots <- joined %>%
   filter(net_id == 22) %>%
   st_drop_geometry() %>%
   select(description) %>%
-  distinct()
+  distinct() %>%
+  dplyr::slice_sample(n = 160)
 
 edge_plots <- joined %>%
   filter(net_id == 49 | net_id == 50 | net_id == 54 | net_id == 55 |
            net_id == 45 | net_id == 44 & nord_wgs84 > 65.71) %>%
   st_drop_geometry() %>%
   select(description) %>%
+  distinct() %>%
+  dplyr::slice_sample(n = 160)
+
+stratified_plots <- joined %>%
+  st_drop_geometry() %>%
+  filter(! description %in% core_plots$description) %>%
+  filter(! description %in% edge_plots$description) %>%
+  select(description, nord_wgs84) %>%
+  mutate(decile = ntile(nord_wgs84, 10)) %>%
+  group_by(decile) %>%
+  dplyr::slice_sample(n = as.integer(160/10)) %>%
+  ungroup() %>%
+  select(description) %>%
   distinct()
 
 readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time_clim.rds")) %>%
   mutate(sampling_location = case_when(
-    description %in% centre_plots$description ~ "centre",
+    description %in% core_plots$description ~ "core",
     description %in% edge_plots$description ~ "edge",
+    description %in% stratified_plots$description ~ "stratified",
     .default = "other"
   )) %>%
   mutate(sampling_location = as.factor(sampling_location)) %>%

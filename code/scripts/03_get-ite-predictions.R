@@ -6,12 +6,13 @@
 ##       to generate the ITEs and median error
 ## Date: December 2023
 
-# on the cluster use: module load R/4.3.0
+# on the cluster use: module load R/4.2.2-foss-2022a-ARC
+
+library("Rforestry", lib.loc ="~/local/rlibs")
+library("causalToolbox", lib.loc ="~/local/rlibs")
 
 library("tidyverse")
 library("here")
-
-set.seed(123)
 
 # get my functions
 function_dir <- list.files(here::here("code", "functions"),
@@ -33,12 +34,8 @@ keys <- expand.grid(
   n_train = c(62, 125, 250, 500, 1000),
   learner = c("s", "t", "x"),
   var_omit = c(TRUE, FALSE),
-  test_plot_location = c("random", "edge", "centre"),
-  restrict_confounder = c(TRUE, FALSE)
+  test_plot_location = c("stratified", "edge", "core")
   ) %>%
-  filter((learner == "s" & restrict_confounder == FALSE) |
-           (learner == "t" & restrict_confounder == FALSE) |
-           (learner == "x")) %>%
   # add replicates
   slice(rep(1:n(), each = 5))
 
@@ -71,8 +68,7 @@ purrr::pmap(list(df_train = keys$df_train,
                  df_assigned = keys$df_assigned,
                  learner = keys$learner,
                  var_omit = keys$var_omit,
-                 test_plot_location = keys$test_plot_location,
-                 restrict_confounder = keys$restrict_confounder
+                 test_plot_location = keys$test_plot_location
                  ),
             fit_metalearner) -> model_out
 

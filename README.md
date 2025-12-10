@@ -6,8 +6,28 @@
 
 This repository contains the [research compendium](https://research-compendium.science) for our preprint: 
 
-E. E. Jackson, T. Snäll, E. Gardner, J. M. Bullock & R. Spake. (2025) __Towards causal predictions of site-level treatment effects for applied ecology.__  (2025). *EcoEvoRxiv* DOI: [10.32942/X2KK95](https://doi.org/10.32942/X2KK95)
+E. E. Jackson, T. Snäll, E. Gardner, J. M. Bullock & R. Spake. (2025) __Towards causal predictions of site-specific management effects in applied ecology.__  (2025). *EcoEvoRxiv* DOI: [10.32942/X2KK95](https://doi.org/10.32942/X2KK95)
 
+Contact: eleanor.elizabeth.j@gmail.com
+
+## Abstract
+
+With limited resources and the urgent need to reverse biodiversity loss, 
+conservation efforts must be targeted to where they will be most effective. 
+Targeting actions necessitates new approaches to causal prediction of 
+sited-level responses to alternative interventions. 
+We present the first application of ‘meta-learner algorithms’ to predict 
+‘individual treatment effects’ (ITEs) representing the effects of site-level 
+management actions. We compare the performance of three algorithms that differ 
+in how they handle selection biases typical to observational data: 
+S-, T-, and X-Learners, across 4,050 virtual studies predicting the effect of 
+forest management on soil carbon, the ITEs. The X-Learner, an algorithm which 
+adjusts for selection bias, consistently yielded the most accurate ITE 
+predictions across studies varying in sample size and imbalanced sample sizes 
+of treatment and control groups. Our study illustrates how ecologists can begin 
+to select and apply causal prediction methods to inform targeted conservation 
+action for ecological systems, and makes suggestions for further road-testing 
+of these approaches.
 
 ## Contents:
 
@@ -40,3 +60,15 @@ Then, run the `.R` scripts in [`code/scripts/`](code/scripts/) in the order in w
 starting from `02_identify-test-plots.R`. 
 Note that the first two scripts which clean and filter the data are for reference only, 
 since we will be providing the cleaned data in this repository.
+
+Two of the scripts (`03_get-ite-predictions.R` and `10_plot-all-true-vs-predictions.R`)
+require a lot of time (~12hrs) and memory (~50GB) to run.
+It is recommended to run them on a High-Performance Computing cluster, 
+or else run fewer simulations ("virtual studies").
+
+[NetCDF](https://www.unidata.ucar.edu/software/netcdf) 
+(required by the R package [{ncdf4}](https://doi.org/10.32614/CRAN.package.ncdf4))
+is needed to read the [CRU TS climate data](https://doi.org/10.1038/s41597-020-0453-3).
+
+## License
+Code is under a [MIT license](LICENSE.md)
