@@ -61,7 +61,7 @@ starting from `02_identify-test-plots.R`.
 Note that the first two scripts which clean and filter the data are for reference only, 
 since we will be providing the cleaned data in this repository.
 
-Two of the scripts (`03_get-ite-predictions.R` and `11_plot-all-true-vs-predictions.R`)
+Two of the scripts (`03_get-ite-predictions.R` and `10_plot-all-true-vs-predictions.R`)
 require a lot of time (~12hrs) and memory (~50GB) to run.
 It is recommended to run them on a High-Performance Computing cluster, 
 or else run fewer simulations ("virtual studies").
