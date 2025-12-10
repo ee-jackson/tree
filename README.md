@@ -6,7 +6,7 @@
 
 This repository contains the [research compendium](https://research-compendium.science) for our preprint: 
 
-E. E. Jackson, T. Snäll, E. Gardner, J. M. Bullock & R. Spake. (2025) __Towards causal predictions of site-specific management effects in applied ecology.__  (2025). *EcoEvoRxiv* DOI: [10.32942/X2KK95](https://doi.org/10.32942/X2KK95)
+E. E. Jackson, T. Snäll, E. Gardner, J. M. Bullock & R. Spake. (2025) __Towards causal predictions of site-specific management effects in applied ecology.__ *EcoEvoRxiv* DOI: [10.32942/X2KK95](https://doi.org/10.32942/X2KK95)
 
 Contact: eleanor.elizabeth.j@gmail.com
 
