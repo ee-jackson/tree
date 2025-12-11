@@ -1,6 +1,6 @@
 # tree
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13269918.svg)](https://doi.org/10.5281/zenodo.13269918)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13269917.svg)](https://doi.org/10.5281/zenodo.13269917)
 
 *TREE - TRansferablE Ecology for a changing world*
 
