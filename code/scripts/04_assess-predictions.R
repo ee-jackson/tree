@@ -3,13 +3,20 @@
 ## Author: E E Jackson, eleanor.elizabeth.j@gmail.com
 ## Script: assess-predictions.R
 ## Desc: Takes the output of get-ite-predictions.R and calculates median
-##       propensity scores, RMSE and median absolute errors
+##       propensity scores, AUTOC, RMSE, Qini and median absolute errors
 ## Date: February 2024
 
 library("tidyverse")
 library("yardstick")
 library("here")
 
+# get my functions
+function_dir <- list.files(here::here("code", "functions"),
+                           full.names = TRUE)
+
+sapply(function_dir, source)
+
+# get data
 all_runs <-
   readRDS(here::here("data", "derived", "all_runs.rds"))
 
@@ -156,6 +163,41 @@ all_runs <- all_runs %>%
   unnest(rsq)
 
 
+# AUTOC -------------------------------------------------------------------
+
+all_runs <- all_runs %>%
+  mutate(autoc = purrr::map(
+    .x = df_out,
+    .f = ~ autoc_vec(truth = .x$cate_real,
+                     estimate = .x$cate_pred)
+  )) %>%
+  unnest(autoc) %>%
+  mutate(autoc = 1 - autoc)
+
+
+# qini --------------------------------------------------------------------
+
+all_runs <- all_runs %>%
+  mutate(qini = purrr::map(
+    .x = df_out,
+    .f = ~ qini_coef_vec(truth = .x$cate_real,
+                         estimate = .x$cate_pred)
+  )) %>%
+  unnest(qini)
+
+
+# Spearman's rank correlation ---------------------------------------------
+
+all_runs <- all_runs %>%
+  mutate(spearman = purrr::map(
+    .x = df_out,
+    .f = ~ cor(x = .x$cate_real,
+               y = .x$cate_pred,
+               method = "spearman")
+  )) %>%
+  unnest(spearman)
+
+
 # median error ------------------------------------------------------------
 
 get_error <- function(df_out) {
@@ -188,5 +230,8 @@ all_runs %>%
          median_error,
          mean_error,
          rmse,
-         rsq) %>%
+         rsq,
+         qini,
+         autoc,
+         spearman) %>%
   saveRDS(here::here("data", "derived", "results.rds"))
