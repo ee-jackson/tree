@@ -1,214 +1,495 @@
-#' Fit meta-learner.
+#' Fit meta-learner using tidymodels random forests.
+#'
+#' Hyperparameters are deliberately fixed by default. This is intended for large
+#' simulation studies where tuning every base learner would be too expensive and
+#' would make comparisons across meta-learners less clean.
+#'
 #' @param df_train The training data.
 #' @param df_assigned The full dataset to which treatment has been assigned.
-#' @param var_omit Logical indicating if `soil_carbon_initial` should be omitted from the feature list.
-#' @param test_plot_location Should test plots should be selected by stratified random sampling `stratified` or selected from a geographically distinct area `edge` or `core`.
-#' @param learner The choice of metalearner `s`, `t` or `x`
-#' @param restrict_confounder Logical indicating if the confounders for propensity score estimation should
-#' be restricted to `soil_carbon_initial`, `soil_moist_code`, `mat_5yr`? Only valid when `learner == x`.
-#' @return The ITE
-#' @import dplyr causalToolbox
+#' @param learner The choice of meta-learner: "s", "t", "x", or "dr".
+#' @param var_omit Logical indicating if `soil_carbon_initial` should be omitted
+#'   from the feature list.
+#' @param test_plot_location Test plots selected from "stratified", "edge", or
+#'   "core".
+#' @param restrict_confounder Logical. If TRUE, the propensity score model uses
+#'   only the core confounder set. Valid for X- and DR-learners.
+#' @param seed Optional random seed.
+#' @param trees Number of trees for each random forest.
+#' @param mtry Number of variables randomly sampled at each split. If NULL, uses
+#'   floor(sqrt(p)), where p is the number of predictors for that model.
+#' @param min_n Minimum node size.
+#' @param num_threads Number of ranger threads per base learner. Use 1 if
+#'   parallelising over simulation runs.
+#' @param dr_folds Number of folds for DR-learner cross-fitting.
+#' @param trim Propensity score truncation value.
+#' @param return_model Logical. If TRUE, attaches fitted model objects in a
+#'   list-column called `metalearner_fit`. Defaults to FALSE to keep simulation
+#'   output smaller.
+#' @return Test data with `cate_pred` and `cate_real` columns.
+#' @import dplyr tidymodels
 #' @importFrom tidyselect all_of
 #' @export
 
 fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
                             test_plot_location, restrict_confounder = FALSE,
-                            seed = NULL) {
-  set.seed(seed = seed)
-
-  train_plot_list <- pull(df_train, description)
-
-  test_data_core <- df_assigned |>
-    dplyr::filter(sampling_location == "core")
-
-  test_data_edge <- df_assigned |>
-    dplyr::filter(sampling_location == "edge")
-
-  test_data_stratified <- df_assigned |>
-    dplyr::filter(sampling_location == "stratified")
-
-  if (test_plot_location == "core") {
-
-    test_data <- test_data_core
-
-  } else if (test_plot_location == "edge") {
-
-    test_data <- test_data_edge
-
-  } else if (test_plot_location == "stratified") {
-
-    test_data <- test_data_stratified
-
-  } else {
-
-    print("`test_plot_location` should be either `stratified`, `edge` or `core`")
-
+                            seed = NULL,
+                            trees = 500,
+                            mtry = NULL,
+                            min_n = 5,
+                            num_threads = 1,
+                            dr_folds = 2,
+                            trim = 0.01,
+                            return_model = FALSE) {
+  if (!is.null(seed)) {
+    set.seed(seed = seed)
   }
 
-  if (var_omit == FALSE) {
+  learner <- as.character(learner)
+  test_plot_location <- as.character(test_plot_location)
+  learner <- tolower(learner)
 
-    feat_list <- c("soil_moist_code", "mat_5yr", "soil_carbon_initial",
-                   "map_5yr", "altitude", "no_of_stems", "ditch",
-                   "volume_pine", "volume_spruce", "volume_birch",
-                   "volume_aspen", "volume_oak", "volume_beech",
-                   "volume_southern_broadleaf", "volume_contorta",
-                   "volume_other_broadleaf", "volume_larch")
-
-  } else if (var_omit == TRUE) {
-
-    feat_list <- c("soil_moist_code", "mat_5yr",
-                   "map_5yr", "altitude", "no_of_stems", "ditch",
-                   "volume_pine", "volume_spruce", "volume_birch",
-                   "volume_aspen", "volume_oak", "volume_beech",
-                   "volume_southern_broadleaf", "volume_contorta",
-                   "volume_other_broadleaf", "volume_larch")
-
-  } else {
-
-    print("`var_omit` should be either `TRUE` or `FALSE`")
-
+  if (!learner %in% c("s", "t", "x", "dr")) {
+    stop("`learner` should be one of 's', 't', 'x', or 'dr'.", call. = FALSE)
   }
 
-
-  if (learner == "s" & restrict_confounder == FALSE) {
-
-    # create the hte object
-    s_learn <- causalToolbox::S_RF(
-      feat = dplyr::select(df_train, tidyselect::all_of(feat_list)),
-      tr = df_train$tr,
-      yobs = df_train$soil_carbon_obs,
-      nthread = 2)
-
-    # estimate the CATE
-    cate_s_learn <- causalToolbox::EstimateCate(s_learn,
-                                 dplyr::select(test_data,
-                                               tidyselect::all_of(feat_list)))
-
-    s_learn_out <- test_data |>
-      dplyr::mutate(cate_pred = cate_s_learn,
-             cate_real = soil_carbon_1 - soil_carbon_0)
-
-    return(s_learn_out)
-
-  } else if (learner == "t" & restrict_confounder == FALSE) {
-
-    # create the hte object
-    t_learn <- causalToolbox::T_RF(
-      feat = dplyr::select(df_train, tidyselect::all_of(feat_list)),
-      tr = df_train$tr,
-      yobs = df_train$soil_carbon_obs,
-      nthread = 2)
-
-    # estimate the CATE
-    cate_t_learn <- causalToolbox::EstimateCate(t_learn,
-                                 dplyr::select(test_data,
-                                               tidyselect::all_of(feat_list)))
-
-    t_learn_out <- test_data |>
-      dplyr::mutate(cate_pred = cate_t_learn,
-             cate_real = soil_carbon_1 - soil_carbon_0)
-
-    return(t_learn_out)
-
-  } else if (learner == "x" & restrict_confounder == FALSE) {
-
-    # create the hte object
-    x_learn <- causalToolbox::X_RF(
-      feat = dplyr::select(df_train,
-                           tidyselect::all_of(feat_list)),
-      tr = df_train$tr,
-      yobs = df_train$soil_carbon_obs,
-      nthread = 2)
-
-    cate_x_learn <- causalToolbox::EstimateCate(x_learn,
-                                 dplyr::select(test_data,
-                                               tidyselect::all_of(feat_list)))
-
-    x_learn_out <- test_data |>
-      dplyr::mutate(cate_pred = cate_x_learn,
-             cate_real = soil_carbon_1 - soil_carbon_0)
-
-    return(x_learn_out)
-
-  } else if (learner == "x" & restrict_confounder == TRUE & var_omit == FALSE) {
-
-    # create the hte object
-    x_learn <- causalToolbox::X_RF(
-      feat = dplyr::select(df_train,
-                           tidyselect::all_of(feat_list)),
-      tr = df_train$tr,
-      yobs = df_train$soil_carbon_obs,
-      nthread = 2,
-      e.forestry = list(relevant.Variable = 1:3,
-                        ntree = 500, replace = TRUE, sample.fraction = 0.5,
-                        mtry = 3, nodesizeSpl = 11, nodesizeAvg = 33,
-                        nodesizeStrictSpl = 2, nodesizeStrictAvg = 1, splitratio = 1,
-                        middleSplit = FALSE, OOBhonest = TRUE))
-
-    cate_x_learn <- causalToolbox::EstimateCate(x_learn,
-                                                dplyr::select(test_data,
-                                                              tidyselect::all_of(feat_list)))
-
-    x_learn_out <- test_data |>
-      dplyr::mutate(cate_pred = cate_x_learn,
-                    cate_real = soil_carbon_1 - soil_carbon_0)
-
-    return(x_learn_out)
-
-  }else if (learner == "x" & restrict_confounder == TRUE & var_omit == TRUE) {
-
-    # create the hte object
-    x_learn <- causalToolbox::X_RF(
-      feat = dplyr::select(df_train,
-                           tidyselect::all_of(feat_list)),
-      tr = df_train$tr,
-      yobs = df_train$soil_carbon_obs,
-      nthread = 2,
-      e.forestry = list(relevant.Variable = 1:2,
-                        ntree = 500, replace = TRUE, sample.fraction = 0.5,
-                        mtry = 2, nodesizeSpl = 11, nodesizeAvg = 33,
-                        nodesizeStrictSpl = 2, nodesizeStrictAvg = 1, splitratio = 1,
-                        middleSplit = FALSE, OOBhonest = TRUE))
-
-    cate_x_learn <- causalToolbox::EstimateCate(x_learn,
-                                                dplyr::select(test_data,
-                                                              tidyselect::all_of(feat_list)))
-
-    x_learn_out <- test_data |>
-      dplyr::mutate(cate_pred = cate_x_learn,
-                    cate_real = soil_carbon_1 - soil_carbon_0)
-
-    return(x_learn_out)
-
-  } else {
-    print("learner should be either 's', 't' or 'x'.
-          restrict_confounder == TRUE is only valid when learner == 'x'")
+  if (!test_plot_location %in% c("stratified", "edge", "core")) {
+    stop("`test_plot_location` should be 'stratified', 'edge', or 'core'.",
+         call. = FALSE)
   }
-}
 
-# Change Rforestry function so that warning is thrown rather than error when
-# changing x-leaner propensity model confounders
+  if (!is.logical(var_omit) || length(var_omit) != 1L) {
+    stop("`var_omit` should be a single TRUE/FALSE value.", call. = FALSE)
+  }
 
-custom_testing_data_checker <- function(object, newdata, hasNas) {
-  if(ncol(newdata) != object@processed_dta$numColumns) {
-    warning(paste0("newdata has ", ncol(newdata), " but the forest was trained with ",
-                   object@processed_dta$numColumns, " columns.")
+  if (restrict_confounder && !learner %in% c("x", "dr")) {
+    stop("`restrict_confounder = TRUE` is only valid for learner 'x' or 'dr'.",
+         call. = FALSE)
+  }
+
+  feat_list <- get_metalearner_features(var_omit = var_omit)
+  prop_feat_list <- get_propensity_features(
+    feat_list = feat_list,
+    var_omit = var_omit,
+    restrict_confounder = restrict_confounder
+  )
+
+  test_data <- df_assigned |>
+    dplyr::filter(.data$sampling_location == test_plot_location)
+
+  train_data <- prepare_metalearner_data(df_train)
+  test_data_model <- prepare_metalearner_data(test_data)
+
+  p <- length(feat_list)
+  mtry_outcome <- resolve_mtry(mtry = mtry, p = p)
+  mtry_prop <- resolve_mtry(mtry = mtry, p = length(prop_feat_list))
+
+  rf_reg_spec <- make_rf_reg_spec(
+    trees = trees,
+    mtry = mtry_outcome,
+    min_n = min_n,
+    num_threads = num_threads
+  )
+
+  rf_prop_spec <- make_rf_class_spec(
+    trees = trees,
+    mtry = mtry_prop,
+    min_n = min_n,
+    num_threads = num_threads
+  )
+
+  fit <- switch(
+    learner,
+    s = fit_s_learner_tidymodels(
+      train_data = train_data,
+      test_data = test_data_model,
+      feat_list = feat_list,
+      rf_reg_spec = rf_reg_spec
+    ),
+    t = fit_t_learner_tidymodels(
+      train_data = train_data,
+      test_data = test_data_model,
+      feat_list = feat_list,
+      rf_reg_spec = rf_reg_spec
+    ),
+    x = fit_x_learner_tidymodels(
+      train_data = train_data,
+      test_data = test_data_model,
+      feat_list = feat_list,
+      prop_feat_list = prop_feat_list,
+      rf_reg_spec = rf_reg_spec,
+      rf_prop_spec = rf_prop_spec,
+      trim = trim
+    ),
+    dr = fit_dr_learner_tidymodels(
+      train_data = train_data,
+      test_data = test_data_model,
+      feat_list = feat_list,
+      prop_feat_list = prop_feat_list,
+      rf_reg_spec = rf_reg_spec,
+      rf_prop_spec = rf_prop_spec,
+      dr_folds = dr_folds,
+      trim = trim
     )
-  }
-  if(!is.null(object@processed_dta$featNames)) {
-    if(!all(names(newdata) == object@processed_dta$featNames)) {
-      warning("newdata columns have been reordered so that they match the training feature matrix")
-      matchingPositions <- match(object@processed_dta$featNames, names(newdata))
-      newdata <- newdata[, matchingPositions]
-    }
+  )
+
+  out <- test_data |>
+    dplyr::mutate(
+      cate_pred = fit$cate_pred,
+      cate_real = .data$soil_carbon_1 - .data$soil_carbon_0
+    )
+
+  if (return_model) {
+    out <- out |>
+      dplyr::mutate(metalearner_fit = list(fit))
   }
 
-  # If linear is true we can't predict observations with some features missing.
-  if(object@linear && any(is.na(newdata))) {
-    stop("linear does not support missing data")
-  }
-  return(newdata)
+  out
 }
 
-environment(custom_testing_data_checker) <- asNamespace('Rforestry')
-assignInNamespace("testing_data_checker", custom_testing_data_checker, ns = "Rforestry")
+get_metalearner_features <- function(var_omit = FALSE) {
+  base_features <- c(
+    "soil_moist_code", "mat_5yr", "soil_carbon_initial",
+    "map_5yr", "altitude", "no_of_stems", "ditch",
+    "volume_pine", "volume_spruce", "volume_birch",
+    "volume_aspen", "volume_oak", "volume_beech",
+    "volume_southern_broadleaf", "volume_contorta",
+    "volume_other_broadleaf", "volume_larch"
+  )
+
+  if (isTRUE(var_omit)) {
+    base_features <- setdiff(base_features, "soil_carbon_initial")
+  }
+
+  base_features
+}
+
+get_propensity_features <- function(feat_list, var_omit = FALSE,
+                                    restrict_confounder = FALSE) {
+  if (!isTRUE(restrict_confounder)) {
+    return(feat_list)
+  }
+
+  confounders <- c("soil_carbon_initial", "soil_moist_code", "mat_5yr")
+
+  if (isTRUE(var_omit)) {
+    confounders <- setdiff(confounders, "soil_carbon_initial")
+  }
+
+  intersect(confounders, feat_list)
+}
+
+prepare_metalearner_data <- function(data) {
+  data |>
+    dplyr::mutate(
+      .tr_num = as.integer(.data$tr),
+      .tr_factor = factor(
+        dplyr::if_else(.data$.tr_num == 1L, "treated", "control"),
+        levels = c("control", "treated")
+      )
+    )
+}
+
+resolve_mtry <- function(mtry = NULL, p) {
+  if (!is.null(mtry)) {
+    return(max(1L, min(as.integer(mtry), as.integer(p))))
+  }
+
+  max(1L, floor(sqrt(p)))
+}
+
+make_rf_reg_spec <- function(trees = 500, mtry, min_n = 5,
+                             num_threads = 1) {
+  parsnip::rand_forest(
+    trees = trees,
+    mtry = mtry,
+    min_n = min_n
+  ) |>
+    parsnip::set_mode("regression") |>
+    parsnip::set_engine(
+      "ranger",
+      importance = "none",
+      num.threads = num_threads
+    )
+}
+
+make_rf_class_spec <- function(trees = 500, mtry, min_n = 5,
+                               num_threads = 1) {
+  parsnip::rand_forest(
+    trees = trees,
+    mtry = mtry,
+    min_n = min_n
+  ) |>
+    parsnip::set_mode("classification") |>
+    parsnip::set_engine(
+      "ranger",
+      probability = TRUE,
+      importance = "none",
+      num.threads = num_threads
+    )
+}
+
+make_formula <- function(outcome, predictors) {
+  stats::as.formula(paste(outcome, "~", paste(predictors, collapse = " + ")))
+}
+
+fit_regression_workflow <- function(data, outcome, predictors, spec) {
+  workflows::workflow() |>
+    workflows::add_model(spec) |>
+    workflows::add_formula(make_formula(outcome, predictors)) |>
+    parsnip::fit(data = data)
+}
+
+predict_regression <- function(fit, new_data) {
+  stats::predict(fit, new_data = new_data)$.pred
+}
+
+fit_propensity_workflow <- function(data, predictors, spec) {
+  workflows::workflow() |>
+    workflows::add_model(spec) |>
+    workflows::add_formula(make_formula(".tr_factor", predictors)) |>
+    parsnip::fit(data = data)
+}
+
+predict_propensity <- function(fit, new_data, trim = 0.01) {
+  pred <- stats::predict(fit, new_data = new_data, type = "prob")
+
+  if (!".pred_treated" %in% names(pred)) {
+    stop("Could not find `.pred_treated` in propensity predictions.",
+         call. = FALSE)
+  }
+
+  pmin(pmax(pred$.pred_treated, trim), 1 - trim)
+}
+
+fit_s_learner_tidymodels <- function(train_data, test_data, feat_list,
+                                     rf_reg_spec) {
+  predictors <- c(".tr_factor", feat_list)
+
+  mu_fit <- fit_regression_workflow(
+    data = train_data,
+    outcome = "soil_carbon_obs",
+    predictors = predictors,
+    spec = rf_reg_spec
+  )
+
+  test_treated <- test_data |>
+    dplyr::mutate(.tr_factor = factor("treated", levels = c("control", "treated")))
+
+  test_control <- test_data |>
+    dplyr::mutate(.tr_factor = factor("control", levels = c("control", "treated")))
+
+  cate_pred <- predict_regression(mu_fit, test_treated) -
+    predict_regression(mu_fit, test_control)
+
+  list(
+    cate_pred = cate_pred,
+    models = list(mu = mu_fit)
+  )
+}
+
+fit_t_learner_tidymodels <- function(train_data, test_data, feat_list,
+                                     rf_reg_spec) {
+  treated_data <- train_data |>
+    dplyr::filter(.data$.tr_num == 1L)
+
+  control_data <- train_data |>
+    dplyr::filter(.data$.tr_num == 0L)
+
+  check_treatment_split(treated_data, control_data)
+
+  mu1_fit <- fit_regression_workflow(
+    data = treated_data,
+    outcome = "soil_carbon_obs",
+    predictors = feat_list,
+    spec = rf_reg_spec
+  )
+
+  mu0_fit <- fit_regression_workflow(
+    data = control_data,
+    outcome = "soil_carbon_obs",
+    predictors = feat_list,
+    spec = rf_reg_spec
+  )
+
+  cate_pred <- predict_regression(mu1_fit, test_data) -
+    predict_regression(mu0_fit, test_data)
+
+  list(
+    cate_pred = cate_pred,
+    models = list(mu1 = mu1_fit, mu0 = mu0_fit)
+  )
+}
+
+fit_x_learner_tidymodels <- function(train_data, test_data, feat_list,
+                                     prop_feat_list, rf_reg_spec,
+                                     rf_prop_spec, trim = 0.01) {
+  treated_data <- train_data |>
+    dplyr::filter(.data$.tr_num == 1L)
+
+  control_data <- train_data |>
+    dplyr::filter(.data$.tr_num == 0L)
+
+  check_treatment_split(treated_data, control_data)
+
+  mu1_fit <- fit_regression_workflow(
+    data = treated_data,
+    outcome = "soil_carbon_obs",
+    predictors = feat_list,
+    spec = rf_reg_spec
+  )
+
+  mu0_fit <- fit_regression_workflow(
+    data = control_data,
+    outcome = "soil_carbon_obs",
+    predictors = feat_list,
+    spec = rf_reg_spec
+  )
+
+  treated_tau_data <- treated_data |>
+    dplyr::mutate(.tau_pseudo = .data$soil_carbon_obs - predict_regression(mu0_fit, treated_data))
+
+  control_tau_data <- control_data |>
+    dplyr::mutate(.tau_pseudo = predict_regression(mu1_fit, control_data) - .data$soil_carbon_obs)
+
+  tau1_fit <- fit_regression_workflow(
+    data = treated_tau_data,
+    outcome = ".tau_pseudo",
+    predictors = feat_list,
+    spec = rf_reg_spec
+  )
+
+  tau0_fit <- fit_regression_workflow(
+    data = control_tau_data,
+    outcome = ".tau_pseudo",
+    predictors = feat_list,
+    spec = rf_reg_spec
+  )
+
+  prop_fit <- fit_propensity_workflow(
+    data = train_data,
+    predictors = prop_feat_list,
+    spec = rf_prop_spec
+  )
+
+  e_hat_test <- predict_propensity(prop_fit, test_data, trim = trim)
+
+  tau1_pred <- predict_regression(tau1_fit, test_data)
+  tau0_pred <- predict_regression(tau0_fit, test_data)
+
+  cate_pred <- e_hat_test * tau0_pred + (1 - e_hat_test) * tau1_pred
+
+  list(
+    cate_pred = cate_pred,
+    models = list(
+      mu1 = mu1_fit,
+      mu0 = mu0_fit,
+      tau1 = tau1_fit,
+      tau0 = tau0_fit,
+      propensity = prop_fit
+    )
+  )
+}
+
+fit_dr_learner_tidymodels <- function(train_data, test_data, feat_list,
+                                      prop_feat_list, rf_reg_spec,
+                                      rf_prop_spec, dr_folds = 2,
+                                      trim = 0.01) {
+  check_dr_inputs(train_data = train_data, dr_folds = dr_folds)
+
+  n <- nrow(train_data)
+  fold_id <- sample(rep(seq_len(dr_folds), length.out = n))
+
+  mu1_hat <- rep(NA_real_, n)
+  mu0_hat <- rep(NA_real_, n)
+  e_hat <- rep(NA_real_, n)
+
+  for (fold in seq_len(dr_folds)) {
+    analysis_data <- train_data[fold_id != fold, , drop = FALSE]
+    assessment_data <- train_data[fold_id == fold, , drop = FALSE]
+
+    treated_analysis <- analysis_data |>
+      dplyr::filter(.data$.tr_num == 1L)
+
+    control_analysis <- analysis_data |>
+      dplyr::filter(.data$.tr_num == 0L)
+
+    check_treatment_split(treated_analysis, control_analysis)
+
+    mu1_fit <- fit_regression_workflow(
+      data = treated_analysis,
+      outcome = "soil_carbon_obs",
+      predictors = feat_list,
+      spec = rf_reg_spec
+    )
+
+    mu0_fit <- fit_regression_workflow(
+      data = control_analysis,
+      outcome = "soil_carbon_obs",
+      predictors = feat_list,
+      spec = rf_reg_spec
+    )
+
+    prop_fit <- fit_propensity_workflow(
+      data = analysis_data,
+      predictors = prop_feat_list,
+      spec = rf_prop_spec
+    )
+
+    assess_idx <- which(fold_id == fold)
+    mu1_hat[assess_idx] <- predict_regression(mu1_fit, assessment_data)
+    mu0_hat[assess_idx] <- predict_regression(mu0_fit, assessment_data)
+    e_hat[assess_idx] <- predict_propensity(prop_fit, assessment_data, trim = trim)
+  }
+
+  dr_score <- mu1_hat - mu0_hat +
+    train_data$.tr_num * (train_data$soil_carbon_obs - mu1_hat) / e_hat -
+    (1 - train_data$.tr_num) * (train_data$soil_carbon_obs - mu0_hat) / (1 - e_hat)
+
+  tau_data <- train_data |>
+    dplyr::mutate(.dr_score = dr_score)
+
+  tau_fit <- fit_regression_workflow(
+    data = tau_data,
+    outcome = ".dr_score",
+    predictors = feat_list,
+    spec = rf_reg_spec
+  )
+
+  cate_pred <- predict_regression(tau_fit, test_data)
+
+  list(
+    cate_pred = cate_pred,
+    models = list(tau = tau_fit),
+    nuisance_predictions = list(
+      mu1_hat = mu1_hat,
+      mu0_hat = mu0_hat,
+      e_hat = e_hat,
+      dr_score = dr_score,
+      fold_id = fold_id
+    )
+  )
+}
+
+check_treatment_split <- function(treated_data, control_data) {
+  if (nrow(treated_data) < 2L || nrow(control_data) < 2L) {
+    stop("Both treatment groups need at least two observations to fit the learner.",
+         call. = FALSE)
+  }
+}
+
+check_dr_inputs <- function(train_data, dr_folds) {
+  if (dr_folds < 2L) {
+    stop("`dr_folds` should be at least 2 for cross-fitting.", call. = FALSE)
+  }
+
+  if (dr_folds > nrow(train_data)) {
+    stop("`dr_folds` cannot exceed the number of training observations.",
+         call. = FALSE)
+  }
+
+  tab <- table(train_data$.tr_num)
+  if (!all(c("0", "1") %in% names(tab)) || any(tab[c("0", "1")] < dr_folds + 1L)) {
+    stop("Each treatment group needs more observations than `dr_folds` for DR cross-fitting.",
+         call. = FALSE)
+  }
+}
