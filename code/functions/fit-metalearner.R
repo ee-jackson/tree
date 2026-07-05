@@ -7,12 +7,10 @@
 #' @param df_train The training data.
 #' @param df_assigned The full dataset to which treatment has been assigned.
 #' @param learner The choice of meta-learner: "s", "t", "x", or "dr".
-#' @param var_omit Logical indicating if `soil_carbon_initial` should be omitted
-#'   from the feature list.
+#' @param var_omit Omission of a variable from the feature list, either `none`,
+#'    `omit_soil_c` or `omit_soil_moist`
 #' @param test_plot_location Test plots selected from "stratified", "edge", or
 #'   "core".
-#' @param restrict_confounder Logical. If TRUE, the propensity score model uses
-#'   only the core confounder set. Valid for X- and DR-learners.
 #' @param seed Optional random seed.
 #' @param trees Number of trees for each random forest.
 #' @param mtry Number of variables randomly sampled at each split. If NULL, uses
@@ -30,8 +28,8 @@
 #' @importFrom tidyselect all_of
 #' @export
 
-fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
-                            test_plot_location, restrict_confounder = FALSE,
+fit_metalearner <- function(df_train, df_assigned, learner, var_omit = "none",
+                            test_plot_location = "stratified",
                             seed = NULL,
                             trees = 500,
                             mtry = NULL,
@@ -61,17 +59,8 @@ fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
     stop("`var_omit` should be one of 'omit_soil_c', 'omit_soil_moist', or 'none'.", call. = FALSE)
   }
 
-  if (restrict_confounder && !learner %in% c("x", "dr")) {
-    stop("`restrict_confounder = TRUE` is only valid for learner 'x' or 'dr'.",
-         call. = FALSE)
-  }
-
   feat_list <- get_metalearner_features(var_omit = var_omit)
-  prop_feat_list <- get_propensity_features(
-    feat_list = feat_list,
-    var_omit = var_omit,
-    restrict_confounder = restrict_confounder
-  )
+  prop_feat_list <- feat_list
 
   test_data <- df_assigned |>
     dplyr::filter(.data$sampling_location == test_plot_location)
@@ -165,27 +154,6 @@ get_metalearner_features <- function(var_omit = "none") {
   }
 
   base_features
-}
-
-get_propensity_features <- function(feat_list, var_omit = "none",
-                                    restrict_confounder = FALSE) {
-  if (!isTRUE(restrict_confounder)) {
-    return(feat_list)
-  }
-
-  confounders <- c("soil_carbon_initial", "soil_moist_code", "mat_5yr")
-
-  if (var_omit == "omit_soil_c") {
-    confounders <- setdiff(confounders, "soil_carbon_initial")
-  }
-
-  intersect(confounders, feat_list)
-
-  if (var_omit == "omit_soil_moist") {
-    confounders <- setdiff(confounders, "soil_moist_code")
-  }
-
-  intersect(confounders, feat_list)
 }
 
 prepare_metalearner_data <- function(data) {
