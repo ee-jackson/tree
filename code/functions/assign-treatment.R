@@ -6,7 +6,7 @@
 #' @importFrom tidyr pivot_wider
 #' @export
 
-assign_treatment <- function(df_clean, assignment) {
+assign_treatment <- function(df_clean, assignment = "stratified") {
 
   features <- df_clean |>
     dplyr::filter(period == 0) |>

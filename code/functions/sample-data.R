@@ -6,7 +6,7 @@
 #' @import dplyr
 #' @export
 
-sample_data <- function(df_assigned, prop_not_treated, n_train) {
+sample_data <- function(df_assigned, prop_not_treated = 0.5, n_train = 1000) {
 
   # sample train
   df_train_0 <- df_assigned |>
