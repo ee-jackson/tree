@@ -38,7 +38,7 @@ data_sf %>%
 # make grid
 fishnet <- st_make_grid(
   data_projected,
-  cellsize = c(140000, 130000), # units are meters
+  cellsize = c(125000, 125000), # units are meters
   what = "polygons",
   square = TRUE,
   crs = st_crs(3152))
@@ -56,28 +56,27 @@ joined <- st_intersection(data_projected, fishnet_sf)
 
 # get plots in net_22
 core_plots <- joined %>%
-  filter(net_id == 22) %>%
+  filter(net_id == 27) %>%
   st_drop_geometry() %>%
   select(description) %>%
   distinct() %>%
-  dplyr::slice_sample(n = 160)
+  dplyr::slice_sample(n = 108)
 
 edge_plots <- joined %>%
-  filter(net_id == 49 | net_id == 50 | net_id == 54 | net_id == 55 |
-           net_id == 45 | net_id == 44 & nord_wgs84 > 65.71) %>%
+  filter(nord_wgs84 > 66.08) %>%
   st_drop_geometry() %>%
   select(description) %>%
   distinct() %>%
-  dplyr::slice_sample(n = 160)
+  dplyr::slice_sample(n = 108)
 
 stratified_plots <- joined %>%
   st_drop_geometry() %>%
   filter(! description %in% core_plots$description) %>%
   filter(! description %in% edge_plots$description) %>%
   select(description, nord_wgs84) %>%
-  mutate(decile = ntile(nord_wgs84, 10)) %>%
+  mutate(decile = ntile(nord_wgs84, 9)) %>%
   group_by(decile) %>%
-  dplyr::slice_sample(n = as.integer(160/10)) %>%
+  dplyr::slice_sample(n = as.integer(108/9)) %>%
   ungroup() %>%
   select(description) %>%
   distinct()
