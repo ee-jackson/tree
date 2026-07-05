@@ -57,8 +57,8 @@ fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
          call. = FALSE)
   }
 
-  if (!is.logical(var_omit) || length(var_omit) != 1L) {
-    stop("`var_omit` should be a single TRUE/FALSE value.", call. = FALSE)
+  if (!var_omit %in% c("none", "omit_soil_c", "omit_soil_moist")) {
+    stop("`var_omit` should be one of 'omit_soil_c', 'omit_soil_moist', or 'none'.", call. = FALSE)
   }
 
   if (restrict_confounder && !learner %in% c("x", "dr")) {
@@ -146,7 +146,7 @@ fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
   out
 }
 
-get_metalearner_features <- function(var_omit = FALSE) {
+get_metalearner_features <- function(var_omit = "none") {
   base_features <- c(
     "soil_moist_code", "mat_5yr", "soil_carbon_initial",
     "map_5yr", "altitude", "no_of_stems", "ditch",
@@ -156,14 +156,18 @@ get_metalearner_features <- function(var_omit = FALSE) {
     "volume_other_broadleaf", "volume_larch"
   )
 
-  if (isTRUE(var_omit)) {
+  if (var_omit == "omit_soil_c") {
     base_features <- setdiff(base_features, "soil_carbon_initial")
+  }
+
+  if (var_omit == "omit_soil_moist") {
+    base_features <- setdiff(base_features, "soil_moist_code")
   }
 
   base_features
 }
 
-get_propensity_features <- function(feat_list, var_omit = FALSE,
+get_propensity_features <- function(feat_list, var_omit = "none",
                                     restrict_confounder = FALSE) {
   if (!isTRUE(restrict_confounder)) {
     return(feat_list)
@@ -171,8 +175,14 @@ get_propensity_features <- function(feat_list, var_omit = FALSE,
 
   confounders <- c("soil_carbon_initial", "soil_moist_code", "mat_5yr")
 
-  if (isTRUE(var_omit)) {
+  if (var_omit == "omit_soil_c") {
     confounders <- setdiff(confounders, "soil_carbon_initial")
+  }
+
+  intersect(confounders, feat_list)
+
+  if (var_omit == "omit_soil_moist") {
+    confounders <- setdiff(confounders, "soil_moist_code")
   }
 
   intersect(confounders, feat_list)
