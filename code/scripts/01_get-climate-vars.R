@@ -202,7 +202,8 @@ readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time.rds")) %>%
   inner_join(plots_0) %>%
   group_by(description) %>%
   arrange(period, .by_group = TRUE) %>%
-  ungroup() -> filtered_data
+  ungroup() %>%
+  mutate(wet = ifelse(soil_moist_code == 3 & ditch == 0, 1, 0)) -> filtered_data
 
 
 # select columns ----------------------------------------------------------
@@ -210,7 +211,7 @@ readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time.rds")) %>%
 filtered_data %>%
   select(description, ost_wgs84, nord_wgs84, taxar, region, altitude, mat_5yr, map_5yr,
          period, control_category_name, total_soil_carbon, soil_moist_code,
-         ditch, no_of_stems, standing_volume, volume_pine, volume_spruce,
+         ditch, wet, no_of_stems, standing_volume, volume_pine, volume_spruce,
          volume_birch, volume_aspen, volume_oak, volume_beech,
          volume_southern_broadleaf, volume_contorta, volume_other_broadleaf, volume_larch) %>%
   arrange(taxar) %>%
