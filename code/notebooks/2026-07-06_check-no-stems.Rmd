@@ -1,0 +1,50 @@
+---
+title: "Check models are trained on vars at time = 0"
+author: 'eleanorjackson'
+date: '`r format(Sys.time(), "%d %B, %Y")`' 
+always_allow_html: true
+output: 
+  github_document:
+    keep_html: true
+---
+	
+```{r setup, include = FALSE}
+file_name <- rstudioapi::getSourceEditorContext()$path
+
+knitr::opts_chunk$set(
+  fig.path =
+    paste0("figures/", sub("\\.Rmd$", "", basename(file_name)), "/", sep = "")
+)
+
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 15))
+```
+
+```{r}
+library("tidyverse")
+library("here")
+library("patchwork")
+```
+
+Can we be 100% certain that no. stems is a pre-treatment variable at time = 0?
+
+```{r}
+all_runs <- readRDS(here::here("data", "derived", "all_runs.rds"))
+```
+
+```{r}
+clean_data <-
+  readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time_clim_squ.rds"))
+```
+
+
+```{r}
+all_runs$df_train[[1]] %>% glimpse
+```
+
+So for plot "201926181060" no stems is 2323.6570 in the training data
+
+```{r}
+clean_data %>% 
+  filter(description == "201926181060") %>% glimpse
+```
+
