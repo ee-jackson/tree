@@ -21,24 +21,22 @@ all_runs <-
       s = "S-learner",
       t = "T-learner",
       x = "X-learner",
+      dr = "DR-learner",
       .ordered = TRUE
     ),
     assignment = recode_factor(
       assignment,
       random = "Random",
-      correlated_altitude = "Correlated\nwith altitude",
-      correlated_region = "Correlated\nwith region",
+      non_random = "Non-random",
+      .ordered = TRUE
+    ),
+    var_omit = recode_factor(
+      var_omit,
+      none = "No variable omission",
+      omit_confounder = "Omit confounder",
       .ordered = TRUE
     )
   )
-
-nfi_coords <- readxl::read_excel(
-  here::here("data", "raw", "NFI_plot_coords_NFI_2016-2020.xlsx"),
-  col_types = c("numeric", "text", "text","numeric","numeric","numeric",
-                "numeric","numeric","numeric","numeric","numeric","numeric","numeric")
-  ) %>%
-  select(Description, Ost_WGS84, Nord_WGS84) %>%
-  janitor::clean_names()
 
 
 # treatment assignment ----------------------------------------------------
@@ -49,7 +47,6 @@ all_runs %>%
   group_by(assignment) %>%
   sample_n(1) %>%
   unnest(df_train) %>%
-  left_join(nfi_coords, by = "description") %>%
   mutate(tr = recode_factor(tr, `0` = "Control", `1` = "Treated")) %>%
   ggplot(aes(ost_wgs84, nord_wgs84, colour = tr)) +
   borders("world", regions = "sweden", linewidth = 0.25) +
@@ -74,11 +71,10 @@ ggsave(here::here("output","figures","methods-assignment.png"),
 
 all_runs %>%
   filter(assignment == "Random",
-         n_train == 250) %>%
+         n_train == 500) %>%
   group_by(prop_not_treated) %>%
   sample_n(1) %>%
   unnest(df_train) %>%
-  left_join(nfi_coords, by = "description") %>%
   mutate(tr = recode_factor(tr, `0` = "Control", `1` = "Treated")) %>%
   ggplot(aes(ost_wgs84, nord_wgs84, colour = tr)) +
   borders("world", regions = "sweden", linewidth = 0.25) +
@@ -106,7 +102,6 @@ all_runs %>%
   group_by(n_train) %>%
   sample_n(1) %>%
   unnest(df_train) %>%
-  left_join(nfi_coords, by = "description") %>%
   mutate(tr = recode_factor(tr, `0` = "Control", `1` = "Treated")) %>%
   ggplot(aes(ost_wgs84, nord_wgs84, colour = tr)) +
   borders("world", regions = "sweden", linewidth = 0.25) +
@@ -129,12 +124,13 @@ ggsave(here::here("output","figures","methods-n_train.png"),
 
 all_runs %>%
   filter(assignment == "Random",
-         prop_not_treated == 0.5) %>%
+         prop_not_treated == 0.5,
+         n_train == 500) %>%
   sample_n(3) %>%
   unnest(df_assigned) %>%
   filter(sampling_location != "other") %>%
   group_by(sampling_location) %>%
-  slice_sample(n = 162) %>%
+  slice_sample(n = 108) %>%
   mutate(sampling_location = recode_factor(
     sampling_location,
     stratified = "Random",
@@ -142,7 +138,6 @@ all_runs %>%
     edge = "Edge",
     .ordered = TRUE
   )) %>%
-  left_join(nfi_coords, by = "description") %>%
   mutate(tr = recode_factor(tr, `0` = "Control", `1` = "Treated")) %>%
   ggplot(aes(ost_wgs84, nord_wgs84, colour = tr)) +
   borders("world", regions = "sweden", linewidth = 0.25) +
