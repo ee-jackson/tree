@@ -1,12 +1,17 @@
 #' Assign treatment group to individual plot.
 #' @param df_clean The clean data.
 #' @param assignment One of "random" or "non_random".
+#' @param seed Optional random seed.
 #' @return df_assigned
 #' @import dplyr
 #' @importFrom tidyr pivot_wider
 #' @export
 
-assign_treatment <- function(df_clean, assignment = "stratified") {
+assign_treatment <- function(df_clean, assignment = "stratified", seed = NULL) {
+
+    if (!is.null(seed)) {
+      set.seed(seed = seed)
+    }
 
   features <- df_clean |>
     dplyr::filter(period == 0) |>

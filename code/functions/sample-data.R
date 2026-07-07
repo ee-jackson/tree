@@ -2,11 +2,16 @@
 #' @param df_assigned The data which has been assigned treatments.
 #' @param prop_not_treated Sample imbalance - the proportion of the data that will be assigned 0.
 #' @param n_train The number of plots in the train dataset (sample size).
+#' @param seed Optional random seed.
 #' @return df_train
 #' @import dplyr
 #' @export
 
-sample_data <- function(df_assigned, prop_not_treated = 0.5, n_train = 1000) {
+sample_data <- function(df_assigned, prop_not_treated = 0.5, n_train = 1000, seed = NULL) {
+
+  if (!is.null(seed)) {
+    set.seed(seed = seed)
+  }
 
   # sample train
   df_train_0 <- df_assigned |>
