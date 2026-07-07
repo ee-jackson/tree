@@ -8,7 +8,7 @@
 #' @param df_assigned The full dataset to which treatment has been assigned.
 #' @param learner The choice of meta-learner: "s", "t", "x", or "dr".
 #' @param var_omit Omission of a variable from the feature list, either `none`,
-#'    `omit_soil_c` or `omit_soil_moist`
+#'    or `omit_confounder`
 #' @param test_plot_location Test plots selected from "stratified", "edge", or
 #'   "core".
 #' @param seed Optional random seed.
@@ -24,7 +24,7 @@
 #'   list-column called `metalearner_fit`. Defaults to FALSE to keep simulation
 #'   output smaller.
 #' @return Test data with `cate_pred` and `cate_real` columns.
-#' @import dplyr tidymodels
+#' @import dplyr tidymodels ranger
 #' @importFrom tidyselect all_of
 #' @export
 
@@ -55,8 +55,8 @@ fit_metalearner <- function(df_train, df_assigned, learner, var_omit = "none",
          call. = FALSE)
   }
 
-  if (!var_omit %in% c("none", "omit_soil_c", "omit_soil_moist")) {
-    stop("`var_omit` should be one of 'omit_soil_c', 'omit_soil_moist', or 'none'.", call. = FALSE)
+  if (!var_omit %in% c("none", "omit_confounder")) {
+    stop("`var_omit` should be 'omit_confounder', or 'none'.", call. = FALSE)
   }
 
   feat_list <- get_metalearner_features(var_omit = var_omit)
@@ -145,11 +145,7 @@ get_metalearner_features <- function(var_omit = "none") {
     "volume_other_broadleaf", "volume_larch"
   )
 
-  if (var_omit == "omit_soil_c") {
-    base_features <- setdiff(base_features, "soil_carbon_initial")
-  }
-
-  if (var_omit == "omit_soil_moist") {
+  if (var_omit == "omit_confounder") {
     base_features <- setdiff(base_features, "soil_moist_code")
   }
 
