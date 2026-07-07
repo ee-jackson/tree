@@ -1,15 +1,14 @@
-#' Calculate the AUTOC coefficient.
+#' Calculate the normalized AUTOC coefficient.
 #'
-#' Calculates the AUTOC coefficient using a true individual treatment effect
-#' and a predicted treatment effect / uplift score.
+#' Calculates the normalized AUTOC coefficient using a true individual
+#' treatment effect and a predicted treatment effect / uplift score.
 #'
-#' AUTOC is calculated as the signed area under the TOC curve, where:
+#' Normalized AUTOC is computed as:
 #'
-#' TOC(q) = mean tau among the top q fraction of observations - mean tau overall
+#'   AUTOC(model) / AUTOC(perfect ranking)
 #'
-#' Observations are ranked from highest to lowest predicted treatment effect.
-#' This version is intended for simulated data where the true individual
-#' treatment effect is known.
+#' where perfect ranking means sorting observations by the true treatment
+#' effect from highest to lowest.
 #'
 #' @param data A data frame containing the true and predicted treatment effects.
 #' @param truth The column containing the true individual treatment effect, tau.
@@ -30,32 +29,29 @@
 #'   tau_hat = tau + rnorm(100, sd = 0.5)
 #' )
 #'
-#' autoc(df, truth = tau, estimate = tau_hat)
-autoc <- function(data, truth, estimate, na_rm = TRUE) {
+#' autoc_norm(df, truth = tau, estimate = tau_hat)
+autoc_norm <- function(data, truth, estimate, na_rm = TRUE) {
 
   truth <- rlang::eval_tidy(rlang::enquo(truth), data)
   estimate <- rlang::eval_tidy(rlang::enquo(estimate), data)
 
-  autoc_value <- autoc_vec(
+  autoc_value <- autoc_norm_vec(
     truth = truth,
     estimate = estimate,
     na_rm = na_rm
   )
 
-  result <- tibble::tibble(
-    .metric = "autoc",
+  tibble::tibble(
+    .metric = "autoc_norm",
     .estimator = "standard",
     .estimate = autoc_value
   )
-
-  return(result)
-
 }
 
 
-#' Calculate the AUTOC coefficient from vectors.
+#' Calculate the 1-normalized AUTOC coefficient from vectors.
 #'
-#' Vector method for calculating the AUTOC coefficient.
+#' Vector method for calculating normalized AUTOC.
 #'
 #' @param truth A numeric vector containing the true individual treatment effect, tau.
 #' @param estimate A numeric vector containing the predicted treatment effect / uplift score.
@@ -64,7 +60,7 @@ autoc <- function(data, truth, estimate, na_rm = TRUE) {
 #' @return A numeric value.
 #'
 #' @export
-autoc_vec <- function(truth, estimate, na_rm = TRUE) {
+autoc_norm_vec <- function(truth, estimate, na_rm = TRUE) {
 
   if (length(truth) != length(estimate)) {
     stop("`truth` and `estimate` must have the same length.")
@@ -76,16 +72,11 @@ autoc_vec <- function(truth, estimate, na_rm = TRUE) {
   )
 
   if (na_rm) {
-
-    df <- df |>
-      dplyr::filter(stats::complete.cases(df))
-
+    df <- df[stats::complete.cases(df), , drop = FALSE]
   } else {
-
     if (anyNA(df)) {
       return(NA_real_)
     }
-
   }
 
   n <- nrow(df)
@@ -94,23 +85,27 @@ autoc_vec <- function(truth, estimate, na_rm = TRUE) {
     return(NA_real_)
   }
 
-  df <- df |>
-    dplyr::arrange(dplyr::desc(estimate)) |>
-    dplyr::mutate(
-      q = dplyr::row_number() / n,
-      toc = cumsum(truth) / dplyr::row_number() - mean(truth)
-    )
+  compute_autoc_from_order <- function(tau_sorted) {
+    toc <- cumsum(tau_sorted) / seq_along(tau_sorted) - mean(tau_sorted)
+    q <- seq_along(tau_sorted) / length(tau_sorted)
 
-  x <- c(0, df$q)
+    x <- c(0, q)
+    y <- c(toc[1], toc)
 
-  # Match your compute_autoc() convention:
-  # limit as q -> 0 is approximated using the top-ranked unit.
-  y <- c(df$toc[1], df$toc)
+    sum(diff(x) * (head(y, -1) + tail(y, -1)) / 2)
+  }
 
-  autoc_value <- sum(
-    diff(x) * (head(y, -1) + tail(y, -1)) / 2
-  )
+  # Model AUTOC
+  tau_sorted_model <- df$truth[order(df$estimate, decreasing = TRUE)]
+  autoc_model <- compute_autoc_from_order(tau_sorted_model)
 
-  return(autoc_value)
+  # Perfect AUTOC: sort by the true treatment effect itself
+  tau_sorted_perfect <- sort(df$truth, decreasing = TRUE)
+  autoc_perfect <- compute_autoc_from_order(tau_sorted_perfect)
 
+  if (isTRUE(all.equal(autoc_perfect, 0))) {
+    return(NA_real_)
+  }
+
+  1 - (autoc_model / autoc_perfect)
 }
