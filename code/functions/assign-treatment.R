@@ -1,6 +1,6 @@
 #' Assign treatment group to individual plot.
 #' @param df_clean The clean data.
-#' @param assignment One of "random" or "correlated_wet".
+#' @param assignment One of "random" or "non_random".
 #' @return df_assigned
 #' @import dplyr
 #' @importFrom tidyr pivot_wider
@@ -11,7 +11,8 @@ assign_treatment <- function(df_clean, assignment = "stratified") {
   features <- df_clean |>
     dplyr::filter(period == 0) |>
     dplyr::select(
-      description, sampling_location, soil_moist_code,
+      description, ost_wgs84, nord_wgs84,
+      sampling_location, soil_moist_code,
       altitude, mat_5yr, map_5yr, ditch, no_of_stems,
       volume_pine, volume_spruce, volume_birch,
       volume_aspen, volume_oak, volume_beech,
@@ -76,6 +77,8 @@ assign_treatment <- function(df_clean, assignment = "stratified") {
                                     data_assigned_edge,
                                     data_assigned_stratified)
 
+  # now assign training data
+
   if (assignment == "random") {
 
     no_treat_ids_rand <- df_clean |>
@@ -109,14 +112,14 @@ assign_treatment <- function(df_clean, assignment = "stratified") {
 
     return(data_obs_rand)
 
-  } else if (assignment == "correlated_wet") {
+  } else if (assignment == "non_random") {
 
     # wet plots more likely to be in no treat group
     no_treat_ids_corr <- df_clean |>
       dplyr::filter(sampling_location == "other") |>
       dplyr::select(description, wet) |>
       dplyr::distinct() |>
-      dplyr::mutate(wet = wet + 0.1) |>
+      dplyr::mutate(wet = wet + 1) |>
       dplyr::slice_sample(prop = 0.5,
                           weight_by = wet) |>
       dplyr::select(description)
@@ -147,6 +150,6 @@ assign_treatment <- function(df_clean, assignment = "stratified") {
     return(data_obs_wet)
 
   } else {
-    print("assignment should be either 'random', 'correlated_region' or 'correlated_wet'")
+    print("assignment should be either 'random' or 'non_random'")
   }
 }
