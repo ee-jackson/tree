@@ -1,6 +1,6 @@
 #' Sample training data.
 #' @param df_assigned The data which has been assigned treatments.
-#' @param prop_not_treated Sample imbalance - the proportion of the data that will be assigned 0.
+#' @param prop_not_treated Sample imbalance - the proportion of the data that will be assigned 0 (clearcutting).
 #' @param n_train The number of plots in the train dataset (sample size).
 #' @param seed Optional random seed.
 #' @return df_train

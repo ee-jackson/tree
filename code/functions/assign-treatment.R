@@ -107,11 +107,11 @@ assign_treatment <- function(df_clean, assignment = "stratified", seed = NULL) {
                          names_from = control_category_name,
                          values_from = total_soil_carbon) |>
       dplyr::mutate(soil_carbon_obs =
-                      dplyr::case_when(tr == 0 ~ `SetAside (Unmanaged)`,
-                                       tr == 1 ~ `BAU - NoThinning`)) |>
+                      dplyr::case_when(tr == 1 ~ `SetAside (Unmanaged)`,
+                                       tr == 0 ~ `BAU - NoThinning`)) |>
       dplyr::rename(soil_carbon_initial = `Initial state`,
-                    soil_carbon_0 = `SetAside (Unmanaged)`,
-                    soil_carbon_1 = `BAU - NoThinning`) |>
+                    soil_carbon_1 = `SetAside (Unmanaged)`,
+                    soil_carbon_0 = `BAU - NoThinning`) |>
       dplyr::left_join(features,
                        by = "description")
 
@@ -119,8 +119,8 @@ assign_treatment <- function(df_clean, assignment = "stratified", seed = NULL) {
 
   } else if (assignment == "non_random") {
 
-    # wet plots more likely to be in no treat group
-    no_treat_ids_corr <- df_clean |>
+    # wet plots more likely to be in treat/set aside group
+    treat_ids_corr <- df_clean |>
       dplyr::filter(sampling_location == "other") |>
       dplyr::select(description, wet) |>
       dplyr::distinct() |>
@@ -133,8 +133,8 @@ assign_treatment <- function(df_clean, assignment = "stratified", seed = NULL) {
       dplyr::filter(sampling_location == "other") |>
       dplyr::mutate(tr =
                       dplyr::case_when(
-                        description %in% no_treat_ids_corr$description ~ 0,
-                         .default = 1)
+                        description %in% treat_ids_corr$description ~ 1,
+                         .default = 0)
                     ) |>
       dplyr::bind_rows(test_assigned)
 
@@ -144,11 +144,11 @@ assign_treatment <- function(df_clean, assignment = "stratified", seed = NULL) {
                          names_from = control_category_name,
                          values_from = total_soil_carbon) |>
       dplyr::mutate(soil_carbon_obs =
-                      dplyr::case_when(tr == 0 ~ `SetAside (Unmanaged)`,
-                                       tr == 1 ~ `BAU - NoThinning`)) |>
+                      dplyr::case_when(tr == 1 ~ `SetAside (Unmanaged)`,
+                                       tr == 0 ~ `BAU - NoThinning`)) |>
       dplyr::rename(soil_carbon_initial = `Initial state`,
-                    soil_carbon_0 = `SetAside (Unmanaged)`,
-                    soil_carbon_1 = `BAU - NoThinning`) |>
+                    soil_carbon_1 = `SetAside (Unmanaged)`,
+                    soil_carbon_0 = `BAU - NoThinning`) |>
       dplyr::left_join(features,
                        by = "description")
 
