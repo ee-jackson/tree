@@ -8,7 +8,7 @@
 #' @param df_assigned The full dataset to which treatment has been assigned.
 #' @param learner The choice of meta-learner: "s", "t", "x", or "dr".
 #' @param var_omit Omission of a variable from the feature list, either `none`,
-#'    or `omit_confounder`
+#'    or `omit_covariate`
 #' @param test_plot_location Test plots selected from "stratified", "edge", or
 #'   "core".
 #' @param seed Optional random seed.
@@ -18,7 +18,6 @@
 #' @param min_n Minimum node size.
 #' @param num_threads Number of ranger threads per base learner. Use 1 if
 #'   parallelising over simulation runs.
-#' @param dr_folds Number of folds for DR-learner cross-fitting.
 #' @param trim Propensity score truncation value.
 #' @param return_model Logical. If TRUE, attaches fitted model objects in a
 #'   list-column called `metalearner_fit`. Defaults to FALSE to keep simulation
@@ -28,14 +27,13 @@
 #' @importFrom tidyselect all_of
 #' @export
 
-fit_metalearner <- function(df_train, df_assigned, learner, var_omit = "none",
+fit_metalearner <- function(df_train, df_assigned, learner, var_omit = FALSE,
                             test_plot_location = "stratified",
                             seed = NULL,
                             trees = 500,
                             mtry = NULL,
                             min_n = 5,
                             num_threads = 1,
-                            dr_folds = 2,
                             trim = 0.01,
                             return_model = FALSE) {
   if (!is.null(seed)) {
@@ -55,8 +53,8 @@ fit_metalearner <- function(df_train, df_assigned, learner, var_omit = "none",
          call. = FALSE)
   }
 
-  if (!var_omit %in% c("none", "omit_confounder")) {
-    stop("`var_omit` should be 'omit_confounder', or 'none'.", call. = FALSE)
+  if (!var_omit %in% c("none", "omit_covariate")) {
+    stop("`var_omit` should be 'omit_covariate', or 'none'.", call. = FALSE)
   }
 
   feat_list <- get_metalearner_features(var_omit = var_omit)
@@ -116,7 +114,6 @@ fit_metalearner <- function(df_train, df_assigned, learner, var_omit = "none",
       prop_feat_list = prop_feat_list,
       rf_reg_spec = rf_reg_spec,
       rf_prop_spec = rf_prop_spec,
-      dr_folds = dr_folds,
       trim = trim
     )
   )
@@ -145,7 +142,7 @@ get_metalearner_features <- function(var_omit = "none") {
     "volume_other_broadleaf", "volume_larch"
   )
 
-  if (var_omit == "omit_confounder") {
+  if (var_omit == "omit_covariate") {
     base_features <- setdiff(base_features, "soil_moist_code")
   }
 
@@ -366,54 +363,39 @@ fit_x_learner_tidymodels <- function(train_data, test_data, feat_list,
 
 fit_dr_learner_tidymodels <- function(train_data, test_data, feat_list,
                                       prop_feat_list, rf_reg_spec,
-                                      rf_prop_spec, dr_folds = 2,
+                                      rf_prop_spec,
                                       trim = 0.01) {
-  check_dr_inputs(train_data = train_data, dr_folds = dr_folds)
+  treated_data <- train_data |>
+    dplyr::filter(.data$.tr_num == 1L)
 
-  n <- nrow(train_data)
-  fold_id <- sample(rep(seq_len(dr_folds), length.out = n))
+  control_data <- train_data |>
+    dplyr::filter(.data$.tr_num == 0L)
 
-  mu1_hat <- rep(NA_real_, n)
-  mu0_hat <- rep(NA_real_, n)
-  e_hat <- rep(NA_real_, n)
+  check_treatment_split(treated_data, control_data)
 
-  for (fold in seq_len(dr_folds)) {
-    analysis_data <- train_data[fold_id != fold, , drop = FALSE]
-    assessment_data <- train_data[fold_id == fold, , drop = FALSE]
+  mu1_fit <- fit_regression_workflow(
+    data = treated_data,
+    outcome = "soil_carbon_obs",
+    predictors = feat_list,
+    spec = rf_reg_spec
+  )
 
-    treated_analysis <- analysis_data |>
-      dplyr::filter(.data$.tr_num == 1L)
+  mu0_fit <- fit_regression_workflow(
+    data = control_data,
+    outcome = "soil_carbon_obs",
+    predictors = feat_list,
+    spec = rf_reg_spec
+  )
 
-    control_analysis <- analysis_data |>
-      dplyr::filter(.data$.tr_num == 0L)
+  prop_fit <- fit_propensity_workflow(
+    data = train_data,
+    predictors = prop_feat_list,
+    spec = rf_prop_spec
+  )
 
-    check_treatment_split(treated_analysis, control_analysis)
-
-    mu1_fit <- fit_regression_workflow(
-      data = treated_analysis,
-      outcome = "soil_carbon_obs",
-      predictors = feat_list,
-      spec = rf_reg_spec
-    )
-
-    mu0_fit <- fit_regression_workflow(
-      data = control_analysis,
-      outcome = "soil_carbon_obs",
-      predictors = feat_list,
-      spec = rf_reg_spec
-    )
-
-    prop_fit <- fit_propensity_workflow(
-      data = analysis_data,
-      predictors = prop_feat_list,
-      spec = rf_prop_spec
-    )
-
-    assess_idx <- which(fold_id == fold)
-    mu1_hat[assess_idx] <- predict_regression(mu1_fit, assessment_data)
-    mu0_hat[assess_idx] <- predict_regression(mu0_fit, assessment_data)
-    e_hat[assess_idx] <- predict_propensity(prop_fit, assessment_data, trim = trim)
-  }
+  mu1_hat <- predict_regression(mu1_fit, train_data)
+  mu0_hat <- predict_regression(mu0_fit, train_data)
+  e_hat <- predict_propensity(prop_fit, train_data, trim = trim)
 
   dr_score <- mu1_hat - mu0_hat +
     train_data$.tr_num * (train_data$soil_carbon_obs - mu1_hat) / e_hat -
@@ -433,13 +415,17 @@ fit_dr_learner_tidymodels <- function(train_data, test_data, feat_list,
 
   list(
     cate_pred = cate_pred,
-    models = list(tau = tau_fit),
+    models = list(
+      mu1 = mu1_fit,
+      mu0 = mu0_fit,
+      propensity = prop_fit,
+      tau = tau_fit
+    ),
     nuisance_predictions = list(
       mu1_hat = mu1_hat,
       mu0_hat = mu0_hat,
       e_hat = e_hat,
-      dr_score = dr_score,
-      fold_id = fold_id
+      dr_score = dr_score
     )
   )
 }
@@ -447,23 +433,6 @@ fit_dr_learner_tidymodels <- function(train_data, test_data, feat_list,
 check_treatment_split <- function(treated_data, control_data) {
   if (nrow(treated_data) < 2L || nrow(control_data) < 2L) {
     stop("Both treatment groups need at least two observations to fit the learner.",
-         call. = FALSE)
-  }
-}
-
-check_dr_inputs <- function(train_data, dr_folds) {
-  if (dr_folds < 2L) {
-    stop("`dr_folds` should be at least 2 for cross-fitting.", call. = FALSE)
-  }
-
-  if (dr_folds > nrow(train_data)) {
-    stop("`dr_folds` cannot exceed the number of training observations.",
-         call. = FALSE)
-  }
-
-  tab <- table(train_data$.tr_num)
-  if (!all(c("0", "1") %in% names(tab)) || any(tab[c("0", "1")] < dr_folds + 1L)) {
-    stop("Each treatment group needs more observations than `dr_folds` for DR cross-fitting.",
          call. = FALSE)
   }
 }
