@@ -49,7 +49,7 @@ autoc_norm <- function(data, truth, estimate, na_rm = TRUE) {
 }
 
 
-#' Calculate the 1-normalized AUTOC coefficient from vectors.
+#' Calculate the normalized AUTOC coefficient from vectors.
 #'
 #' Vector method for calculating normalized AUTOC.
 #'
@@ -89,10 +89,22 @@ autoc_norm_vec <- function(truth, estimate, na_rm = TRUE) {
     toc <- cumsum(tau_sorted) / seq_along(tau_sorted) - mean(tau_sorted)
     q <- seq_along(tau_sorted) / length(tau_sorted)
 
-    x <- c(0, q)
-    y <- c(toc[1], toc)
+    # Logarithmic AUTOC weighting: alpha(q) proportional to 1 / q.
+    #
+    # Use midpoint weights over the discrete q-grid, matching the usual
+    # RATE approximation: average TOC over intervals weighted by 1 / q_mid.
+    q_left <- c(0, head(q, -1))
+    q_right <- q
+    q_mid <- (q_left + q_right) / 2
 
-    sum(diff(x) * (head(y, -1) + tail(y, -1)) / 2)
+    toc_left <- c(toc[1], head(toc, -1))
+    toc_right <- toc
+    toc_mid <- (toc_left + toc_right) / 2
+
+    weights <- 1 / q_mid
+    weights <- weights / sum(weights)
+
+    sum(weights * toc_mid)
   }
 
   # Model AUTOC
@@ -107,5 +119,5 @@ autoc_norm_vec <- function(truth, estimate, na_rm = TRUE) {
     return(NA_real_)
   }
 
-  1 - (autoc_model / autoc_perfect)
+  autoc_model / autoc_perfect # 1 = perfect ranking and 0 = no useful ranking
 }
