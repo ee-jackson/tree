@@ -59,6 +59,25 @@ all_runs %>%
   geom_density()
 ```
 
+perfect autoc:
+
+```{r}
+all_runs <- all_runs %>%
+  mutate(autoc_perfect = purrr::map(
+    .x = df_out,
+    .f = ~ autoc_norm_vec(truth = .x$cate_real,
+                     estimate = .x$cate_real)
+  )) %>%
+  unnest(autoc_perfect) %>%
+  mutate(autoc_perfect = 1 - autoc_perfect) # so lower is better
+```
+
+```{r}
+# 0 = perfect ranking and 1 = no useful ranking, here, all = 0 
+all_runs %>% 
+  glimpse()
+```
+
 now scramble 
 
 ```{r}
@@ -118,7 +137,8 @@ all_runs %>%
 
 ```{r}
 all_runs %>% 
-  summarise(median(autoc_clean), 
+  summarise(median(autoc_perfect),
+            median(autoc_clean), 
             median(autoc_scramble),  
             median(autoc_noisy))
 

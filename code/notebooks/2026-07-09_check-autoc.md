@@ -62,6 +62,40 @@ all_runs %>%
 
 ![](figures/2026-07-09_check-autoc/unnamed-chunk-5-1.png)<!-- -->
 
+perfect autoc:
+
+``` r
+all_runs <- all_runs %>%
+  mutate(autoc_perfect = purrr::map(
+    .x = df_out,
+    .f = ~ autoc_norm_vec(truth = .x$cate_real,
+                     estimate = .x$cate_real)
+  )) %>%
+  unnest(autoc_perfect) %>%
+  mutate(autoc_perfect = 1 - autoc_perfect) # so lower is better
+```
+
+``` r
+# 0 = perfect ranking and 1 = no useful ranking, here, all = 0 
+all_runs %>% 
+  glimpse()
+```
+
+    ## Rows: 4,320
+    ## Columns: 12
+    ## $ assignment         <fct> random, random, random, random, random, random, ran…
+    ## $ prop_not_treated   <dbl> 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0…
+    ## $ n_train            <dbl> 250, 250, 250, 250, 250, 250, 250, 250, 250, 250, 2…
+    ## $ learner            <fct> s, s, s, s, s, s, s, s, s, s, s, s, s, s, s, s, s, …
+    ## $ var_omit           <fct> none, none, none, none, none, none, none, none, non…
+    ## $ test_plot_location <fct> stratified, stratified, stratified, stratified, str…
+    ## $ run_id             <int> 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, …
+    ## $ df_assigned        <list> [<tbl_df[1806 x 26]>], [<tbl_df[1806 x 26]>], [<tb…
+    ## $ df_train           <list> [<tbl_df[250 x 26]>], [<tbl_df[250 x 26]>], [<tbl_…
+    ## $ df_out             <list> [<tbl_df[108 x 28]>], [<tbl_df[108 x 28]>], [<tbl_…
+    ## $ autoc_clean        <dbl> 0.6903083, 0.6347699, 0.8503038, 0.6859188, 0.12976…
+    ## $ autoc_perfect      <dbl> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …
+
 now scramble
 
 ``` r
@@ -88,7 +122,7 @@ all_runs %>%
   geom_density()
 ```
 
-![](figures/2026-07-09_check-autoc/unnamed-chunk-7-1.png)<!-- -->
+![](figures/2026-07-09_check-autoc/unnamed-chunk-9-1.png)<!-- -->
 
 try adding small amount of error - Gaussian noise
 
@@ -121,19 +155,21 @@ all_runs %>%
   geom_density()
 ```
 
-![](figures/2026-07-09_check-autoc/unnamed-chunk-9-1.png)<!-- -->
+![](figures/2026-07-09_check-autoc/unnamed-chunk-11-1.png)<!-- -->
 
 ``` r
 all_runs %>% 
-  summarise(median(autoc_clean), 
+  summarise(median(autoc_perfect),
+            median(autoc_clean), 
             median(autoc_scramble),  
             median(autoc_noisy))
 ```
 
-    ## # A tibble: 1 × 3
-    ##   `median(autoc_clean)` `median(autoc_scramble)` `median(autoc_noisy)`
-    ##                   <dbl>                    <dbl>                 <dbl>
-    ## 1                 0.630                     1.03                 0.633
+    ## # A tibble: 1 × 4
+    ##   `median(autoc_perfect)` `median(autoc_clean)` `median(autoc_scramble)`
+    ##                     <dbl>                 <dbl>                    <dbl>
+    ## 1                       0                 0.630                     1.02
+    ## # ℹ 1 more variable: `median(autoc_noisy)` <dbl>
 
 median(autoc_clean) → better than random
 
