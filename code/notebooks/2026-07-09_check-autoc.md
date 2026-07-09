@@ -90,16 +90,53 @@ all_runs %>%
 
 ![](figures/2026-07-09_check-autoc/unnamed-chunk-7-1.png)<!-- -->
 
+try adding small amount of error - Gaussian noise
+
 ``` r
-all_runs %>% 
-  summarise(median(autoc_clean), median(autoc_scramble))
+all_runs <- all_runs %>%
+  mutate(
+    df_out = purrr::map(df_out, ~
+      dplyr::mutate(
+        .x,
+        cate_pred_noisy = 
+          cate_pred + rnorm(length(cate_pred), 
+                            mean = 0, 
+                            sd = sd(cate_pred) * 0.1)
+      )
+    )
+  ) %>%
+  mutate(autoc_noisy = purrr::map(
+    .x = df_out,
+    .f = ~ autoc_norm_vec(truth = .x$cate_real,
+                     estimate = .x$cate_pred_noisy)
+  )) %>%
+  unnest(autoc_noisy) %>%
+  mutate(autoc_noisy = 1 - autoc_noisy) # so lower is better
 ```
 
-    ## # A tibble: 1 × 2
-    ##   `median(autoc_clean)` `median(autoc_scramble)`
-    ##                   <dbl>                    <dbl>
-    ## 1                 0.630                     1.02
+``` r
+# 0 = perfect ranking and 1 = no useful ranking
+all_runs %>% 
+  ggplot(aes(x = autoc_noisy)) +
+  geom_density()
+```
 
-median(autoc_clean) = 0.63 → better than random
+![](figures/2026-07-09_check-autoc/unnamed-chunk-9-1.png)<!-- -->
 
-median(autoc_scramble) = 1.016 → essentially null
+``` r
+all_runs %>% 
+  summarise(median(autoc_clean), 
+            median(autoc_scramble),  
+            median(autoc_noisy))
+```
+
+    ## # A tibble: 1 × 3
+    ##   `median(autoc_clean)` `median(autoc_scramble)` `median(autoc_noisy)`
+    ##                   <dbl>                    <dbl>                 <dbl>
+    ## 1                 0.630                     1.03                 0.633
+
+median(autoc_clean) → better than random
+
+median(autoc_noisy) → small amount of error is similar to autoc_clean
+
+median(autoc_scramble) → essentially null
