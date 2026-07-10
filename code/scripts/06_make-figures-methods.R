@@ -33,7 +33,7 @@ all_runs <-
     var_omit = recode_factor(
       var_omit,
       none = "No variable omission",
-      omit_confounder = "Omit confounder",
+      omit_confounder = "Omit covariable",
       .ordered = TRUE
     )
   )
@@ -50,12 +50,12 @@ all_runs %>%
   mutate(tr = recode_factor(tr, `0` = "Control", `1` = "Treated")) %>%
   ggplot(aes(ost_wgs84, nord_wgs84, colour = tr)) +
   borders("world", regions = "sweden", linewidth = 0.25) +
-  geom_point(size = 0.25, alpha = 0.7, shape = 16) +
+  geom_point(size = 0.25, alpha = 0.9, shape = 16) +
   coord_quickmap() +
-  theme_void(base_size = 6) +
+  theme_void(base_size = 10) +
   theme(legend.position = "bottom",
         legend.title = element_blank(),
-        legend.text = element_text(size = 5),
+        legend.text = element_text(size = 8),
         plot.margin = unit(c(0, 0, 0, 0), "cm"),
         legend.key.size = unit(0.01, "cm")) +
   guides(color = guide_legend(override.aes = list(size = 2))) +
@@ -64,7 +64,7 @@ all_runs %>%
 
 
 ggsave(here::here("output","figures","methods-assignment.png"),
-       width = 1000, height = 500, units = "px")
+       width = 700, height = 500, units = "px")
 
 
 # sampling imbalance ------------------------------------------------------
@@ -90,7 +90,7 @@ all_runs %>%
   facet_wrap(~ prop_not_treated, nrow = 1)
 
 ggsave(here::here("output","figures","methods-prop_not_treated.png"),
-       width = 1000, height = 500, units = "px")
+       width = 700, height = 500, units = "px")
 
 
 # sample size -------------------------------------------------------------
@@ -105,7 +105,7 @@ all_runs %>%
   mutate(tr = recode_factor(tr, `0` = "Control", `1` = "Treated")) %>%
   ggplot(aes(ost_wgs84, nord_wgs84, colour = tr)) +
   borders("world", regions = "sweden", linewidth = 0.25) +
-  geom_point(size = 0.25, alpha = 0.7, shape = 16) +
+  geom_point(size = 0.25, alpha = 0.9, shape = 16) +
   coord_quickmap() +
   theme_void(base_size = 10) +
   theme(legend.position = "bottom",
@@ -117,7 +117,7 @@ all_runs %>%
   facet_wrap(~ n_train, nrow = 1)
 
 ggsave(here::here("output","figures","methods-n_train.png"),
-       width = 1000, height = 500, units = "px")
+       width = 700, height = 500, units = "px")
 
 
 # test data location ------------------------------------------------------
@@ -141,9 +141,9 @@ all_runs %>%
   mutate(tr = recode_factor(tr, `0` = "Control", `1` = "Treated")) %>%
   ggplot(aes(ost_wgs84, nord_wgs84, colour = tr)) +
   borders("world", regions = "sweden", linewidth = 0.25) +
-  geom_point(size = 0.25, alpha = 0.7, shape = 16) +
+  geom_point(size = 0.25, alpha = 0.9, shape = 16) +
   coord_quickmap() +
-  theme_void(base_size = 9) +
+  theme_void(base_size = 10) +
   theme(legend.position = "bottom",
         legend.title = element_blank(),
         legend.text = element_text(size = 8),
@@ -153,4 +153,4 @@ all_runs %>%
   facet_wrap(~ sampling_location, nrow = 1)
 
 ggsave(here::here("output","figures","methods-test_plot_location.png"),
-       width = 1000, height = 500, units = "px")
+       width = 700, height = 500, units = "px")
