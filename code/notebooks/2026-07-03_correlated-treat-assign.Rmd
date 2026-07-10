@@ -1,0 +1,71 @@
+---
+title: "Treat assign"
+author: 'eleanorjackson'
+date: '`r format(Sys.time(), "%d %B, %Y")`' 
+always_allow_html: true
+output: 
+  github_document:
+    keep_html: true
+---
+	
+```{r setup, include = FALSE}
+file_name <- rstudioapi::getSourceEditorContext()$path
+
+knitr::opts_chunk$set(
+  fig.path =
+    paste0("figures/", sub("\\.Rmd$", "", basename(file_name)), "/", sep = "")
+)
+
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 15))
+```
+
+```{r}
+library("tidyverse")
+library("here")
+library("patchwork")
+```
+
+```{r}
+clean_data <-
+  readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time_clim_squ.rds"))
+```
+
+```{r}
+clean_data %>% 
+  ggplot(aes(x = ditch, y = soil_moist_code)) +
+  geom_jitter()
+```
+
+
+```{r}
+clean_data |> filter(period == 0) |>
+      dplyr::filter(sampling_location == "other") |>
+  distinct(description)-> clean_data_0
+
+clean_data |>
+      filter(period == 0) |>
+      dplyr::filter(sampling_location == "other") |>
+      dplyr::filter(wet == 1) |>
+      dplyr::select(description, wet) |>
+      dplyr::distinct() |>
+      dplyr::slice_sample(n = round(0.5 * nrow(clean_data_0))) |> glimpse()
+```
+
+```{r}
+clean_data_0 |>
+      dplyr::filter(sampling_location == "other") |>
+      dplyr::select(description, altitude) |>
+      dplyr::distinct() |>
+      dplyr::slice_sample(prop = 0.5,
+                   weight_by = altitude) |> glimpse()
+```
+
+
+```{r}
+clean_data_0 |>
+      dplyr::filter(sampling_location == "other") |>
+      dplyr::select(description, altitude) |>
+      dplyr::distinct() |>
+      dplyr::slice_sample(prop = 0.5,
+                   weight_by = altitude) |> glimpse()
+```
