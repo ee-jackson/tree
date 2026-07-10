@@ -14,7 +14,7 @@ library("patchwork")
 library("yardstick")
 library("ggtext")
 
-set.seed(123)
+set.seed(20644)
 
 
 # get data ----------------------------------------------------------------
@@ -38,8 +38,8 @@ results <- readRDS(here("data", "derived", "results.rds")) %>%
       learner,
       s = "S-learner",
       t = "T-learner",
-      x = "X-leaner",
-      dr = "DR-leaner",
+      x = "X-learner",
+      dr = "DR-learner",
       .ordered = TRUE
     ),
     var_omit = recode_factor(
@@ -214,7 +214,8 @@ wrap_plots(plots, ncol = length(y_specs$y_var), guides = "collect") +
                   tag_prefix = "(",
                   tag_suffix = ")") &
   theme(legend.position = "bottom",
-        plot.tag = element_text(face = "italic"))
+        plot.tag = element_text(face = "italic"),
+        legend.text = element_text(size = 6))
 
 ggsave(here::here("output","figures","results-figure1.png"),
        width = 2000, height = 2000, units = "px")
@@ -273,7 +274,8 @@ plot_facet_metric <- function(data,
     theme_bw(base_size = 6) +
     theme(
       axis.title.y = element_markdown(),
-      legend.title = element_blank()
+      legend.title = element_blank(),
+      legend.text = element_text(size = 6)
     )
 }
 

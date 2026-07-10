@@ -177,7 +177,8 @@ plot_ite_surfaces <- function(data_cont,
       plot.tag = element_text(face = "italic"),
       plot.subtitle = element_text(face = "italic"),
       strip.text.y = element_text(angle = 270),
-      axis.title.y = element_markdown()
+      axis.title.y = element_markdown(),
+      legend.text = element_text(size = 6)
     )
 }
 
