@@ -72,8 +72,8 @@ plot_soilc <- function(plot_id, data) {
   data %>%
     filter(description == plot_id) %>%
     mutate(control_category_name =
-             case_when(control_category_name == "BAU - NoThinning" ~ "Business as usual (treated)",
-                       control_category_name == "SetAside (Unmanaged)" ~ "Set aside (control)",
+             case_when(control_category_name == "BAU - NoThinning" ~ "Business as usual (control)",
+                       control_category_name == "SetAside (Unmanaged)" ~ "Set aside (treated)",
                        .default = control_category_name)) %>%
     ggplot(aes(x = period, y = total_soil_carbon,
                colour = as.factor(control_category_name),
@@ -82,7 +82,7 @@ plot_soilc <- function(plot_id, data) {
     geom_line(linewidth = 0.3) +
     labs(y = "Soil carbon\n(ton C/ha)",
          x = "Time period") +
-    scale_color_manual(values = c( "#E69F00", "#009E73", "#0072B2")) +
+    scale_color_manual(values = c("#0072B2", "#009E73", "#E69F00")) +
     scale_shape_manual(values = c(16, 17, 4)) +
     theme_classic(base_size = 8) +
     theme(legend.text = element_text(size = 8))
