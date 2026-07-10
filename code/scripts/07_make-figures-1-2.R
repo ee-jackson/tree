@@ -140,9 +140,9 @@ y_specs <- tibble(
     "rmse"
   ),
   y_lab = c(
-    "Targeting error<br>(AUTOC)",
-    "Targeting precision<br>(top-k precision)",
-    "Ranking error<br>(Spearman's &rho;)",
+    "Targeting error<br>(1- AUTOC)",
+    "Targeting imprecision<br>(1- top-k precision)",
+    "Ranking error<br>(1- Spearman's &rho;)",
     "Estimation error<br>(RMSE)"
   )
 )
@@ -235,7 +235,7 @@ plot_facet_metric <- function(data,
   pos_jit <- position_jitter(width = x_jitter, height = 0, seed = 1)
 
   if (y_var == "spearman") {
-    y_breaks = c(0.6, 0.7, 0.8)
+    y_breaks = c(0.2, 0.3, 0.4)
   }
 
   data %>%
@@ -263,8 +263,8 @@ plot_facet_metric <- function(data,
     ) +
     scale_colour_manual(values = c("#E69F00", "#009E73", "#0072B2", "#CC79A7")) +
     facet_grid(
-      rows = vars(`Treatment assignment\n` = .data[[facet_rows]]),
-      cols = vars(`Treatment imbalance` = .data[[facet_cols]]),
+      rows = vars(`Treatment\nimbalance` = .data[[facet_rows]]),
+      cols = vars(`Treatment assignment\n` = .data[[facet_cols]]),
       labeller = label_both
     ) +
     scale_y_continuous(breaks = y_breaks) +
@@ -304,4 +304,4 @@ wrap_plots(plots_2, ncol = 2, guides = "collect") +
         plot.subtitle = element_text(face = "italic", size = 6))
 
 ggsave(here::here("output","figures","results-figure2.png"),
-       width = 1800, height = 2000, units = "px")
+       width = 1600, height = 2000, units = "px")
