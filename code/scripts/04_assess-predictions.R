@@ -102,6 +102,8 @@ all_runs %>%
 
 # mean and sd for each performance metric, across every comb of study conditions
 
+fmt3 <- function(x) format(round(x, digits = 3), nsmall = 3)
+
 summary_table <- all_runs %>%
   select(-df_out) %>%
   mutate(
@@ -122,8 +124,8 @@ summary_table <- all_runs %>%
       learner,
       s = "S-learner",
       t = "T-learner",
-      x = "X-leaner",
-      dr = "DR-leaner",
+      x = "X-learner",
+      dr = "DR-learner",
       .ordered = TRUE
     ),
     var_omit = recode_factor(
@@ -131,7 +133,8 @@ summary_table <- all_runs %>%
       none = "No omission",
       omit_covariate = "Omit covariate",
       .ordered = TRUE
-    )) %>%
+    )
+  ) %>%
   group_by(
     assignment,
     prop_not_treated,
@@ -144,39 +147,59 @@ summary_table <- all_runs %>%
     across(
       c(rmse, autoc, spearman, top_k),
       list(
-        range = ~ paste0(
-          format(round(mean(.x, na.rm = TRUE), digits = 3), nsmall = 3),
-          " ± ",
-          format(round(sd(.x, na.rm = TRUE), digits = 3), nsmall = 3)
-        )
-      )
+        mean = ~ fmt3(mean(.x, na.rm = TRUE)),
+        sd = ~ fmt3(sd(.x, na.rm = TRUE)),
+        ci95 = ~ {
+          n <- sum(!is.na(.x))
+          m <- mean(.x, na.rm = TRUE)
+          s <- sd(.x, na.rm = TRUE)
+          se <- s / sqrt(n)
+          tcrit <- qt(0.975, df = n - 1)
+          paste0(
+            "[",
+            fmt3(m - tcrit * se),
+            ", ",
+            fmt3(m + tcrit * se),
+            "]"
+          )
+        }
+      ),
+      .names = "{.col}_{.fn}"
     ),
     .groups = "drop"
   ) %>%
-  select( c(
+  select(
     assignment,
     n_train,
     prop_not_treated,
     test_plot_location,
     learner,
     var_omit,
-    autoc_range,
-    top_k_range,
-    spearman_range,
-    rmse_range
-  )) %>%
-  mutate("n Virtual studies" = 50) %>%
+    autoc_mean, autoc_sd, autoc_ci95,
+    top_k_mean, top_k_sd, top_k_ci95,
+    spearman_mean, spearman_sd, spearman_ci95,
+    rmse_mean, rmse_sd, rmse_ci95
+  ) %>%
+  mutate(`n Virtual studies` = 50) %>%
   rename(
-     "Estimation error" = rmse_range,
-     "Ranking error" = spearman_range,
-     "Targeting imprecision" = top_k_range,
-     "Targeting error" = autoc_range,
-     "Treatment assignment" = assignment,
-     "Training sample size" = n_train,
-     "Treatment imbalance" = prop_not_treated,
-     "Spatial overlap of test and training data" = test_plot_location,
-     "Covariate omission" = var_omit,
-     "Meta-learner" = learner
+    `Estimation error mean` = rmse_mean,
+    `Estimation error SD` = rmse_sd,
+    `Estimation error 95% CI` = rmse_ci95,
+    `Ranking error mean` = spearman_mean,
+    `Ranking error SD` = spearman_sd,
+    `Ranking error 95% CI` = spearman_ci95,
+    `Targeting imprecision mean` = top_k_mean,
+    `Targeting imprecision SD` = top_k_sd,
+    `Targeting imprecision 95% CI` = top_k_ci95,
+    `Targeting error mean` = autoc_mean,
+    `Targeting error SD` = autoc_sd,
+    `Targeting error 95% CI` = autoc_ci95,
+    `Treatment assignment` = assignment,
+    `Training sample size` = n_train,
+    `Treatment imbalance` = prop_not_treated,
+    `Spatial overlap of test and training data` = test_plot_location,
+    `Covariate omission` = var_omit,
+    `Meta-learner` = learner
   )
 
 write_csv(summary_table, here::here("output", "results", "summary_results.csv"))
@@ -193,8 +216,8 @@ summary_table2 <- all_runs %>%
       learner,
       s = "S-learner",
       t = "T-learner",
-      x = "X-leaner",
-      dr = "DR-leaner",
+      x = "X-learner",
+      dr = "DR-learner",
       .ordered = TRUE
     ),
     var_omit = recode_factor(
@@ -210,28 +233,48 @@ summary_table2 <- all_runs %>%
     across(
       c(rmse, autoc, spearman, top_k),
       list(
-        range = ~ paste0(
-          format(round(mean(.x, na.rm = TRUE), digits = 3), nsmall = 3),
-          " ± ",
-          format(round(sd(.x, na.rm = TRUE), digits = 3), nsmall = 3)
-        )
-      )
+        mean = ~ fmt3(mean(.x, na.rm = TRUE)),
+        sd = ~ fmt3(sd(.x, na.rm = TRUE)),
+        ci95 = ~ {
+          n <- sum(!is.na(.x))
+          m <- mean(.x, na.rm = TRUE)
+          s <- sd(.x, na.rm = TRUE)
+          se <- s / sqrt(n)
+          tcrit <- qt(0.975, df = n - 1)
+          paste0(
+            "[",
+            fmt3(m - tcrit * se),
+            ", ",
+            fmt3(m + tcrit * se),
+            "]"
+          )
+        }
+      ),
+      .names = "{.col}_{.fn}"
     ),
     .groups = "drop"
   ) %>%
   select( c(
     learner,
-    autoc_range,
-    top_k_range,
-    spearman_range,
-    rmse_range
+    autoc_mean, autoc_sd, autoc_ci95,
+    top_k_mean, top_k_sd, top_k_ci95,
+    spearman_mean, spearman_sd, spearman_ci95,
+    rmse_mean, rmse_sd, rmse_ci95
   )) %>%
   rename(
-    "Estimation error" = rmse_range,
-    "Ranking error" = spearman_range,
-    "Targeting imprecision" = top_k_range,
-    "Targeting error" = autoc_range,
-    "Meta-learner" = learner
+    `Estimation error mean` = rmse_mean,
+    `Estimation error SD` = rmse_sd,
+    `Estimation error 95% CI` = rmse_ci95,
+    `Ranking error mean` = spearman_mean,
+    `Ranking error SD` = spearman_sd,
+    `Ranking error 95% CI` = spearman_ci95,
+    `Targeting imprecision mean` = top_k_mean,
+    `Targeting imprecision SD` = top_k_sd,
+    `Targeting imprecision 95% CI` = top_k_ci95,
+    `Targeting error mean` = autoc_mean,
+    `Targeting error SD` = autoc_sd,
+    `Targeting error 95% CI` = autoc_ci95,
+    `Meta-learner` = learner
   )
 
 write_csv(summary_table2, here::here("output", "results", "summary_results2.csv"))
