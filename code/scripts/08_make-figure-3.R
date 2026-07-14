@@ -129,29 +129,33 @@ plot_ite_surfaces <- function(data_cont,
       colour = "grey30",
       inherit.aes = FALSE
     ) +
-    geom_smooth(
+    geom_line(
       data = data_cont,
       aes(y = cate_real, colour = "True ITE"),
-      method = "loess",
-      se = FALSE,
-      linewidth = 1
-    ) +
-    geom_smooth(
-      data = data_cont,
-      aes(y = cate_pred, colour = learner),
+      stat = "smooth",
       method = "loess",
       se = FALSE,
       linewidth = 0.7
+    ) +
+    geom_line(
+      data = data_cont,
+      aes(y = cate_pred, colour = learner),
+      stat = "smooth",
+      method = "loess",
+      se = FALSE,
+      linewidth = 0.7,
+      alpha = 0.7
     ) +
     geom_line(
       data = true_discrete,
       aes(y = y, colour = "True ITE"),
-      linewidth = 1
+      linewidth = 0.7
     ) +
     geom_line(
       data = pred_discrete,
       aes(y = y, colour = learner),
-      linewidth = 0.7
+      linewidth = 0.7,
+      alpha = 0.7
     ) +
     scale_colour_manual(values = colours, name = NULL) +
     facet_grid(
