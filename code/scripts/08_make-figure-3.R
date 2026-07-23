@@ -173,7 +173,7 @@ plot_ite_surfaces <- function(data_cont,
     labs(
       x = "Covariate value",
       y = "ITE (t C ha<sup>-1</sup>)",
-      subtitle = "Training sample size: 1000, Treatment imbalance: 0.5, Treatment assignment: Random",
+      subtitle = "Training sample size: 1000, Treatment imbalance: 0.5, Spatial overlap of test and training data: Random",
     ) +
     theme_bw(base_size = 6) +
     theme(
