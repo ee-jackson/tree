@@ -180,11 +180,11 @@ x_specs <- tibble(
     FALSE
   ),
   x_jitter = c(
-    0.1,
+    0.15,
     20,
     0.01,
-    0.1,
-    0.1
+    0.15,
+    0.15
   )
 )
 
@@ -230,7 +230,7 @@ plot_facet_metric <- function(data,
                               x_lab = "Covariate omission",
                               facet_rows = "prop_not_treated",
                               facet_cols = "assignment",
-                              x_jitter = 0.1,
+                              x_jitter = 0.15,
                               y_breaks = waiver()) {
 
   pos_jit <- position_jitter(width = x_jitter, height = 0, seed = 1)
