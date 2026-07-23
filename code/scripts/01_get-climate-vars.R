@@ -203,7 +203,7 @@ readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time.rds")) %>%
   group_by(description) %>%
   arrange(period, .by_group = TRUE) %>%
   ungroup() %>%
-  mutate(wet = ifelse(soil_moist_code == 3 & ditch == 0, 1, 0)) -> filtered_data
+  mutate(wet = ifelse(soil_moist_code == 3, 1, 0)) -> filtered_data
 
 
 # select columns ----------------------------------------------------------
