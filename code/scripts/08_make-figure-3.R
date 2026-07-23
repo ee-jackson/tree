@@ -173,7 +173,7 @@ plot_ite_surfaces <- function(data_cont,
     labs(
       x = "Covariate value",
       y = "ITE (t C ha<sup>-1</sup>)",
-      subtitle = "Training sample size: 1000, Treatment imbalance: 0.3, Treatment assignment: Random",
+      subtitle = "Training sample size: 1000, Treatment imbalance: 0.5, Treatment assignment: Random",
     ) +
     theme_bw(base_size = 6) +
     theme(
@@ -192,7 +192,7 @@ plot_ite_surfaces <- function(data_cont,
 all_runs <- readRDS(here::here("data", "derived", "all_runs.rds")) %>%
   filter(
     test_plot_location == "stratified",
-    prop_not_treated == 0.3,
+    prop_not_treated == 0.5,
     n_train == 1000
   )
 
@@ -238,8 +238,6 @@ fig_3 <- plot_ite_surfaces(
   pred_discrete = moist_pred,
   colours = cols
 )
-
-fig_3
 
 
 # Save plot ---------------------------------------------------------------
