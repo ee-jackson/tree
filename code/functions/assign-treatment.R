@@ -1,22 +1,28 @@
 #' Assign treatment group to individual plot.
 #' @param df_clean The clean data.
-#' @param assignment One of "random", "correlated_region" or "correlated_altitude".
+#' @param assignment One of "random" or "non_random".
+#' @param seed Optional random seed.
 #' @return df_assigned
 #' @import dplyr
 #' @importFrom tidyr pivot_wider
 #' @export
 
-assign_treatment <- function(df_clean, assignment) {
+assign_treatment <- function(df_clean, assignment = "stratified", seed = NULL) {
+
+    if (!is.null(seed)) {
+      set.seed(seed = seed)
+    }
 
   features <- df_clean |>
     dplyr::filter(period == 0) |>
     dplyr::select(
-      description, sampling_location, soil_moist_code,
+      description, ost_wgs84, nord_wgs84,
+      sampling_location, soil_moist_code,
       altitude, mat_5yr, map_5yr, ditch, no_of_stems,
       volume_pine, volume_spruce, volume_birch,
       volume_aspen, volume_oak, volume_beech,
       volume_southern_broadleaf, volume_contorta,
-      volume_other_broadleaf, volume_larch
+      volume_other_broadleaf, volume_larch, wet
     )
 
   # first assign test data
@@ -76,6 +82,8 @@ assign_treatment <- function(df_clean, assignment) {
                                     data_assigned_edge,
                                     data_assigned_stratified)
 
+  # now assign training data
+
   if (assignment == "random") {
 
     no_treat_ids_rand <- df_clean |>
@@ -99,94 +107,54 @@ assign_treatment <- function(df_clean, assignment) {
                          names_from = control_category_name,
                          values_from = total_soil_carbon) |>
       dplyr::mutate(soil_carbon_obs =
-                      dplyr::case_when(tr == 0 ~ `SetAside (Unmanaged)`,
-                                       tr == 1 ~ `BAU - NoThinning`)) |>
+                      dplyr::case_when(tr == 1 ~ `SetAside (Unmanaged)`,
+                                       tr == 0 ~ `BAU - NoThinning`)) |>
       dplyr::rename(soil_carbon_initial = `Initial state`,
-                    soil_carbon_0 = `SetAside (Unmanaged)`,
-                    soil_carbon_1 = `BAU - NoThinning`) |>
+                    soil_carbon_1 = `SetAside (Unmanaged)`,
+                    soil_carbon_0 = `BAU - NoThinning`) |>
       dplyr::left_join(features,
                        by = "description")
 
     return(data_obs_rand)
 
-  } else if (assignment == "correlated_region") {
+  } else if (assignment == "non_random") {
 
-    id_region_ord <- df_clean |>
+    # wet plots more likely to be in treat/set aside group
+    treat_ids_corr <- df_clean |>
       dplyr::filter(sampling_location == "other") |>
-      dplyr::select(description, region) |>
+      dplyr::select(description, wet) |>
       dplyr::distinct() |>
-      dplyr::mutate(sample_weight = case_when(region == 1 ~ 0.40,
-                                       region == 21 ~ 0.40,
-                                       region == 22 ~ 0.30,
-                                       region == 3 ~ 0.20,
-                                       region == 4 ~ 0.10,
-                                       region == 5 ~ 0.10 ))
-
-    no_treat_ids_region <- dplyr::slice_sample(id_region_ord,
-                 prop = 0.5,
-                 weight_by = sample_weight)
-
-    data_assigned_region <- df_clean |>
-      dplyr::filter(sampling_location == "other") |>
-      dplyr::mutate(tr =
-                      dplyr::case_when(
-                        description %in% no_treat_ids_region$description ~ 0,
-                        .default = 1)
-      ) |>
-      dplyr::bind_rows(test_assigned)
-
-    data_obs_region <- data_assigned_region |>
-      dplyr::select(description, tr, control_category_name, total_soil_carbon) |>
-      tidyr::pivot_wider(id_cols = c(description, tr),
-                         names_from = control_category_name,
-                         values_from = total_soil_carbon) |>
-      dplyr::mutate(soil_carbon_obs =
-                      dplyr::case_when(tr == 0 ~ `SetAside (Unmanaged)`,
-                                       tr == 1 ~ `BAU - NoThinning`)) |>
-      dplyr::rename(soil_carbon_initial = `Initial state`,
-                    soil_carbon_0 = `SetAside (Unmanaged)`,
-                    soil_carbon_1 = `BAU - NoThinning`) |>
-      dplyr::left_join(features,
-                       by = "description")
-
-    return(data_obs_region)
-
-  } else if (assignment == "correlated_altitude") {
-
-    no_treat_ids_corr <- df_clean |>
-      dplyr::filter(sampling_location == "other") |>
-      dplyr::select(description, altitude) |>
-      dplyr::distinct() |>
+      dplyr::mutate(wet = wet + 1) |>
       dplyr::slice_sample(prop = 0.5,
-                   weight_by = altitude) |>
+                          weight_by = wet) |>
       dplyr::select(description)
 
-    data_assigned_altitude <- df_clean |>
+    data_assigned_wet <- df_clean |>
       dplyr::filter(sampling_location == "other") |>
       dplyr::mutate(tr =
                       dplyr::case_when(
-                        description %in% no_treat_ids_corr$description ~ 0,
-                         .default = 1)
+                        description %in% treat_ids_corr$description ~ 1,
+                         .default = 0)
                     ) |>
       dplyr::bind_rows(test_assigned)
 
-    data_obs_altitude <- data_assigned_altitude |>
+    data_obs_wet <- data_assigned_wet |>
       dplyr::select(description, tr, control_category_name, total_soil_carbon) |>
       tidyr::pivot_wider(id_cols = c(description, tr),
                          names_from = control_category_name,
                          values_from = total_soil_carbon) |>
       dplyr::mutate(soil_carbon_obs =
-                      dplyr::case_when(tr == 0 ~ `SetAside (Unmanaged)`,
-                                       tr == 1 ~ `BAU - NoThinning`)) |>
+                      dplyr::case_when(tr == 1 ~ `SetAside (Unmanaged)`,
+                                       tr == 0 ~ `BAU - NoThinning`)) |>
       dplyr::rename(soil_carbon_initial = `Initial state`,
-                    soil_carbon_0 = `SetAside (Unmanaged)`,
-                    soil_carbon_1 = `BAU - NoThinning`) |>
+                    soil_carbon_1 = `SetAside (Unmanaged)`,
+                    soil_carbon_0 = `BAU - NoThinning`) |>
       dplyr::left_join(features,
                        by = "description")
 
-    return(data_obs_altitude)
+    return(data_obs_wet)
 
   } else {
-    print("assignment should be either 'random', 'correlated_region' or 'correlated_altitude'")
+    print("assignment should be either 'random' or 'non_random'")
   }
 }

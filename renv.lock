@@ -9,22 +9,6 @@
     ]
   },
   "Packages": {
-    "BART": {
-      "Package": "BART",
-      "Version": "2.9.4",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "Rcpp",
-        "nlme",
-        "nnet",
-        "parallel",
-        "survival",
-        "tools"
-      ],
-      "Hash": "6a6047c0359531ca0ab0a42b96a3ada3"
-    },
     "DBI": {
       "Package": "DBI",
       "Version": "1.2.2",
@@ -133,20 +117,6 @@
       ],
       "Hash": "e02d1a0f6122fd3e634b25b433704344"
     },
-    "Matching": {
-      "Package": "Matching",
-      "Version": "4.10-14",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "MASS",
-        "R",
-        "grDevices",
-        "graphics",
-        "stats"
-      ],
-      "Hash": "499f8d6717eb3952a82fc89080dc1e8f"
-    },
     "Matrix": {
       "Package": "Matrix",
       "Version": "1.6-5",
@@ -247,20 +217,6 @@
       ],
       "Hash": "5ea2700d21e038ace58269ecdbeb9ec0"
     },
-    "RcppArmadillo": {
-      "Package": "RcppArmadillo",
-      "Version": "0.12.6.6.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "Rcpp",
-        "methods",
-        "stats",
-        "utils"
-      ],
-      "Hash": "aabc6cb0f0953d0442d3c82d8a9d2610"
-    },
     "RcppEigen": {
       "Package": "RcppEigen",
       "Version": "0.3.3.9.4",
@@ -273,35 +229,6 @@
         "utils"
       ],
       "Hash": "acb0a5bf38490f26ab8661b467f4f53a"
-    },
-    "RcppThread": {
-      "Package": "RcppThread",
-      "Version": "2.1.6",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R"
-      ],
-      "Hash": "15b2a1d05d59110afc61be7b789325fe"
-    },
-    "Rforestry": {
-      "Package": "Rforestry",
-      "Version": "0.10.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "Rcpp",
-        "RcppArmadillo",
-        "RcppThread",
-        "glmnet",
-        "grDevices",
-        "methods",
-        "onehot",
-        "pROC",
-        "parallel",
-        "visNetwork"
-      ],
-      "Hash": "4396fe7ca22e6bfb7d240c6394b8e4c0"
     },
     "RgoogleMaps": {
       "Package": "RgoogleMaps",
@@ -547,38 +474,6 @@
       ],
       "Hash": "ac6cdb8552c61bd36b0e54d07cf2aab7"
     },
-    "causalToolbox": {
-      "Package": "causalToolbox",
-      "Version": "0.0.2.4",
-      "Source": "GitHub",
-      "Remotes": "forestry-labs/Rforestry",
-      "RemoteType": "github",
-      "RemoteHost": "api.github.com",
-      "RemoteRepo": "causalToolbox",
-      "RemoteUsername": "forestry-labs",
-      "RemoteRef": "HEAD",
-      "RemoteSha": "75acc74ae689fddebe63a43597ff21f3ec233bd4",
-      "Requirements": [
-        "BART",
-        "MASS",
-        "Matching",
-        "R",
-        "Rcpp",
-        "Rforestry",
-        "dbarts",
-        "distances",
-        "doParallel",
-        "foreach",
-        "methods",
-        "parallel",
-        "plyr",
-        "quickmatch",
-        "rBayesianOptimization",
-        "ranger",
-        "stats"
-      ],
-      "Hash": "c449a47f1fd60b9337675926917f735b"
-    },
     "cellranger": {
       "Package": "cellranger",
       "Version": "1.1.0",
@@ -792,20 +687,6 @@
       ],
       "Hash": "b4c06e554f33344e044ccd7fdca750a9"
     },
-    "dbarts": {
-      "Package": "dbarts",
-      "Version": "0.9-23",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "graphics",
-        "methods",
-        "parallel",
-        "stats"
-      ],
-      "Hash": "c05310a8c618eaf8590083ebf75746b4"
-    },
     "dbplyr": {
       "Package": "dbplyr",
       "Version": "2.3.2",
@@ -927,17 +808,6 @@
       ],
       "Hash": "b18a9cf3c003977b0cc49d5e76ebe48d"
     },
-    "distances": {
-      "Package": "distances",
-      "Version": "0.1.9",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "stats"
-      ],
-      "Hash": "a785b9ce73a25124c44049708be1a7a9"
-    },
     "distributional": {
       "Package": "distributional",
       "Version": "0.3.2",
@@ -957,20 +827,6 @@
         "vctrs"
       ],
       "Hash": "0a94c3c917918a1c90f4609171ff41b6"
-    },
-    "doParallel": {
-      "Package": "doParallel",
-      "Version": "1.0.17",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "foreach",
-        "iterators",
-        "parallel",
-        "utils"
-      ],
-      "Hash": "451e5edf411987991ab6a5410c45011f"
     },
     "dplyr": {
       "Package": "dplyr",
@@ -1439,24 +1295,6 @@
         "scales"
       ],
       "Hash": "c5ba8f5056487403a299b91984be86ca"
-    },
-    "glmnet": {
-      "Package": "glmnet",
-      "Version": "4.1-8",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "Matrix",
-        "R",
-        "Rcpp",
-        "RcppEigen",
-        "foreach",
-        "methods",
-        "shape",
-        "survival",
-        "utils"
-      ],
-      "Hash": "eb6fc70e561aae41d5911a6726188f71"
     },
     "globals": {
       "Package": "globals",
@@ -2209,13 +2047,6 @@
       ],
       "Hash": "df58958f293b166e4ab885ebcad90e02"
     },
-    "onehot": {
-      "Package": "onehot",
-      "Version": "0.1.1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "f9fc9458fde89bfdc7b68dc715faacbd"
-    },
     "openssl": {
       "Package": "openssl",
       "Version": "2.1.1",
@@ -2225,19 +2056,6 @@
         "askpass"
       ],
       "Hash": "2a0dc8c6adfb6f032e4d4af82d258ab5"
-    },
-    "pROC": {
-      "Package": "pROC",
-      "Version": "1.18.5",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "Rcpp",
-        "methods",
-        "plyr"
-      ],
-      "Hash": "82d32ebd548c6a4e7de73bab96411b3b"
     },
     "parallelly": {
       "Package": "parallelly",
@@ -2547,36 +2365,6 @@
       ],
       "Hash": "1bbc97f7d637ab3917c514a69047b2c1"
     },
-    "quickmatch": {
-      "Package": "quickmatch",
-      "Version": "0.2.1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "distances",
-        "sandwich",
-        "scclust",
-        "stats"
-      ],
-      "Hash": "e952ffda33f6a6a257d7a6812e653d47"
-    },
-    "rBayesianOptimization": {
-      "Package": "rBayesianOptimization",
-      "Version": "1.2.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "GPfit",
-        "R",
-        "data.table",
-        "foreach",
-        "magrittr",
-        "stats",
-        "utils"
-      ],
-      "Hash": "1119489379999dbe3206562be41bf17d"
-    },
     "ragg": {
       "Package": "ragg",
       "Version": "1.5.0",
@@ -2586,7 +2374,7 @@
         "systemfonts",
         "textshaping"
       ],
-      "Hash": "690bc058ea2b1b8a407d3cfe3dce3ef9"
+      "Hash": "cdb40b21711a8870f305b24226698f9f"
     },
     "ranger": {
       "Package": "ranger",
@@ -2887,19 +2675,6 @@
       ],
       "Hash": "32f7b1a15bb01ae809022960abad5363"
     },
-    "sandwich": {
-      "Package": "sandwich",
-      "Version": "3.0-2",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "stats",
-        "utils",
-        "zoo"
-      ],
-      "Hash": "dd5af939b8690baa8ee0bca996e99924"
-    },
     "sass": {
       "Package": "sass",
       "Version": "0.4.7",
@@ -2946,17 +2721,6 @@
         "stats"
       ],
       "Hash": "10ee4b91ec812690bd55d9bf51edccee"
-    },
-    "scclust": {
-      "Package": "scclust",
-      "Version": "0.2.3",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "distances"
-      ],
-      "Hash": "ac6e76c7353f630a3df937d47067a01d"
     },
     "selectr": {
       "Package": "selectr",
@@ -3447,24 +3211,6 @@
       ],
       "Hash": "c826c7c4241b6fc89ff55aaea3fa7491"
     },
-    "visNetwork": {
-      "Package": "visNetwork",
-      "Version": "2.1.2",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "grDevices",
-        "htmltools",
-        "htmlwidgets",
-        "jsonlite",
-        "magrittr",
-        "methods",
-        "stats",
-        "utils"
-      ],
-      "Hash": "3e48b097e8d9a91ecced2ed4817a678d"
-    },
     "vroom": {
       "Package": "vroom",
       "Version": "1.6.1",
@@ -3609,9 +3355,11 @@
       "Repository": "CRAN",
       "Requirements": [
         "R",
-        "methods"
+        "cli",
+        "methods",
+        "rlang"
       ],
-      "Hash": "40682ed6a969ea5abfd351eb67833adc"
+      "Hash": "1d0336142f4cd25d8d23cd3ba7a8fb61"
     },
     "yaml": {
       "Package": "yaml",

@@ -5,10 +5,13 @@ code/graveyard
 output/plots
 data/*
 docs/preprint_*
+docs/*_submission/*
 *.doc
 *.docx
 *.xlsx
 *.pdf
+*.pptx
+*.ppt
 
 ## R ignores:
 

@@ -1,0 +1,98 @@
+---
+title: "Check for autocorrelation"
+author: 'eleanorjackson'
+date: '`r format(Sys.time(), "%d %B, %Y")`' 
+always_allow_html: true
+output: 
+  github_document:
+    keep_html: true
+---
+	
+```{r setup, include = FALSE}
+file_name <- rstudioapi::getSourceEditorContext()$path
+
+knitr::opts_chunk$set(
+  fig.path =
+    paste0("figures/", sub("\\.Rmd$", "", basename(file_name)), "/", sep = "")
+)
+
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 15))
+```
+
+```{r}
+library("tidyverse")
+library("here")
+library("patchwork")
+library("spdep")
+```
+
+Check for spatial autocorrelation in RMSE:
+
+We have errors plotted in Fig 3 - R1 has said they look spatially autocorrelated. 
+It’s worth checking spatial autocorrelation explicitly? Perhaps you could do this for conditions: n = 1000, treatment ass = random, imbalance = 0.5, etc
+
+coords <- as.matrix(d[, c("x", "y")]) nb <- knn2nb(knearneigh(coords, k = 8)) # k nearest neighbours lw <- nb2listw(nb, style = "W") moran.test(d$error, lw) # I, expected I, p-value 
+
+Compute Moran's I per run and compare its distribution across our three test-location conditions?
+
+
+```{r}
+all_runs <- 
+  readRDS(here::here("data", "derived", "all_runs.rds")) %>% 
+  filter(n_train == 1000, 
+         assignment == "random", 
+         test_plot_location == "stratified",
+         var_omit == "none",
+         prop_not_treated == 0.5) 
+
+one_run <- 
+  all_runs$df_out[[1]]
+```
+
+```{r warning=FALSE}
+nfi_coords <- readxl::read_excel(
+  here::here("data", "raw", "NFI_plot_coords_NFI_2016-2020.xlsx"),
+  col_types = c("numeric", "text", "text","numeric","numeric","numeric",
+                "numeric","numeric","numeric","numeric","numeric","numeric","numeric"),
+  progress = FALSE
+) %>%
+  select(Description, Ost_WGS84, Nord_WGS84) %>%
+  janitor::clean_names()
+```
+
+
+```{r}
+clean_data <-
+  readRDS(here::here("data", "derived", "ForManSims_RCP0_same_time_clim_squ.rds"))
+```
+
+```{r}
+one_run %>%
+    mutate(Error = cate_pred - cate_real) %>%
+    left_join(nfi_coords, by = join_by(description)) -> plot_dat
+```
+
+```{r}
+coords <- as.matrix(plot_dat[, c("ost_wgs84", "nord_wgs84")]) 
+
+nb <- knn2nb(knearneigh(coords, k = round(sqrt(nrow(plot_dat))))) # k nearest
+
+lw <- nb2listw(nb, style = "W") 
+
+moran.test(plot_dat$Error, lw) # I, expected I, p-value 
+
+moran.test(plot_dat$Error, lw)$estimate[[1]] # return this value
+```
+
+```{r}
+all_runs <- all_runs %>%
+  mutate(moran_i = purrr::map(
+    .x = df_out,
+    .f = ~ moran_i_vec(xcoord = .x$ost_wgs84,
+                       ycoord = .x$nord_wgs84,
+                       value = .x$error)
+  )) %>%
+  unnest(moran_i)
+
+```
+

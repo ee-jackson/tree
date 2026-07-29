@@ -1,0 +1,69 @@
+---
+title: "Test output of new DR learner function"
+author: 'eleanorjackson'
+date: '`r format(Sys.time(), "%d %B, %Y")`' 
+always_allow_html: true
+output: 
+  github_document:
+    keep_html: true
+---
+	
+```{r setup, include = FALSE}
+file_name <- rstudioapi::getSourceEditorContext()$path
+
+knitr::opts_chunk$set(
+  fig.path =
+    paste0("figures/", sub("\\.Rmd$", "", basename(file_name)), "/", sep = "")
+)
+
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 15))
+```
+
+```{r}
+library("tidyverse")
+library("here")
+library("patchwork")
+library("ggtext")
+```
+
+```{r}
+all_runs <-
+  readRDS(here::here("data", "derived", "all_runs_test.rds"))
+```
+
+```{r}
+best_run <- 
+  all_runs %>% 
+  filter(assignment == "random", 
+         prop_not_treated == 0.5,
+         n_train == 1000,
+         var_omit == FALSE,
+         test_plot_location == "stratified")
+```
+
+```{r}
+plot_dat <- 
+  best_run %>%
+    unnest(df_out) %>%
+    mutate(Error = cate_pred - cate_real) %>%
+    mutate(learner = str_to_upper(learner)) %>% 
+  select(learner, cate_pred, cate_real, Error)
+```
+
+```{r}
+plot_dat %>%
+    ggplot(aes(x = cate_real, y = cate_pred, colour = Error)) +
+    geom_hline(yintercept = 0, colour = "grey",
+               linetype = 2, linewidth = 0.25) +
+    geom_vline(xintercept = 0, colour = "grey",
+               linetype = 2, linewidth = 0.25) +
+    geom_point(size = 1) +
+    geom_abline(intercept = 0, slope = 1, colour = "blue", linewidth = 0.25) +
+    scale_colour_gradientn(
+      colours = colorspace::divergingx_hcl(n = 10, palette = "RdYlBu"),
+      limits = c(-30, 30)) +
+    xlim(-30, 15) +
+    ylim(-30, 15) +
+  facet_wrap(~learner)
+```
+

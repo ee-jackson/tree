@@ -1,24 +1,35 @@
-#!/usr/bin/env Rscript
+Trying AUTOC and Qini as criterions
+================
+eleanorjackson
+02 July, 2026
 
-## Author: E E Jackson, eleanor.elizabeth.j@gmail.com
-## Script: make-figure-rmse-rsqu.R
-## Desc: RMSE and Rsqu plots, make Figure 1
-## Date: April 2024
-
-
-# Load packages -----------------------------------------------------------
-
+``` r
 library("tidyverse")
+```
+
+    ## ── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+    ## ✔ dplyr     1.1.2     ✔ readr     2.1.4
+    ## ✔ forcats   1.0.0     ✔ stringr   1.5.0
+    ## ✔ ggplot2   3.5.0     ✔ tibble    3.2.1
+    ## ✔ lubridate 1.9.2     ✔ tidyr     1.3.0
+    ## ✔ purrr     1.0.2     
+    ## ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+    ## ✖ dplyr::filter() masks stats::filter()
+    ## ✖ dplyr::lag()    masks stats::lag()
+    ## ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+``` r
 library("here")
+```
+
+    ## here() starts at /Users/user/Library/CloudStorage/OneDrive-Nexus365/tree
+
+``` r
 library("patchwork")
-library("yardstick")
 library("ggtext")
+```
 
-set.seed(123)
-
-
-# get data ----------------------------------------------------------------
-
+``` r
 results <- readRDS(here("data", "derived", "results.rds")) %>%
   mutate(
     assignment = recode_factor(
@@ -42,8 +53,19 @@ results <- readRDS(here("data", "derived", "results.rds")) %>%
       x = "X-leaner",
       .ordered = TRUE
     ))
+```
 
+``` r
+mean_sd <- function(x) {
+  data.frame(
+    y = mean(x, na.rm = TRUE),
+    ymin = mean(x, na.rm = TRUE) - sd(x, na.rm = TRUE),
+    ymax = mean(x, na.rm = TRUE) + sd(x, na.rm = TRUE)
+  )
+}
+```
 
+``` r
 # make function -----------------------------------------------------------
 
 plot_rmse <- function(data,
@@ -58,6 +80,7 @@ plot_rmse <- function(data,
                    geom = "line",
                    linewidth = 0.3) +
       stat_summary(
+        fun.data = mean_sd,
         geom = "pointrange",
         size = 0.25,
         fill = "white",
@@ -81,6 +104,7 @@ plot_rmse <- function(data,
                    linewidth = 0.3) +
       stat_summary(
         geom = "pointrange",
+        fun.data = mean_sd,
         size = 0.25,
         fill = "white",
         shape = 21,
@@ -96,83 +120,87 @@ plot_rmse <- function(data,
   }
 
 }
+```
 
-
+``` r
 # make plots --------------------------------------------------------------
 
 plot_rmse(data = results,
-          y_var = results$rmse,
-          y_lab = "RMSE",
+          y_var = results$qini,
+          y_lab = "Qini",
           x_var = results$assignment,
-          x_lab = "Selection bias") +
+          x_lab = "Treatment assignment") +
 
 
   plot_rmse(data = results,
-            y_var = results$rsq,
-            y_lab = "R<sup>2</sup>",
+            y_var = results$autoc,
+            y_lab = "AUTOC",
             x_var = results$assignment,
-            x_lab = "Selection bias") +
+            x_lab = "Treatment assignment") +
 
 plot_rmse(data = results,
-          y_var = results$rmse,
-          y_lab = "RMSE",
+          y_var = results$qini,
+          y_lab = "Qini",
           x_var = results$n_train,
           x_lab = "Training sample size",
           x_breaks = c(0, 62, 125, 250, 500, 1000),
           x_cont = TRUE) +
 
   plot_rmse(data = results,
-            y_var = results$rsq,
-            y_lab = "R<sup>2</sup>",
+            y_var = results$autoc,
+            y_lab = "AUTOC",
             x_var = results$n_train,
             x_lab = "Training sample size",
             x_breaks = c(0, 62, 125, 250, 500, 1000),
             x_cont = TRUE) +
 
   plot_rmse(data = results,
-            y_var = results$rmse,
-            y_lab = "RMSE",
+            y_var = results$qini,
+            y_lab = "Qini",
             x_var = results$prop_not_treated,
             x_lab = "Treatment imbalance",
             x_breaks = c(0.3, 0.5, 0.7),
             x_cont = TRUE) +
 
   plot_rmse(data = results,
-            y_var = results$rsq,
-            y_lab = "R<sup>2</sup>",
+            y_var = results$autoc,
+            y_lab = "AUTOC",
             x_var = results$prop_not_treated,
             x_lab = "Treatment imbalance",
             x_breaks = c(0.3, 0.5, 0.7),
             x_cont = TRUE) +
 
   plot_rmse(data = results,
-            y_var = results$rmse,
-            y_lab = "RMSE",
+            y_var = results$qini,
+            y_lab = "Qini",
             x_var = results$test_plot_location,
             x_lab = "Spatial overlap of test\nand training data") +
 
   plot_rmse(data = results,
-            y_var = results$rsq,
-            y_lab = "R<sup>2</sup>",
+            y_var = results$autoc,
+            y_lab = "AUTOC",
             x_var = results$test_plot_location,
             x_lab = "Spatial overlap of test\nand training data") +
 
   plot_rmse(data = results,
-            y_var = results$rmse,
-            y_lab = "RMSE",
+            y_var = results$qini,
+            y_lab = "Qini",
             x_var = results$var_omit,
             x_lab = "Covariate omission") +
 
   plot_rmse(data = results,
-            y_var = results$rsq,
-            y_lab = "R<sup>2</sup>",
+            y_var = results$autoc,
+            y_lab = "AUTOC",
             x_var = results$var_omit,
             x_lab = "Covariate omission") +
 
   plot_layout(guides = "collect", ncol = 2) +
-  plot_annotation(tag_levels = "a") &
-  theme(legend.position = "bottom")
+  plot_annotation(tag_levels = "a", 
+                  tag_prefix = "(",
+                  tag_suffix = ")") &
+  theme(legend.position = "bottom",
+        plot.tag = element_text(face = "italic"),
+        text = element_text(family = "Times New Roman")) 
+```
 
-
-ggsave(here::here("output","figures","results-rmse-rsqu.png"),
-       width = 1000, height = 2000, units = "px")
+![](figures/2026-07-01_qini-autoc-criterions/unnamed-chunk-5-1.png)<!-- -->

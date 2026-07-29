@@ -1,5 +1,9 @@
-data/
-docs/
-output/
-/code/notebooks
-/code/graveyard
+*
+!code/
+code/*
+!code/scripts/
+code/scripts/*
+!code/scripts/**
+!code/functions/
+code/functions/*
+!code/functions/**

@@ -1,0 +1,5 @@
+Meta-learner,Targeting error mean,Targeting error SD,Targeting error 95% CI,Targeting imprecision mean,Targeting imprecision SD,Targeting imprecision 95% CI,Ranking error mean,Ranking error SD,Ranking error 95% CI,Estimation error mean,Estimation error SD,Estimation error 95% CI
+S-learner,0.661,0.180,"[0.656, 0.666]",0.545,0.102,"[0.543, 0.548]",0.397,0.155,"[0.393, 0.401]",5.587,1.338,"[5.551, 5.622]"
+T-learner,0.601,0.240,"[0.595, 0.608]",0.508,0.107,"[0.506, 0.511]",0.389,0.143,"[0.386, 0.393]",4.663,0.925,"[4.638, 4.688]"
+X-learner,0.544,0.237,"[0.538, 0.550]",0.453,0.088,"[0.451, 0.455]",0.284,0.087,"[0.282, 0.286]",4.119,0.777,"[4.098, 4.140]"
+DR-learner,0.543,0.258,"[0.536, 0.550]",0.475,0.113,"[0.472, 0.478]",0.330,0.148,"[0.326, 0.334]",4.349,0.953,"[4.324, 4.374]"

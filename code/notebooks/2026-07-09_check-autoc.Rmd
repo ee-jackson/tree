@@ -1,0 +1,151 @@
+---
+title: "Sense-check 1-norm AUTOC"
+author: 'eleanorjackson'
+date: '`r format(Sys.time(), "%d %B, %Y")`' 
+always_allow_html: true
+output: 
+  github_document:
+    keep_html: true
+---
+	
+```{r setup, include = FALSE}
+file_name <- rstudioapi::getSourceEditorContext()$path
+
+knitr::opts_chunk$set(
+  fig.path =
+    paste0("figures/", sub("\\.Rmd$", "", basename(file_name)), "/", sep = "")
+)
+
+ggplot2::theme_set(ggplot2::theme_bw(base_size = 15))
+```
+
+```{r message=FALSE, warning=FALSE}
+library("tidyverse")
+library("here")
+library("patchwork")
+```
+
+```{r message=FALSE, warning=FALSE}
+# get my functions
+function_dir <- list.files(here::here("code", "functions"),
+                           full.names = TRUE)
+
+sapply(function_dir, source)
+```
+
+
+```{r}
+# get data
+all_runs <-
+  readRDS(here::here("data", "derived", "all_runs_10.rds"))
+
+```
+
+```{r}
+all_runs <- all_runs %>%
+  mutate(autoc_clean = purrr::map(
+    .x = df_out,
+    .f = ~ autoc_norm_vec(truth = .x$cate_real,
+                     estimate = .x$cate_pred)
+  )) %>%
+  unnest(autoc_clean) %>%
+  mutate(autoc_clean = 1 - autoc_clean) # so lower is better
+```
+
+```{r}
+# 0 = perfect ranking and 1 = no useful ranking
+all_runs %>% 
+  ggplot(aes(x = autoc_clean)) +
+  geom_density()
+```
+
+perfect autoc:
+
+```{r}
+all_runs <- all_runs %>%
+  mutate(autoc_perfect = purrr::map(
+    .x = df_out,
+    .f = ~ autoc_norm_vec(truth = .x$cate_real,
+                     estimate = .x$cate_real)
+  )) %>%
+  unnest(autoc_perfect) %>%
+  mutate(autoc_perfect = 1 - autoc_perfect) # so lower is better
+```
+
+```{r}
+# 0 = perfect ranking and 1 = no useful ranking, here, all = 0 
+all_runs %>% 
+  glimpse()
+```
+
+now scramble 
+
+```{r}
+all_runs <- all_runs %>%
+  mutate(
+    df_out = map(
+      df_out,
+      ~ mutate(.x, cate_pred_scramble = sample(cate_pred))
+    )
+  ) %>%
+  mutate(autoc_scramble = purrr::map(
+    .x = df_out,
+    .f = ~ autoc_norm_vec(truth = .x$cate_real,
+                     estimate = .x$cate_pred_scramble)
+  )) %>%
+  unnest(autoc_scramble) %>%
+  mutate(autoc_scramble = 1 - autoc_scramble) # so lower is better
+```
+
+```{r}
+# 0 = perfect ranking and 1 = no useful ranking
+all_runs %>% 
+  ggplot(aes(x = autoc_scramble)) +
+  geom_density()
+```
+
+try adding small amount of error - Gaussian noise
+
+```{r}
+all_runs <- all_runs %>%
+  mutate(
+    df_out = purrr::map(df_out, ~
+      dplyr::mutate(
+        .x,
+        cate_pred_noisy = 
+          cate_pred + rnorm(length(cate_pred), 
+                            mean = 0, 
+                            sd = sd(cate_pred) * 0.1)
+      )
+    )
+  ) %>%
+  mutate(autoc_noisy = purrr::map(
+    .x = df_out,
+    .f = ~ autoc_norm_vec(truth = .x$cate_real,
+                     estimate = .x$cate_pred_noisy)
+  )) %>%
+  unnest(autoc_noisy) %>%
+  mutate(autoc_noisy = 1 - autoc_noisy) # so lower is better
+```
+
+```{r}
+# 0 = perfect ranking and 1 = no useful ranking
+all_runs %>% 
+  ggplot(aes(x = autoc_noisy)) +
+  geom_density()
+```
+
+```{r}
+all_runs %>% 
+  summarise(median(autoc_perfect),
+            median(autoc_clean), 
+            median(autoc_scramble),  
+            median(autoc_noisy))
+
+```
+
+median(autoc_clean) → better than random
+
+median(autoc_noisy) → small amount of error is similar to autoc_clean
+
+median(autoc_scramble) → essentially null
