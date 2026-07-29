@@ -12,22 +12,7 @@ Contact: eleanor.elizabeth.j@gmail.com
 
 ## Abstract
 
-With limited resources and the urgent need to reverse biodiversity loss, 
-conservation efforts must be targeted to where they will be most effective. 
-Targeting actions necessitates new approaches to causal prediction of 
-sited-level responses to alternative interventions. 
-We present the first application of ‘meta-learner algorithms’ to predict 
-‘individual treatment effects’ (ITEs) representing the effects of site-level 
-management actions. We compare the performance of three algorithms that differ 
-in how they handle selection biases typical to observational data: 
-S-, T-, and X-Learners, across 4,050 virtual studies predicting the effect of 
-forest management on soil carbon, the ITEs. The X-Learner, an algorithm which 
-adjusts for selection bias, consistently yielded the most accurate ITE 
-predictions across studies varying in sample size and imbalanced sample sizes 
-of treatment and control groups. Our study illustrates how ecologists can begin 
-to select and apply causal prediction methods to inform targeted conservation 
-action for ecological systems, and makes suggestions for further road-testing 
-of these approaches.
+Targeted environmental management requires knowing where interventions will be most effective. Individual treatment effects (ITEs), which predict how each site would respond to alternative interventions, could help direct limited conservation resources to where management is expected to deliver the greatest benefit. Causal machine learning methods such as meta-learners can predict ITEs, yet most evidence on their performance comes from fields with much larger datasets than are typical in ecology, and with different evaluation criteria. We provide the first decision-relevant test of meta-learners for ecological ITE prediction, using forest-management simulations in which true site-level ITEs are known. We evaluated four meta-learners (S-, T-, X- and DR-learners) across 21,600 virtual observational studies varying in sample size, treatment imbalance, treatment assignment, spatial overlap between training and test data, and covariate omission. We assessed performance using separate metrics for two tasks: regional prioritisation, where accurate site ranking is critical, and local decision-making, where accurate effect-size estimation is required. The X-learner performed best on average, but relative performance varied with study conditions and evaluation metric. Our results show how ecological use of meta-learners can be guided by decision context, sample size and causal assumptions.
 
 ## Contents:
 
