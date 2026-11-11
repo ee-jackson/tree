@@ -2,7 +2,7 @@
 
 ## Author: E E Jackson, eleanor.elizabeth.j@gmail.com
 ## Script: make-si-figures.R
-## Desc: make all figures for the SI
+## Desc: Makes all figures for the SI
 ## Date: March 2024
 
 

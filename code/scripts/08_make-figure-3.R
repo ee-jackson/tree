@@ -2,7 +2,7 @@
 
 ## Author: E E Jackson, eleanor.elizabeth.j@gmail.com
 ## Script: make-figure-3.R
-## Desc: True vs predicted ITE surfaces across covariate space
+## Desc: Makes Figure 3 - true vs predicted ITE surfaces across covariate space
 ## Date: July 2026
 
 
